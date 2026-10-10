@@ -18,6 +18,14 @@ local rects = {}
 function ns.MapRect(mapID, onMap)
     local key = mapID .. ":" .. onMap
     local r = rects[key]
+    if r == nil and ns.ZoneRectOnContinent then
+        local zone = ns.ZoneByMap(mapID)
+        local cont = zone and ns.CONTINENT_YARDS and ns.CONTINENT_YARDS[zone.continent]
+        if cont and cont.map == onMap then
+            r = ns.ZoneRectOnContinent(zone)
+            if r then rects[key] = r end
+        end
+    end
     if r == nil then
         local ok, left, right, top, bottom = ns.Ask(ns.API("C_Map", "GetMapRectOnMap"), mapID, onMap)
         left, right, top, bottom = ok and ns.Num(left), ok and ns.Num(right), ok and ns.Num(top), ok and ns.Num(bottom)
@@ -53,53 +61,51 @@ local function ContinentToZone(zone, x, y, cont)
 end
 ns.ContinentToZone = ContinentToZone
 
--- Add a zone path's points (after the first) to a continent point list.
-local function AddPath(pts, zone, path, from, cont)
-    for i = from or 2, #path do
-        local x, y = ZoneToContinent(zone, path[i].x, path[i].y, cont)
-        if x then pts[#pts + 1], pts[#pts + 2] = x, y end
+-- A zone point on its continent's map (nil without a known placement).
+function ns.ZoneToContinentPoint(zone, x, y)
+    local cont = ContinentMap(zone)
+    if not cont then return nil end
+    return ZoneToContinent(zone, x, y, cont)
+end
+
+-- Add a path's points from `from` on to a flat point list.
+local function AddPath(pts, path, from)
+    for i = from, #path do
+        pts[#pts + 1], pts[#pts + 2] = path[i].x, path[i].y
     end
 end
 
--- From the player to a point of the continent map: along the walking path
--- in the zone the player is in when both are on its map, else straight.
--- Points as a flat list, starting with the player.
-local function WalkFromPlayer(cont, px, py, tx, ty)
+-- From the player to a point, both on continent `c`'s map: along the
+-- walking path once found (across zone lines), straight until then.
+local function WalkFromPlayer(c, px, py, tx, ty)
     local pts = { px, py }
-    local here = ns.CurrentZone()
-    if here then
-        local hcont = ns.CONTINENT_YARDS and ns.CONTINENT_YARDS[here.continent]
-        local gx, gy = hcont and hcont.map == cont and ContinentToZone(here, tx, ty, cont)
-        local zx, zy = ns.PlayerOn(here.map)
-        if gx and zx and zx >= 0 and zx <= 1 and zy >= 0 and zy <= 1 and ns.Steer then
-            local _, _, _, path, k, cx, cy = ns.Steer(here, { x = gx, y = gy }, zx, zy)
-            if path then
-                local x, y = ZoneToContinent(here, cx, cy, cont)
-                pts[#pts + 1], pts[#pts + 2] = x, y
-                AddPath(pts, here, path, k + 1, cont)
-                return pts
-            end
+    if ns.Steer then
+        local _, _, _, path, k, cx, cy = ns.Steer(c, { x = tx, y = ty }, px, py)
+        if path then
+            pts[#pts + 1], pts[#pts + 2] = cx, cy
+            AddPath(pts, path, k + 1)
+            return pts
         end
     end
     pts[#pts + 1], pts[#pts + 2] = tx, ty
     return pts
 end
 
--- Between two points of a zone: along the walking path once found.
-local function WalkBetween(zone, ax, ay, bx, by, cont, pts)
-    local path = ns.PathBetween and ns.PathBetween(zone, ax, ay, bx, by)
+-- Between two points on continent `c`'s map: along the walking path once
+-- found, appended to `pts` (which already ends at the first point).
+local function WalkBetween(c, ax, ay, bx, by, pts)
+    local path = ns.PathBetween and ns.PathBetween(c, ax, ay, bx, by)
     if path then
-        AddPath(pts, zone, path, 2, cont)
+        AddPath(pts, path, 2)
     else
-        local x, y = ZoneToContinent(zone, bx, by, cont)
-        if x then pts[#pts + 1], pts[#pts + 2] = x, y end
+        pts[#pts + 1], pts[#pts + 2] = bx, by
     end
 end
 
 -- The route, on its continent's map: { cont = mapID, parts = { { kind, pts } } }
 -- with pts a flat list x1, y1, x2, y2, ...
 --   walk  - from you to the next stop (or to the flight master), along the
---           walking path once found;
+--           walking path once found, across zone lines;
 --   fly   - the flight, straight from flight point to flight point, then the
 --           walk from the landing along the map;
 --   route - stop to stop, along the walking paths between them.
@@ -108,6 +114,7 @@ function ns.RouteGeometry()
     local stop = ns.CurrentStop()
     if not (route and stop) then return nil end
     local zone = route.zone
+    local c = zone.continent
     local cont = ContinentMap(zone)
     if not cont then return nil end
     local parts = {}
@@ -118,37 +125,24 @@ function ns.RouteGeometry()
 
     if ns.travel and ns.travel.from and ns.travel.to then
         local f, t = ns.travel.from, ns.travel.to
-        if px then parts[#parts + 1] = { kind = "walk", pts = WalkFromPlayer(cont, px, py, f.x, f.y) } end
+        if px then parts[#parts + 1] = { kind = "walk", pts = WalkFromPlayer(c, px, py, f.x, f.y) } end
         parts[#parts + 1] = { kind = "fly", pts = { f.x, f.y, t.x, t.y } }
         local landing = { t.x, t.y }
-        local lx, ly = ContinentToZone(zone, t.x, t.y, cont)
-        if lx then
-            WalkBetween(zone, lx, ly, stop.x, stop.y, cont, landing)
-        else
-            landing[3], landing[4] = sx, sy
-        end
+        WalkBetween(c, t.x, t.y, sx, sy, landing)
         parts[#parts + 1] = { kind = "walk", pts = landing }
     elseif px then
-        -- The walking path, while the player is in the route's zone.
-        local zx, zy = ns.PlayerOn(zone.map)
-        local inside = zx and zx >= 0 and zx <= 1 and zy >= 0 and zy <= 1
-        local pts = { px, py }
-        if inside and ns.Steer then
-            local _, _, _, path, k, cx, cy = ns.Steer(zone, stop, zx, zy)
-            if path then
-                local x, y = ZoneToContinent(zone, cx, cy, cont)
-                pts[#pts + 1], pts[#pts + 2] = x, y
-                AddPath(pts, zone, path, k + 1, cont)
-            end
-        end
-        if #pts == 2 then pts[3], pts[4] = sx, sy end
-        parts[#parts + 1] = { kind = "walk", pts = pts }
+        parts[#parts + 1] = { kind = "walk", pts = WalkFromPlayer(c, px, py, sx, sy) }
     end
 
     local rest = { sx, sy }
+    local ax, ay = sx, sy
     for i = 2, #route.stops do
-        local a, b = route.stops[i - 1], route.stops[i]
-        WalkBetween(zone, a.x, a.y, b.x, b.y, cont, rest)
+        local b = route.stops[i]
+        local bx, by = ZoneToContinent(zone, b.x, b.y, cont)
+        if bx then
+            WalkBetween(c, ax, ay, bx, by, rest)
+            ax, ay = bx, by
+        end
     end
     if #rest >= 4 then parts[#parts + 1] = { kind = "route", pts = rest } end
     return { cont = cont, parts = parts }

@@ -375,6 +375,6 @@ ns.FLIGHT_PATHS = {
     { 8, 3276, 5531 },
 }
 ns.CONTINENT_YARDS = ns.CONTINENT_YARDS or {}
-ns.CONTINENT_YARDS[0] = { map = 1415, w = 35199.9, h = 23466.6 }
+ns.CONTINENT_YARDS[0] = { map = 1415, w = 35199.9, h = 23466.6, maxX = 7466.60, maxY = 16000.00 }
 ns.CONTINENT_YARDS = ns.CONTINENT_YARDS or {}
-ns.CONTINENT_YARDS[1] = { map = 1414, w = 36799.8, h = 24533.2 }
+ns.CONTINENT_YARDS[1] = { map = 1414, w = 36799.8, h = 24533.2, maxX = 12799.90, maxY = 17066.60 }

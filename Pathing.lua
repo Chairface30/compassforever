@@ -11,10 +11,13 @@
 --   ns.WalkCost(zone, a, b): the walking cost between two standing points,
 --   worked out ahead of time for every pair (the route planner's distances).
 --
---   ns.RequestPath(...): a path from where the player is to a stop, found in
---   the game with A* over the grid. The search runs a slice each frame, so a
---   long one never stalls the game; until it is done the arrow points
---   straight.
+--   ns.Steer / ns.PathBetween: a path from where the player is to a stop
+--   (or between two points), found in the game with A* over the whole
+--   continent. Every zone's grid is cut from one grid of points per
+--   continent, so they line up at the borders and are stitched together:
+--   a path runs from wherever the player is, across zone lines, to the
+--   stop. The search runs a slice each frame, so a long one never stalls
+--   the game; until it is done the arrow points straight.
 --
 -- A step that breaks a rule costs PENALTY times its length instead of being
 -- forbidden: bridges and buildings aren't terrain, so a gorge with a bridge
@@ -47,7 +50,7 @@ function ns.Grid(zone)
     local cells = t.cells:gsub("%%(%x)(%d+)%.", function(c, n) return c:rep(tonumber(n)) end)
     local roads = t.roads and t.roads:gsub("%%(%d)(%d+)%.", function(c, n) return c:rep(tonumber(n)) end) or nil
     g = { x0 = t.x0, y0 = t.y0, cw = t.cw, ch = t.ch, nx = t.nx, ny = t.ny, yd = t.yd, cells = cells,
-          roads = roads }
+          roads = roads, gx = t.gx, gy = t.gy }
     grids[zone.ach] = g
     return g
 end
@@ -182,25 +185,6 @@ local function OnRoad(g, i, j)
 end
 ns.OnRoad = OnRoad
 
--- The cost of one step from (i, j), or nil off the grid. A step between two
--- road points costs ROAD of the same step off the road.
-local function StepCost(g, i, j, di, dj)
-    local cost
-    if di == 0 or dj == 0 then
-        local ok = Can(g, i, j, di, dj)
-        if ok == nil then return nil end
-        cost = ok and g.yd or g.yd * PENALTY
-    else
-        local ti, tj = i + di, j + dj
-        if ti < 0 or tj < 0 or ti >= g.nx or tj >= g.ny then return nil end
-        local way1 = Can(g, i, j, di, 0) and Can(g, i + di, j, 0, dj)
-        local way2 = Can(g, i, j, 0, dj) and Can(g, i, j + dj, di, 0)
-        cost = g.yd * SQRT2 * ((way1 or way2) and 1 or PENALTY)
-    end
-    if g.roads and OnRoad(g, i, j) and OnRoad(g, i + di, j + dj) then cost = cost * ROAD end
-    return cost
-end
-
 -- Thin a path to the few waypoints that matter: any point within TRACK
 -- yards of the straight line between its neighbours goes
 -- (Ramer-Douglas-Peucker). The path still bends round what it must, but is
@@ -242,22 +226,48 @@ local function Simplify(path, xs, ys)
     return out
 end
 
--- A coroutine that finds the path and yields every SLICE squares. Returns
--- the path as map points (grid points, straight runs merged), from
--- (fx, fy) to (tx, ty), and its cost.
-local function Search(g, fx, fy, tx, ty)
-    local si, sj = ns.Square(g, fx, fy)
-    local ti, tj = ns.Square(g, tx, ty)
-    local nx = g.nx
-    local start, goal = sj * nx + si, tj * nx + ti
+-- A coroutine that finds the path and yields every SLICE points. A space
+-- says how to step: Node(x, y) and Pos(i, j) between map points and grid
+-- points, Can(i, j, di, dj) for one orthogonal step (nil off the grid),
+-- Road(i, j), yd (yards between points), xs, ys (yards per map fraction),
+-- hasRoads. Returns the path as map points (thinned to its turning points),
+-- from (fx, fy) to (tx, ty), and its cost.
+local function Search(sp, fx, fy, tx, ty)
+    local si, sj = sp:Node(fx, fy)
+    local ti, tj = sp:Node(tx, ty)
+    local W = 65536
+    local start, goal = sj * W + si, tj * W + ti
     local best, came = { [start] = 0 }, {}
     local open = Heap()
+    local yd = sp.yd
+    local hf = sp.hasRoads and 0.85 or 1
     local function H(i, j)
         local di, dj = i - ti, j - tj
         -- A little over the cheapest the rest could cost (all road): the
         -- search runs 1.6 times faster for paths at most 0.7 per cent
         -- longer than the very best (measured over 115 legs).
-        return g.yd * math.sqrt(di * di + dj * dj) * (g.roads and 0.85 or 1)
+        return yd * math.sqrt(di * di + dj * dj) * hf
+    end
+    local function Step(i, j, di, dj)
+        local cost
+        if di == 0 or dj == 0 then
+            local ok = sp:Can(i, j, di, dj)
+            if ok == nil then return nil end
+            cost = (ok == true and 1 or ok == false and PENALTY or ok) * yd
+        else
+            -- Either way round: across then along, or along then across.
+            local a1, a2 = sp:Can(i, j, di, 0), nil
+            local b1, b2 = sp:Can(i, j, 0, dj), nil
+            if a1 == nil and b1 == nil then return nil end
+            if a1 ~= nil then a2 = sp:Can(i + di, j, 0, dj) end
+            if b1 ~= nil then b2 = sp:Can(i, j + dj, di, 0) end
+            if a2 == nil and b2 == nil then return nil end
+            local way1 = a1 == true and a2 == true
+            local way2 = b1 == true and b2 == true
+            cost = yd * SQRT2 * ((way1 or way2) and 1 or PENALTY)
+        end
+        if sp.hasRoads and sp:Road(i, j) and sp:Road(i + di, j + dj) then cost = cost * ROAD end
+        return cost
     end
     open:push(H(si, sj), start)
     local done, seen = {}, 0
@@ -268,17 +278,17 @@ local function Search(g, fx, fy, tx, ty)
             done[cur] = true
             seen = seen + 1
             if seen % SLICE == 0 then coroutine.yield() end
-            local i, j = cur % nx, math.floor(cur / nx)
+            local i, j = cur % W, math.floor(cur / W)
             local base = best[cur]
-            for _, s in ipairs(STEPS) do
-                local cost = StepCost(g, i, j, s[1], s[2])
+            for _, st in ipairs(STEPS) do
+                local cost = Step(i, j, st[1], st[2])
                 if cost then
-                    local nxt = (j + s[2]) * nx + (i + s[1])
+                    local nxt = (j + st[2]) * W + (i + st[1])
                     local c = base + cost
                     if not done[nxt] and (best[nxt] == nil or c < best[nxt]) then
                         best[nxt] = c
                         came[nxt] = cur
-                        open:push(c + H(i + s[1], j + s[2]), nxt)
+                        open:push(c + H(i + st[1], j + st[2]), nxt)
                     end
                 end
             end
@@ -296,16 +306,128 @@ local function Search(g, fx, fy, tx, ty)
     local lastDi, lastDj
     for k = 2, #chain - 1 do
         local a, b = chain[k], chain[k + 1]
-        local di, dj = (b % nx) - (a % nx), math.floor(b / nx) - math.floor(a / nx)
+        local di, dj = (b % W) - (a % W), math.floor(b / W) - math.floor(a / W)
         if di ~= lastDi or dj ~= lastDj then
-            local x, y = Middle(g, a % nx, math.floor(a / nx))
+            local x, y = sp:Pos(a % W, math.floor(a / W))
             path[#path + 1] = { x = x, y = y }
             lastDi, lastDj = di, dj
         end
     end
     path[#path + 1] = { x = tx, y = ty }
-    -- Yards per map fraction, across and down.
-    return Simplify(path, g.yd / g.cw, g.yd / g.ch), best[goal]
+    return Simplify(path, sp.xs, sp.ys), best[goal]
+end
+
+-- One zone's grid as a space (its map's fractions).
+local function ZoneSpace(g)
+    return {
+        yd = g.yd, xs = g.yd / g.cw, ys = g.yd / g.ch, hasRoads = g.roads ~= nil,
+        Node = function(_, x, y) return ns.Square(g, x, y) end,
+        Pos = function(_, i, j) return Middle(g, i, j) end,
+        Can = function(_, i, j, di, dj) return Can(g, i, j, di, dj) end,
+        Road = function(_, i, j) return OnRoad(g, i, j) end,
+    }
+end
+
+-------------------------------------------------------------------------------
+-- The continent: every zone's grid stitched together
+-------------------------------------------------------------------------------
+-- Point (i, j) of the continent's grid is point (i - g.gx, j - g.gy) of any
+-- zone grid g that covers it. A step is read from a grid that covers both
+-- its ends; where none does (the seam of two maps that don't overlap) it
+-- counts as hard going (UNKNOWN times its length), and off every map it
+-- can't be taken.
+
+local TILE = 1600 / 3
+local NODE = TILE / 64
+local UNKNOWN = 5
+local continents = {}
+
+local function ContinentGrids(c)
+    local list = continents[c]
+    if list then return list end
+    list = {}
+    for _, zone in ipairs(ns.ZONES) do
+        if zone.continent == c then
+            local g = ns.Grid(zone)
+            if g and g.gx then list[#list + 1] = g end
+        end
+    end
+    continents[c] = list
+    return list
+end
+
+local function Covers(g, i, j)
+    local li, lj = i - g.gx, j - g.gy
+    return li >= 0 and lj >= 0 and li < g.nx and lj < g.ny
+end
+
+function ns.ContinentSpace(c)
+    local cont = ns.CONTINENT_YARDS and ns.CONTINENT_YARDS[c]
+    if not (cont and cont.maxX) then return nil end
+    local grids = ContinentGrids(c)
+    if #grids == 0 then return nil end
+    local last = grids[1]
+    local function Find(i, j, i2, j2)
+        if Covers(last, i, j) and Covers(last, i2, j2) then return last end
+        for _, g in ipairs(grids) do
+            if Covers(g, i, j) and Covers(g, i2, j2) then
+                last = g
+                return g
+            end
+        end
+        return nil
+    end
+    local function Any(i, j)
+        if Covers(last, i, j) then return last end
+        for _, g in ipairs(grids) do
+            if Covers(g, i, j) then return g end
+        end
+        return nil
+    end
+    local hasRoads = false
+    for _, g in ipairs(grids) do if g.roads then hasRoads = true end end
+    return {
+        yd = NODE, xs = cont.w, ys = cont.h, hasRoads = hasRoads, cont = cont,
+        -- Continent map fractions <-> continent grid points, through world
+        -- yards (x east = -world Y, y south = -world X).
+        Node = function(_, x, y)
+            local wy = cont.maxY - x * cont.w
+            local wx = cont.maxX - y * cont.h
+            return math.floor((32 * TILE - wy) / NODE + 0.5), math.floor((32 * TILE - wx) / NODE + 0.5)
+        end,
+        Pos = function(_, i, j)
+            local wy = 32 * TILE - i * NODE
+            local wx = 32 * TILE - j * NODE
+            return (cont.maxY - wy) / cont.w, (cont.maxX - wx) / cont.h
+        end,
+        Can = function(_, i, j, di, dj)
+            local g = Find(i, j, i + di, j + dj)
+            if g then return Can(g, i - g.gx, j - g.gy, di, dj) end
+            if Any(i, j) or Any(i + di, j + dj) then return UNKNOWN end
+            return nil
+        end,
+        Road = function(_, i, j)
+            local g = Any(i, j)
+            return g ~= nil and OnRoad(g, i - g.gx, j - g.gy)
+        end,
+    }
+end
+
+-- Where a zone's map sits on its continent's map, from the grids: left,
+-- right, top, bottom as fractions. nil without terrain.
+function ns.ZoneRectOnContinent(zone)
+    local g = ns.Grid(zone)
+    local cont = ns.CONTINENT_YARDS and ns.CONTINENT_YARDS[zone.continent]
+    if not (g and g.gx and cont and cont.maxX) then return nil end
+    local function X(fx)
+        local wy = 32 * TILE - (g.gx + (fx - g.x0) / g.cw) * NODE
+        return (cont.maxY - wy) / cont.w
+    end
+    local function Y(fy)
+        local wx = 32 * TILE - (g.gy + (fy - g.y0) / g.ch) * NODE
+        return (cont.maxX - wx) / cont.h
+    end
+    return { l = X(0), r = X(1), t = Y(0), b = Y(1) }
 end
 
 -- Searches still running, worked on a slice per frame.
@@ -333,21 +455,16 @@ driver:SetScript("OnUpdate", function(self)
     end
 end)
 
--- Find a walking path on `zone` from (fx, fy) to (tx, ty); `done(path, cost)`
--- is called when found (path nil if the zone has no grid). A newer request
--- with the same `key` replaces one still running.
-function ns.RequestPath(zone, fx, fy, tx, ty, key, done)
-    local g = ns.Grid(zone)
-    if not g then
-        done(nil)
-        return
-    end
+-- Find a walking path in `space` from (fx, fy) to (tx, ty); `done(path,
+-- cost)` is called when found. A newer request with the same `key` replaces
+-- one still running.
+local function Request(space, fx, fy, tx, ty, key, done)
     for i = #jobs, 1, -1 do
         if jobs[i].key == key then table.remove(jobs, i) end
     end
     local job = {
         key = key,
-        co = coroutine.create(function() return Search(g, fx, fy, tx, ty) end),
+        co = coroutine.create(function() return Search(space, fx, fy, tx, ty) end),
         done = done,
     }
     -- The arrow's path goes first: the drawn legs between later stops can
@@ -356,11 +473,35 @@ function ns.RequestPath(zone, fx, fy, tx, ty, key, done)
     driver:Show()
 end
 
+function ns.RequestPath(zone, fx, fy, tx, ty, key, done)
+    local g = ns.Grid(zone)
+    if not g then
+        done(nil)
+        return
+    end
+    Request(ZoneSpace(g), fx, fy, tx, ty, key, done)
+end
+
+function ns.PathJobs() return #jobs end
+
+-- For the tests: a continent search run to the end at once.
+function ns.FindContinentPathNow(c, fx, fy, tx, ty)
+    local sp = ns.ContinentSpace(c)
+    if not sp then return nil end
+    local co = coroutine.create(function() return Search(sp, fx, fy, tx, ty) end)
+    while true do
+        local ok, path, cost = coroutine.resume(co)
+        if not ok then error(path) end
+        if coroutine.status(co) == "dead" then return path, cost end
+    end
+end
+
 -- For the tests: the search run to the end at once.
 function ns.FindPathNow(zone, fx, fy, tx, ty)
     local g = ns.Grid(zone)
     if not g then return nil end
-    local co = coroutine.create(function() return Search(g, fx, fy, tx, ty) end)
+    local sp = ZoneSpace(g)
+    local co = coroutine.create(function() return Search(sp, fx, fy, tx, ty) end)
     while true do
         local ok, path, cost = coroutine.resume(co)
         if not ok then error(path) end
@@ -407,20 +548,25 @@ local function Seg(zone, a, b)
     return math.sqrt(((a.x - b.x) * zone.w) ^ 2 + ((a.y - b.y) * zone.h) ^ 2)
 end
 
--- Where to aim, as map fractions, and the yards left along the path; nil
--- while there is no path yet (the arrow then points straight at the stop).
-function ns.Steer(zone, stop, px, py)
-    if not (zone.ach and ns.TERRAIN and ns.TERRAIN[zone.ach]) then return nil end
-    local key = zone.ach .. ":" .. stop.x .. ":" .. stop.y
+-- Where to aim, as fractions of the continent's map, and the yards left
+-- along the path; nil while there is no path yet (the arrow then points
+-- straight). `c` is the continent (0 or 1); `stop`, px and py are on its
+-- map.
+function ns.Steer(c, stop, px, py)
+    local sp = ns.ContinentSpace(c)
+    if not sp then return nil end
+    local cont = sp.cont
+    local key = string.format("%d:%.5f:%.5f", c, stop.x, stop.y)
     local now = Now()
     if steer.key ~= key then
         steer.key, steer.path, steer.asked = key, nil, nil
     end
     local function Ask()
         steer.asked = now
-        ns.RequestPath(zone, px, py, stop.x, stop.y, "steer", function(path)
+        Request(sp, px, py, stop.x, stop.y, "steer", function(path)
             if steer.key == key then
                 steer.path = path
+                steer.found = now
                 ns.Fire("path")
             end
         end)
@@ -428,7 +574,7 @@ function ns.Steer(zone, stop, px, py)
     if not steer.asked then Ask() end
     local path = steer.path
     if not path or #path < 2 then return nil end
-    local k, cx, cy, off = Project(path, zone, px, py)
+    local k, cx, cy, off = Project(path, cont, px, py)
     if off > OFF_PATH and now - steer.asked > ASK_AGAIN then Ask() end
     -- From the projection, AHEAD yards along.
     local left, aimX, aimY = AHEAD, path[#path].x, path[#path].y
@@ -436,7 +582,7 @@ function ns.Steer(zone, stop, px, py)
     local remaining = off
     local found = false
     for i = k + 1, #path do
-        local d = Seg(zone, here, path[i])
+        local d = Seg(cont, here, path[i])
         remaining = remaining + d
         if not found then
             if d >= left then
@@ -452,27 +598,27 @@ function ns.Steer(zone, stop, px, py)
     return aimX, aimY, remaining, path, k, cx, cy
 end
 
--- The current walking path, for drawing: its points and where the player is
--- on it. nil until one is found.
-function ns.SteerPath()
-    return steer.path
+-- What /cf probe says about the arrow's path.
+function ns.SteerStatus()
+    return steer.key, steer.path and #steer.path or nil, steer.asked, #jobs
 end
 
 -------------------------------------------------------------------------------
 -- Paths between two fixed points (a landing and a stop, two stops)
 -------------------------------------------------------------------------------
--- Found once, in the background, and kept; nil until found (draw it straight
--- until then). "path" fires when one arrives.
+-- On the continent's map. Found once, in the background, and kept; nil
+-- until found (draw it straight until then). "path" fires when one arrives.
 
 local between = {}
 
-function ns.PathBetween(zone, ax, ay, bx, by)
-    if not (zone.ach and ns.TERRAIN and ns.TERRAIN[zone.ach]) then return nil end
-    local key = string.format("%d:%.4f:%.4f:%.4f:%.4f", zone.ach, ax, ay, bx, by)
+function ns.PathBetween(c, ax, ay, bx, by)
+    local sp = ns.ContinentSpace(c)
+    if not sp then return nil end
+    local key = string.format("%d:%.5f:%.5f:%.5f:%.5f", c, ax, ay, bx, by)
     local p = between[key]
     if p == nil then
         between[key] = false
-        ns.RequestPath(zone, ax, ay, bx, by, "between:" .. key, function(path)
+        Request(sp, ax, ay, bx, by, "between:" .. key, function(path)
             between[key] = path or "none"
             ns.Fire("path")
         end)

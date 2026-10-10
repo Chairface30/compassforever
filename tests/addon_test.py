@@ -227,6 +227,14 @@ def boot():
             ACH_BY_ID[z.ach] = { name = "Explore " .. z.name, crit = crit }
         end
     ''')
+    # Every zone where the terrain grids put it on its continent, so the
+    # player's position on the continent follows theirs on the zone.
+    rt.execute('''
+        for _, z in ipairs(NS.ZONES) do
+            local r = NS.ZoneRectOnContinent(z)
+            if r then RECTS[z.map .. ":" .. NS.CONTINENT_YARDS[z.continent].map] = { r.l, r.r, r.t, r.b } end
+        end
+    ''')
     rt.execute("FIRE('ADDON_LOADED', 'CompassForever') FIRE('PLAYER_LOGIN') FLUSH()")
     return rt
 
@@ -687,15 +695,19 @@ rt.execute("""NS.StopRoute()
     GEO = NS.RouteGeometry()""")
 check("the route is laid out on the continent", rt.eval("GEO and GEO.cont") == 1415)
 walk = rt.eval("""(function() for _, p in ipairs(GEO.parts) do if p.kind == "walk" then return p.pts end end end)()""")
+wf = rt.eval("RECTS['1436:1415']")
 check("its first leg starts where the player is, in Westfall",
-      walk is not None and abs(walk[1] - (0.30 + 0.80 * 0.10)) < 1e-9 and abs(walk[2] - (0.72 + 0.40 * 0.10)) < 1e-9, walk)
-ends_x = rt.eval("""(function()
+      walk is not None and abs(walk[1] - (wf[1] + 0.80 * (wf[2] - wf[1]))) < 1e-9
+      and abs(walk[2] - (wf[3] + 0.40 * (wf[4] - wf[3]))) < 1e-9, walk)
+ends = rt.eval("""(function()
     local conv = NS.ContinentToMap(GEO.cont, 1436)
+    local sx, sy = NS.ZoneToContinentPoint(ELWYNN, NS.CurrentStop().x, NS.CurrentStop().y)
     for _, p in ipairs(GEO.parts) do if p.kind == "walk" then
-        local x1 = conv(p.pts[1], p.pts[2]) local x2 = conv(p.pts[#p.pts - 1], p.pts[#p.pts]) return x1, x2 end end
+        local x1 = conv(p.pts[1], p.pts[2])
+        return x1, math.abs(p.pts[#p.pts - 1] - sx) + math.abs(p.pts[#p.pts] - sy) end end
 end)()""")
-check("on Westfall's map it starts inside and runs off the east edge into Elwynn",
-      0 <= ends_x[0] <= 1 and ends_x[1] > 1, ends_x)
+check("on Westfall's map it starts at the player, and it ends at the stop in Elwynn",
+      0 <= ends[0] <= 1 and ends[1] < 1e-9, ends)
 rt.execute("HIDE_LINES() NS.ShowZone(NS.ZoneByMap(1436))")
 check("the window draws the route on Westfall's map", rt.eval("""(function() local n = 0
     for _, l in ipairs(LINES) do if rawget(l, "_shown") then n = n + 1 end end return n end)()""") > 0)
@@ -709,6 +721,27 @@ rt.execute("HIDE_LINES() PRINTED = {} SHOWN_MAP = 1436 WorldMapFrame._scripts.On
 check("the world map draws it on Westfall as well", rt.eval("""(function() local n = 0
     for _, l in ipairs(LINES) do if rawget(l, "_shown") then n = n + 1 end end return n end)()""") > 0)
 check("with no error", not any("|cffff5555" in p for p in printed(rt)), printed(rt))
+rt.execute("NS.StopRoute() PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.42, 0.65")
+
+print("a path from another zone")
+rt.execute("""NS.StopRoute() HIDE_LINES()
+    SP = NS.ZoneByMap(1421)
+    for _, n in ipairs(SP.nodes) do DONE[n.criteria] = nil end NS.InvalidateProgress()
+    PLAYER.map, PLAYER.x, PLAYER.y = 1420, 0.62, 0.66     -- Tirisfal, by Undercity
+    NS.StartRoute(SP, { quiet = true })""")
+straight = rt.eval("""(function() local g = NS.RouteGeometry()
+    for _, p in ipairs(g.parts) do if p.kind == 'walk' then return #p.pts / 2 end end end)()""")
+for _ in range(3000):
+    rt.execute("FRAME(0.05)")
+    if rt.eval("NS.PathJobs()") == 0:
+        break
+walk = rt.eval("""(function() local g = NS.RouteGeometry()
+    for _, p in ipairs(g.parts) do if p.kind == 'walk' then return #p.pts / 2 end end end)()""")
+check(f"from Tirisfal to a Silverpine stop the line is straight only until the path is found ({straight} points, then {walk})",
+      straight == 2 and walk > 2, (straight, walk))
+b_straight = rt.eval("(NS.StopVector({ w = SP.w, h = SP.h, map = SP.map, continent = 99 }, NS.CurrentStop()))")
+b_path = rt.eval("(NS.StopVector(SP, NS.CurrentStop()))")
+check("and the arrow follows it from there", b_path is not None)
 rt.execute("NS.StopRoute() PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.42, 0.65")
 
 print("window and world map")

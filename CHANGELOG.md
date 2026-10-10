@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- The walking path works from anywhere on the continent, not just inside
+  the route's zone: every zone's terrain is stitched into one map of the
+  continent, so from Undercity to Silverpine (say) the line and the arrow
+  follow the way there across zone lines instead of a straight line.
 - Routes keep to the roads where they can. Roads are found from the ground's
   own textures (every texture named as a road: cobblestone, brick, stone and
   dirt roads, zone by zone); walking along one counts as 30% shorter, so a

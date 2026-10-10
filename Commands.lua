@@ -77,6 +77,11 @@ local function Probe()
         tostring(ns.ZoneState(zone).source)))
     local g = ns.Grid and ns.Grid(zone)
     print("  terrain: " .. (g and string.format("%dx%d points", g.nx, g.ny) or "|cffff5555none|r"))
+    if ns.SteerStatus then
+        local key, points, asked, jobs = ns.SteerStatus()
+        print(string.format("  walking path: %s (searches waiting: %d)",
+            points and (points .. " waypoints") or (asked and "being found" or "not asked for"), jobs or 0))
+    end
     local said = ns.ReadKnownFromMaps and ns.ReadKnownFromMaps() or 0
     print("  C_TaxiMap.GetTaxiNodesForMap = " .. (ns.API("C_TaxiMap", "GetTaxiNodesForMap") and "|cff55ff55yes|r" or "|cffff5555missing|r")
         .. string.format(" (told about %d flight points)", said))

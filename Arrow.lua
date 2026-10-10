@@ -32,12 +32,27 @@ local function Bearing(fx, fy, tx, ty, w, h)
     return math.atan2(-east, north), math.sqrt(east * east + north * north)
 end
 
--- Bearing and distance in yards from the player to a stop. Where the zone's
+-- Bearing and distance in yards from the player to a stop. Where the
 -- terrain is known, both follow the walking path around cliffs and
--- mountains (the bearing aims a little way along it); until the path is
--- found, or without terrain, they are straight. nil, "elsewhere" when the
+-- mountains, from wherever the player is on the continent (the bearing aims
+-- a little way along it); until the path is found they are straight. nil, "elsewhere" when the
 -- player is on another continent.
 function ns.StopVector(zone, stop)
+    -- Along the walking path on the continent, wherever the player is on it,
+    -- and straight on the continent until that path is found.
+    local cont = ns.CONTINENT_YARDS and ns.CONTINENT_YARDS[zone.continent]
+    if cont and ns.ZoneToContinentPoint then
+        local cx, cy = ns.PlayerOn(cont.map)
+        local sx, sy = ns.ZoneToContinentPoint(zone, stop.x, stop.y)
+        if cx and sx then
+            if ns.Steer then
+                local ax, ay, left = ns.Steer(zone.continent, { x = sx, y = sy }, cx, cy)
+                if ax then return Bearing(cx, cy, ax, ay, cont.w, cont.h), left end
+            end
+            return Bearing(cx, cy, sx, sy, cont.w, cont.h)
+        end
+    end
+    -- No continent placement: straight on the zone's own map.
     local px, py = ns.PlayerOn(zone.map)
     if not px then
         local here = ns.PlayerMap()
@@ -47,14 +62,6 @@ function ns.StopVector(zone, stop)
         end
         return nil
     end
-    local inside = px >= 0 and px <= 1 and py >= 0 and py <= 1
-    if inside and ns.Steer then
-        local ax, ay, left = ns.Steer(zone, stop, px, py)
-        if ax then
-            local bearing = Bearing(px, py, ax, ay, zone.w, zone.h)
-            return bearing, left
-        end
-    end
     return Bearing(px, py, stop.x, stop.y, zone.w, zone.h)
 end
 
@@ -62,22 +69,13 @@ end
 local function TravelVector()
     local t = ns.TravelTarget and ns.TravelTarget()
     if not t then return nil end
-    -- Along the walking path, when the flight master is on the map of the
-    -- zone the player is in.
-    local here = ns.CurrentZone()
-    if here and ns.Steer and ns.ContinentToZone then
-        local gx, gy = ns.ContinentToZone(here, t.x, t.y, t.map)
-        local zx, zy = ns.PlayerOn(here.map)
-        if gx and zx and zx >= 0 and zx <= 1 and zy >= 0 and zy <= 1 then
-            local ax, ay, left = ns.Steer(here, { x = gx, y = gy }, zx, zy)
-            if ax then
-                local bearing = Bearing(zx, zy, ax, ay, here.w, here.h)
-                return bearing, left
-            end
-        end
-    end
     local px, py = ns.PlayerOn(t.map)
     if not px then return nil end
+    -- Along the walking path on the continent.
+    if ns.Steer and ns.travel and ns.travel.zone then
+        local ax, ay, left = ns.Steer(ns.travel.zone.continent, { x = t.x, y = t.y }, px, py)
+        if ax then return Bearing(px, py, ax, ay, t.w, t.h), left end
+    end
     return Bearing(px, py, t.x, t.y, t.w, t.h)
 end
 

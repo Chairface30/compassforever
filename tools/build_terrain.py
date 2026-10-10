@@ -318,7 +318,9 @@ def main():
         "--",
         "-- Per zone (keyed by its Explore achievement): a grid of points over the",
         "-- zone map, yd yards apart. x0, y0: point (0, 0) as fractions of the map;",
-        "-- cw, ch: the spacing in fractions; nx, ny: points across and down.",
+        "-- cw, ch: the spacing in fractions; nx, ny: points across and down;",
+        "-- gx, gy: point (0, 0) on its continent's grid of points (every zone's",
+        "-- grid is cut from that one grid, so neighbours line up at the border).",
         "-- cells: one hex digit per point, row by row (1 east out, 2 east in, 4",
         "-- south out, 8 south in: a step you can walk), runs of four or more",
         "-- written %<digit><count>. roads: 1 for a point on a road, 0 not, coded",
@@ -365,7 +367,7 @@ def main():
                     v = 36 ** 3 - 1
                 dist.append(b36(v))
         out.append(f"    [{z['ach']}] = {{ x0 = {x0:.7f}, y0 = {y0:.7f}, cw = {cw:.7f}, ch = {ch:.7f}, "
-                   f"nx = {nx}, ny = {ny}, yd = {NODE:.4f},")
+                   f"nx = {nx}, ny = {ny}, yd = {NODE:.4f}, gx = {gx0 * 4}, gy = {gy0 * 4},")
         out.append(f"        cells = \"{rle(digits)}\",")
         out.append(f"        roads = \"{rle(''.join('1' if v else '0' for v in onroad.ravel()))}\",")
         out.append(f"        dist = \"{''.join(dist)}\" }},")
@@ -433,7 +435,8 @@ def write_flights(cache, addon, bounds):
     for c, ui in CONTINENT_MAP.items():
         minX, minY, maxX, maxY = bounds(ui)
         out.append(f"ns.CONTINENT_YARDS = ns.CONTINENT_YARDS or {{}}")
-        out.append(f"ns.CONTINENT_YARDS[{c}] = {{ map = {ui}, w = {maxY - minY:.1f}, h = {maxX - minX:.1f} }}")
+        out.append(f"ns.CONTINENT_YARDS[{c}] = {{ map = {ui}, w = {maxY - minY:.1f}, h = {maxX - minX:.1f}, "
+                   f"maxX = {maxX:.2f}, maxY = {maxY:.2f} }}")
     with open(os.path.join(addon, "Data", "Flights.lua"), "w", encoding="utf-8", newline="\n") as f:
         f.write("\n".join(out) + "\n")
     print(f"flights: {len(keep)} flight points, {n_paths} flights")
