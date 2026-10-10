@@ -1,10 +1,15 @@
 -- Compass Forever: Travel.lua
 -- Flying there when that is quicker than walking.
 --
--- Which flight points a character knows can only be read while a flight map
--- is open, so every time one opens the known ones are remembered for that
--- character (CompassForeverDB.taxi). Until a flight map has been opened once
--- nothing is known, and routes stay on foot.
+-- Which flight points a character knows is read from the client the way
+-- the world map reads it to draw flight masters (C_TaxiMap.GetTaxiNodesForMap,
+-- which says of each point whether it is undiscovered), at login and when
+-- the client says a point changed; every open flight map is read too. Both
+-- are remembered for that character (CompassForeverDB.taxi).
+--
+-- At the flight master, with a flight planned, a "Fly to ..." button sits by
+-- the flight map; with "Fly automatically" on, the flight is taken as soon as
+-- the map opens.
 --
 -- When the next stop is far, the quickest way there is worked out: walking
 -- straight there, or walking to a known flight point, flying (through other
@@ -20,8 +25,8 @@ local _, ns = ...
 
 local WINDING = 1.3          -- walking is this much longer than a straight line
 local TAKEOFF = 25           -- seconds to talk, mount up and land
-local SAVE_SECONDS = 45      -- flying must save at least this
-local SAVE_SHARE = 0.75      -- and take at most this share of the walk
+local SAVE_SECONDS = 30      -- flying must save at least this
+local SAVE_SHARE = 0.85      -- and take at most this share of the walk
 local RUN = 7                -- yards a second on foot
 
 ns.travel = nil              -- { from = node, to = node, fromID, toID, seconds, walk }
@@ -100,6 +105,39 @@ local function ReadTaxiMap()
 end
 ns.ReadTaxiMap = ReadTaxiMap
 
+-- Read the known points from the maps, as the world map does. Every point
+-- the client lists that isn't undiscovered is known; one it says is
+-- undiscovered is forgotten (it is the client's word, not a guess). Returns
+-- how many points the client said anything about.
+local function ReadFromMaps()
+    local forMap = ns.API("C_TaxiMap", "GetTaxiNodesForMap")
+    if not forMap then return 0 end
+    local known, said = Known(), 0
+    local maps = { 1415, 1414, 1453, 1454, 1455, 1456, 1457, 1458 }
+    for _, zone in ipairs(ns.ZONES) do maps[#maps + 1] = zone.map end
+    local seen = {}
+    for _, mapID in ipairs(maps) do
+        local ok, list = ns.Ask(forMap, mapID)
+        if ok and type(list) == "table" then
+            for _, info in ipairs(list) do
+                local id = ns.Num(info.nodeID)
+                if not (id and ns.FLIGHT_NODES[id]) then id = ByName(ns.Text(info.name)) end
+                if id and not seen[id] then
+                    seen[id] = true
+                    said = said + 1
+                    if info.isUndiscovered == true then
+                        known[id] = nil
+                    elseif info.isUndiscovered == false then
+                        known[id] = true
+                    end
+                end
+            end
+        end
+    end
+    return said
+end
+ns.ReadKnownFromMaps = ReadFromMaps
+
 local function Side()
     local ok, faction = ns.Ask(_G.UnitFactionGroup, "player")
     if faction == "Alliance" then return 1 end
@@ -169,8 +207,15 @@ local function Flights(continent, side, startCost)
 end
 
 -- Plan the way to `stop` on `zone`; sets ns.travel to a flight or nil.
+local lastRead = -60
 function ns.PlanTravel(zone, stop)
     ns.travel = nil
+    local okT, now = pcall(GetTime)
+    now = okT and now or 0
+    if now - lastRead > 30 then
+        lastRead = now
+        ReadFromMaps()
+    end
     if not (zone and stop and ns.FLIGHT_NODES) then return nil end
     local c = ContinentOf(zone)
     if not c then return nil end
@@ -292,9 +337,102 @@ watcher:SetScript("OnUpdate", function(_, dt)
 end)
 
 
+-------------------------------------------------------------------------------
+-- At the flight master
+-------------------------------------------------------------------------------
+
+-- The open flight map's entry for a flight point: its slot, to fly to.
+local function Slot(nodeID)
+    local node = ns.FLIGHT_NODES[nodeID]
+    local getAll = ns.API("C_TaxiMap", "GetAllTaxiNodes")
+    if getAll then
+        local okM, mapID = ns.Ask(ns.API(nil, "GetTaxiMapID"))
+        local ok, nodes = ns.Ask(getAll, okM and mapID or nil)
+        if ok and type(nodes) == "table" then
+            for _, info in ipairs(nodes) do
+                local id = ns.Num(info.nodeID) or ByName(ns.Text(info.name))
+                if id == nodeID and ns.Num(info.slotIndex) then return info.slotIndex end
+            end
+        end
+    end
+    local okC, n = ns.Ask(ns.API(nil, "NumTaxiNodes"))
+    local nameOf = ns.API(nil, "TaxiNodeName")
+    if okC and ns.Num(n) and nameOf and node then
+        for i = 1, n do
+            local okN, name = ns.Ask(nameOf, i)
+            if okN and ByName(ns.Text(name)) == nodeID then return i end
+        end
+    end
+    return nil
+end
+
+-- Take the planned flight from the open flight map. Returns true if asked.
+function ns.TakePlannedFlight()
+    local t = ns.travel
+    if not t then return false end
+    local slot = Slot(t.toID)
+    local take = ns.API(nil, "TakeTaxiNode")
+    if not (slot and take) then
+        ns.Print("can't find " .. Short(t.to) .. " on this flight map.")
+        return false
+    end
+    local ok, err = pcall(take, slot)
+    if not ok then
+        ns.Print("|cffff5555couldn't take the flight:|r", err)
+        return false
+    end
+    return true
+end
+
+-- The "Fly to ..." button, by the flight map while one is planned.
+local flyButton
+local function ShowFlyButton()
+    local t = ns.travel
+    if not t then
+        if flyButton then flyButton:Hide() end
+        return
+    end
+    if not flyButton then
+        flyButton = CreateFrame("Button", "CompassForeverFlyButton", UIParent, "UIPanelButtonTemplate")
+        flyButton:SetSize(220, 28)
+        flyButton:SetFrameStrata("DIALOG")
+        flyButton:SetScript("OnClick", function(self)
+            if ns.TakePlannedFlight() then self:Hide() end
+        end)
+    end
+    flyButton:SetText("Compass: fly to " .. Short(t.to))
+    flyButton:ClearAllPoints()
+    local taxiFrame = _G.TaxiFrame or _G.FlightMapFrame
+    if taxiFrame and taxiFrame.IsShown and taxiFrame:IsShown() then
+        flyButton:SetPoint("TOP", taxiFrame, "BOTTOM", 0, -4)
+    else
+        flyButton:SetPoint("TOP", UIParent, "TOP", 0, -120)
+    end
+    flyButton:Show()
+end
+
 local taxi = CreateFrame("Frame")
-pcall(taxi.RegisterEvent, taxi, "TAXIMAP_OPENED")
-taxi:SetScript("OnEvent", function()
-    local n = ReadTaxiMap()
-    if n > 0 and ns.route then Reconsider(true) end
+for _, event in ipairs({ "TAXIMAP_OPENED", "TAXIMAP_CLOSED", "TAXI_NODE_STATUS_CHANGED" }) do
+    pcall(taxi.RegisterEvent, taxi, event)
+end
+taxi:SetScript("OnEvent", function(_, event)
+    if event == "TAXIMAP_CLOSED" then
+        if flyButton then flyButton:Hide() end
+        return
+    end
+    if event == "TAXI_NODE_STATUS_CHANGED" then
+        ReadFromMaps()
+        if ns.route then Reconsider(true) end
+        return
+    end
+    ReadTaxiMap()
+    ReadFromMaps()
+    if ns.route then Reconsider(true) end
+    if not ns.travel then return end
+    if ns.db.autoFly and ns.TakePlannedFlight() then return end
+    ShowFlyButton()
+end)
+
+ns.On("login", function()
+    ReadFromMaps()
 end)

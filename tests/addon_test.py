@@ -555,6 +555,48 @@ rt.execute("NS.PlayerOn = function(map) if map == 1415 then return 0.4900, 0.760
 check("close by: walk", rt.eval("NS.travel == nil"))
 rt.execute("NS.PlayerOn, NS.Translate = REAL_PLAYERON, REAL_TRANSLATE NS.travel = nil")
 
+print("known flight points without a flight map")
+rt.execute("""NS.db.taxi = {}
+    C_TaxiMap.GetTaxiNodesForMap = function(map)
+        if map ~= 1415 then return {} end
+        return { { nodeID = 11, name = "Undercity, Tirisfal", isUndiscovered = false },
+                 { nodeID = 10, name = "The Sepulcher, Silverpine Forest", isUndiscovered = false },
+                 { nodeID = 13, name = "Tarren Mill, Hillsbrad", isUndiscovered = true } }
+    end
+    NS.ReadKnownFromMaps()""")
+known = rt.eval("(function() local t = {} for id in pairs(NS.KnownFlights()) do t[#t + 1] = id end table.sort(t) return table.concat(t, ',') end)()")
+check("the map's flight points are known, the undiscovered one isn't", known == "10,11", known)
+rt.execute("""C_TaxiMap.GetTaxiNodesForMap = function(map)
+        if map ~= 1415 then return {} end
+        return { { nodeID = 10, name = "The Sepulcher, Silverpine Forest", isUndiscovered = true } }
+    end
+    NS.ReadKnownFromMaps()""")
+check("a point the client calls undiscovered is forgotten", rt.eval("NS.KnownFlights()[10] == nil") and rt.eval("NS.KnownFlights()[11] == true"))
+rt.execute("C_TaxiMap.GetTaxiNodesForMap = nil")
+
+print("at the flight master")
+rt.execute("""TAKEN = {}
+    function TakeTaxiNode(slot) table.insert(TAKEN, slot) end
+    C_TaxiMap.GetAllTaxiNodes = function() return {
+        { nodeID = 6, name = "Ironforge, Dun Morogh", state = 0, slotIndex = 1 },
+        { nodeID = 12, name = "Darkshire, Duskwood", state = 1, slotIndex = 4 } } end
+    NS.StopRoute()
+    NS.travel = { zone = DW, toID = 12, fromID = 6, to = NS.FLIGHT_NODES[12], from = NS.FLIGHT_NODES[6], seconds = 100, walk = 600 }
+    NS.db.autoFly = false
+    FIRE('TAXIMAP_OPENED')""")
+check("a flight planned: no flight taken by itself", rt.eval("#TAKEN") == 0)
+check("a button offers it", rt.eval("CompassForeverFlyButton ~= nil and rawget(CompassForeverFlyButton, '_shown')") is True
+      and "Darkshire" in (rt.eval("rawget(CompassForeverFlyButton, '_text')") or ""))
+rt.execute("CompassForeverFlyButton._scripts.OnClick(CompassForeverFlyButton)")
+check("clicking it takes the flight to Darkshire's slot", rt.eval("TAKEN[1]") == 4)
+rt.execute("""TAKEN = {}
+    NS.travel = { zone = DW, toID = 12, fromID = 6, to = NS.FLIGHT_NODES[12], from = NS.FLIGHT_NODES[6], seconds = 100, walk = 600 }
+    SlashCmdList.COMPASSFOREVER('autofly') FIRE('TAXIMAP_OPENED')""")
+check("with Fly automatically on, it's taken as the map opens", rt.eval("TAKEN[1]") == 4)
+rt.execute("SlashCmdList.COMPASSFOREVER('autofly') NS.travel = nil FIRE('TAXIMAP_CLOSED')")
+check("closing the map hides the button", rt.eval("rawget(CompassForeverFlyButton, '_shown')") is False)
+
+
 print("the route line crosses zone lines")
 rt.execute("""NS.StopRoute()
     for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = nil end NS.InvalidateProgress()

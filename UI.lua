@@ -30,7 +30,7 @@ local CONTINENT_MAP = { [0] = 1415, [1] = 1414 }
 local CONTINENT_NAME = { [0] = "Eastern Kingdoms", [1] = "Kalimdor" }
 
 local frame, mapBox, scroll, listChild
-local overallBar, autoBox, pinBox, contButtons, trail
+local overallBar, autoBox, pinBox, flyBox, contButtons, trail
 local zoneTitle, zoneInfo, nextInfo, routeButton, skipButton
 local zoneRows = {}
 local continent = 0          -- the continent the list shows
@@ -671,6 +671,7 @@ Refresh = function()
     overallBar.text:SetText(string.format("Explorer: %d / %d areas, %d / %d zones", ad, at, zd, zt))
     autoBox:SetChecked(ns.db.autoRoute)
     pinBox:SetChecked(ns.db.mapPins)
+    flyBox:SetChecked(ns.db.autoFly)
     RefreshList()
     DrawMap()
     RefreshTrail()
@@ -723,6 +724,11 @@ local function Build()
             ns.Fire("settings")
         end)
     pinBox:SetPoint("TOPLEFT", 380, -60)
+    flyBox = Check(frame, "Fly automatically",
+        "When the route plans a flight, take it as soon as you open the flight master's map. "
+        .. "Off, a button by the flight map takes it in one click.",
+        function(on) ns.db.autoFly = on end)
+    flyBox:SetPoint("TOPLEFT", 380, -82)
 
     contButtons = {}
     for i, c in ipairs({ 0, 1 }) do

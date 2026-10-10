@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Known flight points are read the way the world map reads them, from
+  anywhere, so flights are suggested without opening a flight map first
+  (before, no flight point was known until one had been opened).
+- At the flight master, a "Fly to ..." button by the flight map takes the
+  planned flight in one click; with Fly automatically on (in the window, or
+  /cf autofly) it's taken as soon as the map opens.
+- A flight is suggested when it saves 30 seconds or more (was 45).
 - The route line carries on across zone lines. Wherever you are and whatever
   map is open (the route's zone, the zone next door, the continent, Azeroth),
   the world map and the window draw the route from you: the walking path to

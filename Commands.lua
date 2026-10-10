@@ -77,6 +77,9 @@ local function Probe()
         tostring(ns.ZoneState(zone).source)))
     local g = ns.Grid and ns.Grid(zone)
     print("  terrain: " .. (g and string.format("%dx%d points", g.nx, g.ny) or "|cffff5555none|r"))
+    local said = ns.ReadKnownFromMaps and ns.ReadKnownFromMaps() or 0
+    print("  C_TaxiMap.GetTaxiNodesForMap = " .. (ns.API("C_TaxiMap", "GetTaxiNodesForMap") and "|cff55ff55yes|r" or "|cffff5555missing|r")
+        .. string.format(" (told about %d flight points)", said))
     local known = 0
     for _ in pairs(ns.KnownFlights and ns.KnownFlights() or {}) do known = known + 1 end
     print(string.format("  flight points known on this character: %d%s", known,
@@ -95,6 +98,7 @@ local function Help()
     print("  /cf next - say the next stop in chat")
     print("  /cf skip - leave the current stop for the end of the route")
     print("  /cf stop - stop the route")
+    print("  /cf autofly - take the planned flight as soon as the flight map opens, on or off")
     print("  /cf banner - the big on-screen messages, on or off")
     print("  /cf arrow <0.5-2> - size of the arrow")
     print("  /cf probe - what the client says; send this when something looks wrong")
@@ -132,6 +136,10 @@ SlashCmdList.COMPASSFOREVER = function(msg)
     elseif cmd == "auto" then
         ns.SetAutoRoute(not ns.db.autoRoute)
         ns.Print("automatic routes " .. (ns.db.autoRoute and "on" or "off") .. ".")
+    elseif cmd == "autofly" then
+        ns.db.autoFly = not ns.db.autoFly
+        ns.Print("flying automatically " .. (ns.db.autoFly and "on" or "off") .. ".")
+        ns.Fire("settings")
     elseif cmd == "banner" then
         ns.db.banner = not ns.db.banner
         ns.Print("on-screen messages " .. (ns.db.banner and "on" or "off") .. ".")
