@@ -1,4 +1,4 @@
--- Chair Legacy: Auto.lua
+-- Compass Forever: Auto.lua
 -- With "Route me automatically" on: entering a zone that still has covered
 -- areas starts its route and says where to run. Leaving it ends that route.
 -- A route the player started themself is left alone until they stop it.

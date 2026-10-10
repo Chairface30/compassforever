@@ -28,7 +28,7 @@ TABLES = [
     "UiMapXMapArt", "UiMapAssignment", "AreaTable", "Map", "Achievement_Category",
 ]
 WDT = {0: 775971, 1: 782779}  # world/maps/azeroth/azeroth.wdt, kalimdor.wdt
-UA = {"User-Agent": "ChairLegacy data build"}
+UA = {"User-Agent": "CompassForever data build"}
 
 
 def get(url, dest, tries=4):

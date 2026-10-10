@@ -1,4 +1,4 @@
--- Chair Legacy: Core.lua
+-- Compass Forever: Core.lua
 -- Settings, events and the helpers every file shares.
 --
 -- Built for WoW Forever. Every read of a client value goes through a pcall and
@@ -7,7 +7,7 @@
 
 local addonName, ns = ...
 ns.addonName = addonName
-ns.title = "Chair Legacy"
+ns.title = "Compass Forever"
 
 local DEFAULTS = {
     window = {},           -- the main window's spot
@@ -20,7 +20,7 @@ local DEFAULTS = {
 }
 
 function ns.Print(...)
-    local parts = { "|cff66ccffChair Legacy|r:" }
+    local parts = { "|cff66ccffCompass Forever|r:" }
     for i = 1, select("#", ...) do
         local value = (select(i, ...))
         local ok, text = pcall(function() return "" .. tostring(value) end)
@@ -70,8 +70,8 @@ end
 -------------------------------------------------------------------------------
 
 function ns.LoadSettings()
-    if type(ChairLegacyDB) ~= "table" then ChairLegacyDB = {} end
-    local db = ChairLegacyDB
+    if type(CompassForeverDB) ~= "table" then CompassForeverDB = {} end
+    local db = CompassForeverDB
     for key, value in pairs(DEFAULTS) do
         if db[key] == nil then
             db[key] = type(value) == "table" and {} or value

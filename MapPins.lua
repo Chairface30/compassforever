@@ -1,11 +1,11 @@
--- Chair Legacy: MapPins.lua
+-- Compass Forever: MapPins.lua
 -- On the world map, while it shows a zone with areas still covered:
 --   - a marker on each of them, numbered in route order while that zone's
 --     route is walked; click one to head there next (it starts the route if
 --     none is running);
 --   - a bar across the top of the map saying how many are left, with a
 --     button to start or stop the route and one to open the zone in the
---     Chair Legacy window.
+--     Compass Forever window.
 --
 -- Everything sits on frames of our own laid over the map. The map is only
 -- read (which map it shows, how big its canvas is), never driven.

@@ -1,4 +1,4 @@
--- Chair Legacy: Route.lua
+-- Compass Forever: Route.lua
 -- The shortest walk through a zone's map areas that are still covered.
 --
 -- Every area comes with a few standing points (Data/Exploration.lua, picked

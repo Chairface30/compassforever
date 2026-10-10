@@ -1,8 +1,8 @@
-# Chair Legacy in a stand-in client (needs: pip install lupa)
+# Compass Forever in a stand-in client (needs: pip install lupa)
 #   python tests/addon_test.py
 #
 # The harness is kinder than the client: it proves the logic, not that the
-# client will hand these values over. That is what /legacy probe is for.
+# client will hand these values over. That is what /cf probe is for.
 import io, itertools, math, os, re, sys
 from lupa import lua51
 
@@ -151,7 +151,7 @@ function BANNER_TITLE()
 end
 '''
 
-TOC = [l.strip() for l in io.open("ChairLegacy.toc", encoding="utf-8")
+TOC = [l.strip() for l in io.open("CompassForever.toc", encoding="utf-8")
        if l.strip() and not l.startswith("#") and not l.startswith("Libs")]
 
 
@@ -162,7 +162,7 @@ def boot():
     for path in TOC:
         src = io.open(path, encoding="utf-8").read()
         fn = rt.eval("function(src, name) local f, err = loadstring(src, name) if not f then error(err) end return f end")(src, path)
-        fn("ChairLegacy", rt.globals().NS)
+        fn("CompassForever", rt.globals().NS)
     # The stand-in achievements: every zone, criteria from the built-in data.
     rt.execute('''
         ACH_BY_ID = {}
@@ -172,7 +172,7 @@ def boot():
             ACH_BY_ID[z.ach] = { name = "Explore " .. z.name, crit = crit }
         end
     ''')
-    rt.execute("FIRE('ADDON_LOADED', 'ChairLegacy') FIRE('PLAYER_LOGIN') FLUSH()")
+    rt.execute("FIRE('ADDON_LOADED', 'CompassForever') FIRE('PLAYER_LOGIN') FLUSH()")
     return rt
 
 
@@ -188,8 +188,8 @@ print("load")
 rt = boot()
 NS = rt.globals().NS
 check("loads and logs in without an error", not any("|cffff5555" in p for p in printed(rt)), printed(rt))
-check("slash command registered", rt.eval("SlashCmdList.CHAIRLEGACY ~= nil"))
-check("minimap button registered", rt.eval("DBICON.registered.ChairLegacy ~= nil"))
+check("slash command registered", rt.eval("SlashCmdList.COMPASSFOREVER ~= nil"))
+check("minimap button registered", rt.eval("DBICON.registered.CompassForever ~= nil"))
 
 print("data")
 zones = rt.eval("#NS.ZONES")
@@ -260,7 +260,7 @@ check("the rest are still to do, not unknown", rt2.eval("select(3, NS.ZoneCounts
 check("the source is the map", rt2.eval("NS.ZoneState(ELWYNN).source") == "map")
 
 print("the route")
-rt.execute("SlashCmdList.CHAIRLEGACY('route')")
+rt.execute("SlashCmdList.COMPASSFOREVER('route')")
 check("route starts in the player's zone", rt.eval("NS.route and NS.route.zone == ELWYNN"))
 n0 = rt.eval("#NS.route.stops")
 check("route skips what is done", n0 == len(rt.eval("ELWYNN.nodes")) - 2, n0)
@@ -270,15 +270,15 @@ check("uncovering a stop replans without it", rt.eval("#NS.route.stops") == n0 -
       and rt.eval(f"NS.CurrentStop().node.criteria ~= {first}"))
 check("the banner says what was uncovered and where next", "Uncovered" in (rt.eval("rawget(BANNER_TITLE(), '_text')") or ""))
 skipped = rt.eval("NS.CurrentStop().node.overlay")
-rt.execute("SlashCmdList.CHAIRLEGACY('skip')")
+rt.execute("SlashCmdList.COMPASSFOREVER('skip')")
 check("skip moves the stop to the end", rt.eval("NS.route.stops[#NS.route.stops].node.overlay") == skipped)
 rt.execute(f"DONE[NS.CurrentStop().node.criteria] = true FIRE('CRITERIA_UPDATE') FLUSH()")
 check("a skipped stop stays last after a replan", rt.eval("NS.route.stops[#NS.route.stops].node.overlay") == skipped)
-rt.execute("SlashCmdList.CHAIRLEGACY('route westfall')")
+rt.execute("SlashCmdList.COMPASSFOREVER('route westfall')")
 check("route by zone name", rt.eval("NS.route.zone.name") == "Westfall")
-rt.execute("for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = true end SlashCmdList.CHAIRLEGACY('route elwynn')")
+rt.execute("for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = true end SlashCmdList.COMPASSFOREVER('route elwynn')")
 check("a finished zone has no route", rt.eval("NS.route == nil"))
-rt.execute("SlashCmdList.CHAIRLEGACY('stop')")
+rt.execute("SlashCmdList.COMPASSFOREVER('stop')")
 
 print("arrow")
 rt.execute("ZONE = { w = 1000, h = 1000, map = 1429 } PLAYER.x, PLAYER.y = 0.5, 0.5")
@@ -300,16 +300,16 @@ rt.execute("NS.StopRoute()")
 print("automatic routes")
 rt.execute("FIRE('ZONE_CHANGED_NEW_AREA') FLUSH()")
 check("off by default: entering a zone starts nothing", rt.eval("NS.route == nil"))
-rt.execute("SlashCmdList.CHAIRLEGACY('auto') FLUSH()")
+rt.execute("SlashCmdList.COMPASSFOREVER('auto') FLUSH()")
 check("turning it on in a zone with work starts its route", rt.eval("NS.route and NS.route.zone == ELWYNN and NS.route.auto"))
 check("and the banner says where to run", "to uncover" in (rt.eval("rawget(BANNER_TITLE(), '_text')") or ""))
 rt.execute("PLAYER.map, PLAYER.x, PLAYER.y = 1436, 0.5, 0.5 FIRE('ZONE_CHANGED_NEW_AREA') FLUSH()")
 check("entering the next zone switches to its route", rt.eval("NS.route and NS.route.zone.name") == "Westfall")
 rt.execute("PLAYER.map = 9999 FIRE('ZONE_CHANGED_NEW_AREA') FLUSH()")
 check("leaving for a place with no map ends the automatic route", rt.eval("NS.route == nil"))
-rt.execute("PLAYER.map = 1429 SlashCmdList.CHAIRLEGACY('route westfall') FIRE('ZONE_CHANGED_NEW_AREA') FLUSH()")
+rt.execute("PLAYER.map = 1429 SlashCmdList.COMPASSFOREVER('route westfall') FIRE('ZONE_CHANGED_NEW_AREA') FLUSH()")
 check("a route the player started is kept on entering another zone", rt.eval("NS.route.zone.name") == "Westfall")
-rt.execute("NS.StopRoute() SlashCmdList.CHAIRLEGACY('auto')")
+rt.execute("NS.StopRoute() SlashCmdList.COMPASSFOREVER('auto')")
 check("auto can be turned off again", rt.eval("NS.db.autoRoute") is False)
 
 print("window and world map")
@@ -344,7 +344,7 @@ off = rt.eval("""(function()
     end
     return worst end)()""")
 check("world map markers sit on their spots when zoomed", off < 1e-6, off)
-rt.execute("PRINTED = {} SlashCmdList.CHAIRLEGACY('probe')")
+rt.execute("PRINTED = {} SlashCmdList.COMPASSFOREVER('probe')")
 out = "\n".join(printed(rt))
 check("probe reports the criteria match", "match the built-in areas" in out, out)
 

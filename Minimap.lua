@@ -1,10 +1,10 @@
--- Chair Legacy: Minimap.lua
+-- Compass Forever: Minimap.lua
 -- The minimap button (LibDBIcon), also a launcher for any LibDataBroker bar.
 -- Click opens the window; right-click starts or stops this zone's route.
 
 local _, ns = ...
 
-local NAME = "ChairLegacy"
+local NAME = "CompassForever"
 local ICON = "Interface\\Icons\\INV_Misc_Map_01"
 
 local function Tooltip(tip)
@@ -37,7 +37,7 @@ function ns.SetupMinimap()
         icon = ICON,
         OnClick = function(_, button)
             if button == "RightButton" then
-                if ns.route then ns.StopRoute() else SlashCmdList.CHAIRLEGACY("route") end
+                if ns.route then ns.StopRoute() else SlashCmdList.COMPASSFOREVER("route") end
             else
                 ns.ToggleWindow()
             end

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Renamed to Compass Forever. The command is /cf (or /compassforever); /legacy
+  still works.
 - Exploration only: the challenge pages and tracker are gone (the game's own
   Legacy window already shows them).
 - A new window: every zone with how much is left, and the chosen zone's own

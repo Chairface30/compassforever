@@ -1,9 +1,9 @@
 ## Interface: 16001
-## Title: Chair Legacy
-## Notes: Uncover every zone map for the Explorer Legacy challenge: the shortest route through each zone, an arrow to every spot, and markers on the world map. Type /legacy.
+## Title: Compass Forever
+## Notes: Uncover every zone map for the Explorer Legacy challenge: the shortest route through each zone, an arrow to every spot, and markers on the world map. Type /cf.
 ## Author: Chairface Chippendale
 ## Version: 0.1
-## SavedVariables: ChairLegacyDB
+## SavedVariables: CompassForeverDB
 ## IconTexture: Interface\Icons\INV_Misc_Map_01
 
 Libs\LibStub\LibStub.lua

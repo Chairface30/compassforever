@@ -1,4 +1,4 @@
--- Chair Legacy: UI.lua
+-- Compass Forever: UI.lua
 -- The window. Zones down the left with how much of each is uncovered; on the
 -- right the chosen zone's own map, drawn with the parts this character has
 -- uncovered (the rest stays in fog, as on the world map), a marker on every
@@ -387,7 +387,7 @@ ns.RefreshWindow = Refresh
 
 local function Build()
     if frame then return end
-    frame = CreateFrame("Frame", "ChairLegacyFrame", UIParent, "BackdropTemplate")
+    frame = CreateFrame("Frame", "CompassForeverFrame", UIParent, "BackdropTemplate")
     frame:SetSize(W, H)
     frame:SetFrameStrata("HIGH")
     frame:SetClampedToScreen(true)
@@ -407,7 +407,7 @@ local function Build()
             insets = { left = 8, right = 8, top = 8, bottom = 8 },
         })
     end
-    tinsert(UISpecialFrames, "ChairLegacyFrame")
+    tinsert(UISpecialFrames, "CompassForeverFrame")
 
     local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     title:SetPoint("TOPLEFT", 22, -18)
@@ -445,7 +445,7 @@ local function Build()
         contButtons[i] = b
     end
 
-    scroll = CreateFrame("ScrollFrame", "ChairLegacyZoneList", frame, "UIPanelScrollFrameTemplate")
+    scroll = CreateFrame("ScrollFrame", "CompassForeverZoneList", frame, "UIPanelScrollFrameTemplate")
     scroll:SetPoint("TOPLEFT", 18, -122)
     scroll:SetSize(LIST_W - 26, H - 140)
     listChild = CreateFrame("Frame", nil, scroll)

@@ -1,4 +1,4 @@
--- Chair Legacy: Arrow.lua
+-- Compass Forever: Arrow.lua
 -- A large arrow pointing at the next stop of the exploration route, with the
 -- distance, the area's name and how many stops are left.
 --
@@ -85,7 +85,7 @@ local function Update()
     arrowTex:Show()
     if yards <= CLOSE_YARDS then
         -- The area is uncovered on entering it, usually before this; if it
-        -- has not been by now, the spot needs a look (or /legacy skip).
+        -- has not been by now, the spot needs a look (or /cf skip).
         Point(0)
         arrowTex:SetVertexColor(0.2, 1, 0.25, 0.45)
         distText:SetText("Here")
@@ -101,7 +101,7 @@ end
 
 local function Build()
     if frame then return end
-    frame = CreateFrame("Frame", "ChairLegacyArrow", UIParent)
+    frame = CreateFrame("Frame", "CompassForeverArrow", UIParent)
     frame:SetSize(110, 150)
     frame:SetFrameStrata("MEDIUM")
     frame:SetClampedToScreen(true)

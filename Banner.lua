@@ -1,4 +1,4 @@
--- Chair Legacy: Banner.lua
+-- Compass Forever: Banner.lua
 -- Big words in the middle-top of the screen for the moments that matter: a
 -- route starting on entering a zone, an area uncovered, a zone finished. Each
 -- says where to run next, as a direction and a distance.
@@ -11,7 +11,7 @@ local shownAt
 
 local function Build()
     if frame then return end
-    frame = CreateFrame("Frame", "ChairLegacyBanner", UIParent)
+    frame = CreateFrame("Frame", "CompassForeverBanner", UIParent)
     frame:SetSize(600, 60)
     frame:SetPoint("TOP", UIParent, "TOP", 0, -190)
     frame:SetFrameStrata("HIGH")

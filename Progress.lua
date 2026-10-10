@@ -1,4 +1,4 @@
--- Chair Legacy: Progress.lua
+-- Compass Forever: Progress.lua
 -- Which parts of each zone map are uncovered, read from the client.
 --
 -- Each "Explore <zone>" achievement has one criterion per part of the

@@ -1,5 +1,5 @@
--- Chair Legacy: Commands.lua
--- /legacy and /chairlegacy.
+-- Compass Forever: Commands.lua
+-- /cf and /compassforever (and /legacy, its first name).
 
 local _, ns = ...
 
@@ -15,7 +15,7 @@ local function ZoneFromText(text)
     return nil
 end
 
--- What /legacy probe prints: the functions this relies on, what they say
+-- What /cf probe prints: the functions this relies on, what they say
 -- about the zone the player is in, and whether the map's uncovered art lines
 -- up with the built-in data. This is what to send back when something is off.
 local function Probe()
@@ -79,20 +79,21 @@ end
 
 local function Help()
     ns.Print("commands:")
-    print("  /legacy - open or close the window")
-    print("  /legacy route [zone] - walk the shortest route through the zone's covered areas (default: this zone)")
-    print("  /legacy auto - route automatically on entering a zone, on or off")
-    print("  /legacy next - say the next stop in chat")
-    print("  /legacy skip - leave the current stop for the end of the route")
-    print("  /legacy stop - stop the route")
-    print("  /legacy banner - the big on-screen messages, on or off")
-    print("  /legacy arrow <0.5-2> - size of the arrow")
-    print("  /legacy probe - what the client says; send this when something looks wrong")
+    print("  /cf - open or close the window")
+    print("  /cf route [zone] - walk the shortest route through the zone's covered areas (default: this zone)")
+    print("  /cf auto - route automatically on entering a zone, on or off")
+    print("  /cf next - say the next stop in chat")
+    print("  /cf skip - leave the current stop for the end of the route")
+    print("  /cf stop - stop the route")
+    print("  /cf banner - the big on-screen messages, on or off")
+    print("  /cf arrow <0.5-2> - size of the arrow")
+    print("  /cf probe - what the client says; send this when something looks wrong")
 end
 
-SLASH_CHAIRLEGACY1 = "/legacy"
-SLASH_CHAIRLEGACY2 = "/chairlegacy"
-SlashCmdList.CHAIRLEGACY = function(msg)
+SLASH_COMPASSFOREVER1 = "/cf"
+SLASH_COMPASSFOREVER2 = "/compassforever"
+SLASH_COMPASSFOREVER3 = "/legacy"
+SlashCmdList.COMPASSFOREVER = function(msg)
     msg = (msg or ""):gsub("^%s+", ""):gsub("%s+$", "")
     local cmd, rest = msg:match("^(%S*)%s*(.-)$")
     cmd = (cmd or ""):lower()

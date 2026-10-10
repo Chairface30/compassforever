@@ -1,10 +1,10 @@
-# Chair Legacy
+# Compass Forever
 
 Uncover every zone map for the Explorer Legacy challenge on WoW Forever: the
 shortest route through each zone, an arrow to every spot, and markers on the
 world map.
 
-Type `/legacy`, or click the map icon on the minimap.
+Type `/cf` (or `/compassforever`), or click the map icon on the minimap.
 
 ## How it works
 
@@ -50,15 +50,15 @@ Shen'dralas. The one exception is **Undercity**, which has no terrain of its own
 
 | Command | |
 |---|---|
-| `/legacy` | open or close the window |
-| `/legacy route [zone]` | route through this zone (or the one named) |
-| `/legacy auto` | automatic routes on entering a zone, on or off |
-| `/legacy next` | the next stop and its coordinates |
-| `/legacy skip` | leave the current stop for the end |
-| `/legacy stop` | stop the route |
-| `/legacy banner` | the big on-screen messages, on or off |
-| `/legacy arrow 1.5` | arrow size, 0.5 to 2 |
-| `/legacy probe` | what the client says, for bug reports |
+| `/cf` | open or close the window |
+| `/cf route [zone]` | route through this zone (or the one named) |
+| `/cf auto` | automatic routes on entering a zone, on or off |
+| `/cf next` | the next stop and its coordinates |
+| `/cf skip` | leave the current stop for the end |
+| `/cf stop` | stop the route |
+| `/cf banner` | the big on-screen messages, on or off |
+| `/cf arrow 1.5` | arrow size, 0.5 to 2 |
+| `/cf probe` | what the client says, for bug reports |
 
 ## Rebuilding the data
 
