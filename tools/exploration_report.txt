@@ -1,0 +1,549 @@
+Alterac Mountains      Crushridge Hold                  terrain  chunks=   91 depth=3 at  47.6, 36.6
+Alterac Mountains      Corrahn's Dagger                 terrain  chunks=   83 depth=3 at  48.8, 83.0
+Alterac Mountains      Misty Shore                      terrain  chunks=   46 depth=2 at  25.0, 47.3
+Alterac Mountains      Lordamere Internment Camp        terrain  chunks=   49 depth=3 at  15.5, 90.2
+Alterac Mountains      Dalaran                          terrain  chunks=  263 depth=5 at  16.7, 68.8
+Alterac Mountains      Dandred's Fold                   terrain  chunks=   87 depth=4 at  39.3, 20.5
+Alterac Mountains      The Headland                     terrain  chunks=   55 depth=3 at  39.3, 88.4
+Alterac Mountains      Ruins of Alterac                 terrain  chunks=  227 depth=5 at  38.1, 40.2
+Alterac Mountains      Growless Cave                    terrain  chunks=   73 depth=3 at  39.3, 68.8
+Alterac Mountains      Chillwind Point                  terrain  chunks=  181 depth=5 at  79.8, 59.8
+Alterac Mountains      Gavin's Naze                     terrain  chunks=   46 depth=3 at  32.1, 81.3
+Alterac Mountains      Sofera's Naze                    terrain  chunks=   41 depth=2 at  56.0, 65.2
+Alterac Mountains      The Uplands                      terrain  chunks=  225 depth=4 at  58.3, 29.5
+Alterac Mountains      Gallows' Corner                  terrain  chunks=   77 depth=3 at  51.2, 54.5
+Alterac Mountains      Strahnbrad                       terrain  chunks=   61 depth=3 at  60.7, 43.8
+Arathi Highlands       Circle of Inner Binding          terrain  chunks=   81 depth=4 at  35.6, 57.6
+Arathi Highlands       Thandol Span                     terrain  chunks=   23 depth=2 at  44.9, 89.6
+Arathi Highlands       Witherbark Village               terrain  chunks=  297 depth=6 at  64.4, 68.8
+Arathi Highlands       Go'Shek Farm                     terrain  chunks=   97 depth=4 at  61.6, 57.6
+Arathi Highlands       Dabyrie's Farmstead              terrain  chunks=  103 depth=5 at  55.1, 39.6
+Arathi Highlands       Circle of Outer Binding          terrain  chunks=   32 depth=3 at  52.3, 49.3
+Arathi Highlands       Thoradin's Wall                  terrain  chunks=   61 depth=1 at  18.1, 32.6
+Arathi Highlands       Boulderfist Hall                 terrain  chunks=   58 depth=3 at  53.2, 75.7
+Arathi Highlands       Boulder'gor                      terrain  chunks=  102 depth=4 at  34.7, 39.6
+Arathi Highlands       Hammerfall                       terrain  chunks=  175 depth=5 at  74.5, 35.4
+Arathi Highlands       Faldir's Cove                    terrain  chunks=  112 depth=3 at  29.2, 84.0
+Arathi Highlands       Refuge Pointe                    terrain  chunks=   73 depth=4 at  45.8, 46.5
+Arathi Highlands       Circle of West Binding           terrain  chunks=   38 depth=3 at  25.5, 29.9
+Arathi Highlands       Northfold Manor                  terrain  chunks=   93 depth=4 at  31.0, 27.1
+Arathi Highlands       Stromgarde Keep                  terrain  chunks=  144 depth=5 at  25.5, 64.6
+Arathi Highlands       Circle of East Binding           terrain  chunks=   67 depth=4 at  67.1, 29.9
+Ashenvale              Thistlefur Village               terrain  chunks=  166 depth=5 at  37.3, 36.2
+Ashenvale              Astranaar                        terrain  chunks=  280 depth=6 at  40.8, 52.6
+Ashenvale              The Shrine of Aessina            terrain  chunks=  415 depth=7 at  22.8, 47.4
+Ashenvale              The Ruins of Stardust            terrain  chunks=  188 depth=6 at  33.2, 67.4
+Ashenvale              Mystral Lake                     terrain  chunks=  327 depth=6 at  47.1, 67.4
+Ashenvale              Satyrnaar                        terrain  chunks=   49 depth=3 at  80.6, 50.0
+Ashenvale              Bough Shadow                     terrain  chunks=  219 depth=6 at  94.5, 39.6
+Ashenvale              Warsong Lumber Camp              terrain  chunks=  284 depth=6 at  90.5, 57.8
+Ashenvale              Fire Scar Shrine                 terrain  chunks=  144 depth=4 at  28.0, 63.0
+Ashenvale              Iris Lake                        terrain  chunks=  169 depth=5 at  46.5, 44.0
+Ashenvale              Splintertree Post                terrain  chunks=  232 depth=5 at  69.1, 50.9
+Ashenvale              The Howling Vale                 terrain  chunks=   41 depth=3 at  50.0, 38.8
+Ashenvale              Lake Falathim                    terrain  chunks=  154 depth=4 at  19.9, 37.9
+Ashenvale              Fallen Sky Lake                  terrain  chunks=  273 depth=4 at  62.7, 79.5
+Ashenvale              Maestra's Post                   terrain  chunks=  131 depth=4 at  26.9, 36.2
+Ashenvale              Raynewood Retreat                terrain  chunks=  138 depth=4 at  61.6, 50.0
+Ashenvale              Felfire Hill                     terrain  chunks=  104 depth=4 at  81.8, 67.4
+Ashenvale              The Zoram Strand                 terrain  chunks=  944 depth=12 at   7.2, 20.5
+Azshara                Shadowsong Shrine                terrain  chunks=   27 depth=2 at  13.9, 74.7
+Azshara                Legash Encampment                terrain  chunks=  288 depth=5 at  59.9, 21.4
+Azshara                Ursolan                          terrain  chunks=  240 depth=5 at  48.1, 26.4
+Azshara                Timbermaw Hold                   terrain  chunks=  170 depth=5 at  40.9, 35.2
+Azshara                Valormok                         terrain  chunks=   81 depth=4 at  23.1, 51.0
+Azshara                Ravencrest Monument              terrain  chunks=  141 depth=3 at  71.8, 85.5
+Azshara                Forlorn Ridge                    terrain  chunks=  256 depth=6 at  29.7, 70.7
+Azshara                The Shattered Strand             terrain  chunks=  604 depth=6 at  80.3, 32.3
+Azshara                Jagged Reef                      terrain  chunks= 1567 depth=9 at  79.7,  5.7
+Azshara                Southridge Beach                 terrain  chunks=  561 depth=6 at  47.5, 55.9
+Azshara                Bay of Storms                    terrain  chunks= 1714 depth=12 at  65.2, 46.1
+Azshara                Bitter Reaches                   terrain  chunks=  430 depth=8 at  73.7, 15.5
+Azshara                Thalassian Base Camp             terrain  chunks=  112 depth=5 at  56.7, 25.4
+Azshara                Tower of Eldara                  terrain  chunks=   83 depth=4 at  88.9, 33.3
+Azshara                Temple of Arkkoran               terrain  chunks=  268 depth=6 at  76.4, 43.1
+Azshara                Haldarr Encampment               terrain  chunks=  105 depth=4 at  20.5, 61.9
+Azshara                Ruins of Eldarath                terrain  chunks=  389 depth=6 at  35.6, 53.0
+Azshara                Lake Mennar                      terrain  chunks=  337 depth=7 at  35.6, 81.6
+Azshara                The Ruined Reaches               terrain  chunks=  587 depth=6 at  67.8, 97.4
+Badlands               Lethlor Ravine                   terrain  chunks=  372 depth=7 at  88.6, 35.8
+Badlands               Angor Fortress                   terrain  chunks=   57 depth=3 at  43.0, 31.8
+Badlands               Camp Cagg                        terrain  chunks=  105 depth=5 at  12.2, 78.0
+Badlands               Dustwind Gulch                   terrain  chunks=   96 depth=3 at  63.1, 35.8
+Badlands               Agmond's End                     terrain  chunks=   67 depth=4 at  51.1, 70.0
+Badlands               Apocryphan's Rest                terrain  chunks=   50 depth=3 at  17.6, 61.9
+Badlands               The Dustbowl                     terrain  chunks=  200 depth=4 at  22.9, 49.9
+Badlands               Valley of Fangs                  terrain  chunks=   61 depth=3 at  45.7, 51.9
+Badlands               The Maker's Terrace              terrain  chunks=   60 depth=3 at  48.4, 11.7
+Badlands               Camp Kosh                        terrain  chunks=   31 depth=2 at  67.2, 23.7
+Badlands               Hammertoe's Digsite              terrain  chunks=   35 depth=3 at  52.4, 31.8
+Badlands               Mirage Flats                     terrain  chunks=  165 depth=6 at  37.7, 66.0
+Badlands               Kargath                          terrain  chunks=   44 depth=3 at   4.2, 45.9
+Badlands               Camp Boff                        terrain  chunks=   50 depth=3 at  61.8, 70.0
+Blasted Lands          Rise of the Defiler              terrain  chunks=   60 depth=3 at  50.0, 32.1
+Blasted Lands          Altar of Storms                  terrain  chunks=   35 depth=3 at  39.1, 32.1
+Blasted Lands          Nethergarde Keep                 terrain  chunks=  140 depth=5 at  62.9, 15.7
+Blasted Lands          Dreadmaul Hold                   terrain  chunks=  124 depth=5 at  43.0, 14.2
+Blasted Lands          Serpent's Coil                   terrain  chunks=   53 depth=3 at  63.9, 32.1
+Blasted Lands          The Dark Portal                  terrain  chunks=  214 depth=6 at  59.0, 59.0
+Blasted Lands          Dreadmaul Post                   terrain  chunks=   25 depth=2 at  47.0, 42.5
+Blasted Lands          Garrison Armory                  terrain  chunks=    9 depth=2 at  58.0, 14.2
+Blasted Lands          The Tainted Scar                 terrain  chunks=  600 depth=10 at  40.0, 66.4
+Burning Steppes        Draco'dar                        terrain  chunks=  187 depth=6 at  17.6, 65.8
+Burning Steppes        Blackrock Pass                   terrain  chunks=   64 depth=3 at  78.0, 76.1
+Burning Steppes        The Pillar of Ash                terrain  chunks=   46 depth=3 at  54.1, 55.6
+Burning Steppes        Altar of Storms                  terrain  chunks=   76 depth=4 at  17.6, 30.0
+Burning Steppes        Blackrock Mountain               terrain  chunks=  250 depth=5 at  29.0, 43.6
+Burning Steppes        Terror Wing Path                 terrain  chunks=  326 depth=5 at  89.3, 40.2
+Burning Steppes        Ruins of Thaurissan              terrain  chunks=  224 depth=5 at  66.6, 40.2
+Burning Steppes        Dreadmaul Rock                   terrain  chunks=  148 depth=5 at  80.2, 45.4
+Burning Steppes        Morgan's Vigil                   terrain  chunks=   52 depth=3 at  84.8, 67.6
+Burning Steppes        Blackrock Stronghold             terrain  chunks=   96 depth=4 at  40.4, 33.4
+Darkshore              Bashal'Aran                      terrain  chunks=  131 depth=5 at  45.2, 37.0
+Darkshore              Ruins of Mathystra               terrain  chunks=  192 depth=6 at  59.4, 22.5
+Darkshore              Remtravel's Excavation           terrain  chunks=   40 depth=3 at  35.5, 85.9
+Darkshore              Auberdine                        terrain  chunks=   71 depth=3 at  37.0, 43.9
+Darkshore              Tower of Althalaxx               terrain  chunks=   36 depth=3 at  56.4, 26.3
+Darkshore              Ameth'Aran                       terrain  chunks=  132 depth=5 at  45.2, 58.4
+Darkshore              The Master's Glaive              terrain  chunks=   60 depth=3 at  38.5, 86.6
+Darkshore              Cliffspring River                terrain  chunks=  122 depth=3 at  50.8, 22.5
+Darkshore              Grove of the Ancients            terrain  chunks=   47 depth=3 at  43.1, 77.5
+Deadwind Pass          Deadman's Crossing               terrain  chunks=   32 depth=2 at  35.3, 35.0
+Deadwind Pass          The Vice                         terrain  chunks=  113 depth=3 at  58.0, 73.0
+Deadwind Pass          Karazhan                         terrain  chunks=  111 depth=5 at  48.7, 77.0
+Desolace               Nijel's Point                    terrain  chunks=  115 depth=4 at  66.4,  6.7
+Desolace               Sargeron                         terrain  chunks=  303 depth=7 at  77.5, 23.4
+Desolace               Thunder Axe Fortress             terrain  chunks=  163 depth=6 at  53.0, 29.0
+Desolace               Kormek's Hut                     terrain  chunks=   17 depth=2 at  61.9, 39.0
+Desolace               Kolkar Village                   terrain  chunks=  213 depth=6 at  72.3, 45.7
+Desolace               Valley of Spears                 terrain  chunks=  247 depth=7 at  32.3, 60.1
+Desolace               Mannoroc Coven                   terrain  chunks=  269 depth=6 at  52.3, 84.6
+Desolace               Ethel Rethor                     terrain  chunks=   87 depth=3 at  39.7, 30.1
+Desolace               Kodo Graveyard                   terrain  chunks=  151 depth=5 at  48.6, 60.1
+Desolace               Shadowbreak Ravine               terrain  chunks=   71 depth=4 at  79.7, 79.0
+Desolace               Ranazjar Isle                    terrain  chunks=   36 depth=3 at  28.5,  7.9
+Desolace               Tethris Aran                     terrain  chunks=   73 depth=3 at  50.0,  7.9
+Desolace               Shadowprey Village               terrain  chunks=   83 depth=4 at  25.6, 70.1
+Desolace               Gelkis Village                   terrain  chunks=  165 depth=5 at  35.2, 82.3
+Desolace               Magram Village                   terrain  chunks=  294 depth=7 at  67.8, 70.1
+Dun Morogh             Misty Pine Refuge                terrain  chunks=   55 depth=3 at  57.2, 43.8
+Dun Morogh             Iceflow Lake                     terrain  chunks=  147 depth=4 at  32.2, 41.8
+Dun Morogh             Helm's Bed Lake                  terrain  chunks=  147 depth=5 at  77.5, 56.0
+Dun Morogh             Shimmer Ridge                    terrain  chunks=   52 depth=2 at  42.3, 35.7
+Dun Morogh             Anvilmar                         terrain  chunks=  392 depth=9 at  22.0, 74.3
+Dun Morogh             Chill Breeze Valley              terrain  chunks=   90 depth=3 at  36.9, 53.0
+Dun Morogh             Kharanos                         terrain  chunks=   70 depth=3 at  47.8, 48.9
+Dun Morogh             The Tundrid Hills                terrain  chunks=  200 depth=5 at  55.9, 58.1
+Dun Morogh             Amberstill Ranch                 terrain  chunks=   70 depth=3 at  64.7, 49.9
+Dun Morogh             Coldridge Pass                   terrain  chunks=   61 depth=3 at  35.6, 65.2
+Dun Morogh             Gol'Bolar Quarry                 terrain  chunks=   69 depth=3 at  70.1, 58.1
+Dun Morogh             North Gate Outpost               terrain  chunks=  180 depth=6 at  83.0, 36.7
+Dun Morogh             Frostmane Hold                   terrain  chunks=   89 depth=4 at  26.1, 55.0
+Dun Morogh             Brewnall Village                 terrain  chunks=   77 depth=3 at  30.8, 48.9
+Dun Morogh             The Grizzled Den                 terrain  chunks=   80 depth=3 at  43.7, 56.0
+Dun Morogh             Gnomeregan                       terrain  chunks=  118 depth=4 at  26.1, 40.8
+Dun Morogh             Gates of Ironforge               terrain  chunks=   42 depth=3 at  52.5, 35.7
+Dun Morogh             South Gate Outpost               terrain  chunks=   73 depth=4 at  85.0, 51.0
+Durotar                Skull Rock                       terrain  chunks=   36 depth=3 at  54.0, 10.2
+Durotar                Valley of Trials                 terrain  chunks=  327 depth=7 at  42.6, 68.8
+Durotar                Thunder Ridge                    terrain  chunks=  100 depth=4 at  42.6, 24.3
+Durotar                Tiragarde Keep                   terrain  chunks=   96 depth=4 at  59.0, 58.4
+Durotar                Echo Isles                       terrain  chunks=  925 depth=11 at  70.4, 85.8
+Durotar                Sen'jin Village                  terrain  chunks=   39 depth=3 at  55.9, 74.5
+Durotar                Kolkar Crag                      terrain  chunks=   54 depth=3 at  47.7, 78.3
+Durotar                Razor Hill                       terrain  chunks=   52 depth=3 at  54.0, 42.3
+Durotar                Drygulch Ravine                  terrain  chunks=  120 depth=3 at  52.1, 21.5
+Durotar                Orgrimmar                        terrain  chunks=  232 depth=6 at  43.9,  8.3
+Durotar                Razormane Grounds                terrain  chunks=  173 depth=4 at  43.9, 47.0
+Duskwood               Twilight Grove                   terrain  chunks=  145 depth=5 at  47.5, 35.2
+Duskwood               Manor Mistmantle                 terrain  chunks=   50 depth=3 at  77.2, 33.3
+Duskwood               Darkshire                        terrain  chunks=  157 depth=4 at  73.5, 48.1
+Duskwood               The Hushed Bank                  terrain  chunks=   98 depth=3 at  10.5, 51.9
+Duskwood               Vul'Gol Ogre Mound               terrain  chunks=   74 depth=4 at  34.0, 74.1
+Duskwood               The Yorgen Farmstead             terrain  chunks=   63 depth=3 at  50.0, 75.9
+Duskwood               Brightwood Grove                 terrain  chunks=  247 depth=6 at  66.0, 44.4
+Duskwood               Tranquil Gardens Cemetery        terrain  chunks=   57 depth=3 at  79.6, 68.5
+Duskwood               The Darkened Bank                terrain  chunks=  327 depth=4 at  37.7, 22.2
+Duskwood               Addle's Stead                    terrain  chunks=  127 depth=4 at  21.6, 68.5
+Duskwood               Raven Hill                       terrain  chunks=   50 depth=3 at  19.1, 53.7
+Duskwood               Raven Hill Cemetery              terrain  chunks=  143 depth=5 at  24.1, 37.0
+Duskwood               The Rotting Orchard              terrain  chunks=   70 depth=4 at  66.0, 66.7
+Dustwallow Marsh       Brackenwall Village              terrain  chunks=  261 depth=5 at  35.7, 31.0
+Dustwallow Marsh       The Quagmire                     terrain  chunks=  407 depth=8 at  45.9, 56.7
+Dustwallow Marsh       Alcaz Island                     terrain  chunks=  531 depth=8 at  75.1, 21.4
+Dustwallow Marsh       The Den of Flame                 terrain  chunks=   48 depth=3 at  38.9, 64.3
+Dustwallow Marsh       Theramore Isle                   terrain  chunks=  249 depth=6 at  64.3, 48.1
+Dustwallow Marsh       Witch Hill                       terrain  chunks=  959 depth=9 at  67.5, 30.0
+Dustwallow Marsh       Wyrmbog                          terrain  chunks=  492 depth=7 at  52.2, 75.7
+Eastern Plaguelands    Plaguewood                       terrain  chunks=  881 depth=10 at  33.9, 18.9
+Eastern Plaguelands    Lake Mereldar                    terrain  chunks=  145 depth=5 at  50.2, 70.1
+Eastern Plaguelands    Corin's Crossing                 terrain  chunks=   90 depth=4 at  53.3, 58.4
+Eastern Plaguelands    Darrowshire                      terrain  chunks=  152 depth=5 at  33.2, 79.4
+Eastern Plaguelands    Stratholme                       terrain  chunks=   94 depth=4 at  27.0, 11.9
+Eastern Plaguelands    Tyr's Hand                       terrain  chunks=  196 depth=6 at  76.6, 73.5
+Eastern Plaguelands    Pestilent Scar                   terrain  chunks=   76 depth=3 at  65.7, 52.6
+Eastern Plaguelands    Eastwall Tower                   terrain  chunks=   78 depth=4 at  58.7, 39.8
+Eastern Plaguelands    Northdale                        terrain  chunks=  146 depth=5 at  61.8, 22.4
+Eastern Plaguelands    Blackwood Lake                   terrain  chunks=  115 depth=5 at  47.1, 41.0
+Eastern Plaguelands    Zul'Mashar                       terrain  chunks=  200 depth=7 at  63.4,  8.4
+Eastern Plaguelands    Quel'Lithien Lodge               terrain  chunks=   67 depth=3 at  46.3, 10.8
+Eastern Plaguelands    Thondroril River                 terrain  chunks=  133 depth=3 at   4.5, 36.3
+Eastern Plaguelands    The Undercroft                   terrain  chunks=   98 depth=4 at  23.1, 73.5
+Eastern Plaguelands    Northpass Tower                  terrain  chunks=   32 depth=2 at  49.4, 17.7
+Eastern Plaguelands    Light's Hope Chapel              terrain  chunks=   94 depth=4 at  70.4, 49.1
+Eastern Plaguelands    Terrordale                       terrain  chunks=   78 depth=4 at  13.8, 25.9
+Eastern Plaguelands    The Marris Stead                 terrain  chunks=   57 depth=3 at  22.3, 63.1
+Eastern Plaguelands    Crown Guard Tower                terrain  chunks=   45 depth=3 at  33.9, 64.2
+Eastern Plaguelands    The Fungal Vale                  terrain  chunks=  121 depth=4 at  35.5, 42.2
+Eastern Plaguelands    The Noxious Glade                terrain  chunks=  166 depth=6 at  72.7, 35.2
+Eastern Plaguelands    The Infectis Scar                terrain  chunks=   80 depth=3 at  44.0, 58.4
+Elwynn Forest          Ridgepoint Tower                 terrain  chunks=   51 depth=3 at  84.1, 79.7
+Elwynn Forest          Eastvale Logging Camp            terrain  chunks=  160 depth=5 at  87.0, 68.1
+Elwynn Forest          Jerod's Landing                  terrain  chunks=   40 depth=3 at  47.6, 85.4
+Elwynn Forest          Northshire Valley                terrain  chunks=  251 depth=5 at  49.5, 40.8
+Elwynn Forest          Stormwind City                   terrain  chunks=  693 depth=9 at  28.4, 22.1
+Elwynn Forest          Forest's Edge                    terrain  chunks=  207 depth=5 at  24.5, 72.5
+Elwynn Forest          Tower of Azora                   terrain  chunks=  129 depth=4 at  63.0, 66.7
+Elwynn Forest          Brackwell Pumpkin Patch          terrain  chunks=   88 depth=4 at  69.7, 78.2
+Elwynn Forest          Crystal Lake                     terrain  chunks=  139 depth=5 at  56.2, 58.1
+Elwynn Forest          Stone Cairn Lake                 terrain  chunks=  419 depth=6 at  72.6, 39.3
+Elwynn Forest          Goldshire                        terrain  chunks=   48 depth=3 at  41.8, 65.3
+Elwynn Forest          Fargodeep Mine                   terrain  chunks=  162 depth=5 at  33.2, 85.4
+Felwood                Bloodvenom Falls                 terrain  chunks=   50 depth=3 at  42.2, 47.4
+Felwood                Jadefire Run                     terrain  chunks=  166 depth=4 at  42.2, 17.8
+Felwood                Jaedenar                         terrain  chunks=  149 depth=5 at  35.2, 60.4
+Felwood                Emerald Sanctuary                terrain  chunks=   60 depth=3 at  50.9, 81.3
+Felwood                Deadwood Village                 terrain  chunks=  122 depth=4 at  48.6, 89.1
+Felwood                Morlos'Aran                      terrain  chunks=  155 depth=5 at  56.1, 87.4
+Felwood                Irontree Woods                   terrain  chunks=  452 depth=8 at  52.6, 22.2
+Felwood                Ruins of Constellas              terrain  chunks=  240 depth=6 at  39.3, 70.9
+Felwood                Felpaw Village                   terrain  chunks=  148 depth=5 at  63.0, 12.6
+Felwood                Talonbranch Glade                terrain  chunks=  160 depth=6 at  61.9, 24.8
+Felwood                Shatter Scar Vale                terrain  chunks=  277 depth=7 at  46.8, 39.6
+Felwood                Jadefire Glen                    terrain  chunks=  114 depth=3 at  41.6, 85.7
+Feralas                Grimtotem Compound               terrain  chunks=   89 depth=4 at  69.4, 39.2
+Feralas                Dire Maul                        terrain  chunks=  214 depth=6 at  57.9, 44.2
+Feralas                The Writhing Deep                terrain  chunks=  611 depth=10 at  66.5, 65.1
+Feralas                Feral Scar Vale                  terrain  chunks=   73 depth=3 at  56.0, 57.2
+Feralas                Dream Bough                      terrain  chunks=   34 depth=2 at  51.7,  9.7
+Feralas                The Forgotten Coast              terrain  chunks= 1915 depth=9 at  34.4, 35.6
+Feralas                Ruins of Isildien                terrain  chunks=  434 depth=8 at  59.8, 65.8
+Feralas                Isle of Dread                    terrain  chunks= 2551 depth=22 at  41.1, 94.6
+Feralas                Lower Wilds                      terrain  chunks=  503 depth=9 at  80.0, 38.5
+Feralas                Camp Mojache                     terrain  chunks=   62 depth=3 at  74.7, 42.8
+Feralas                Ruins of Ravenwind               terrain  chunks=  466 depth=9 at  44.5, 10.4
+Feralas                Oneiros                          terrain  chunks=   94 depth=3 at  50.7, 17.6
+Feralas                Frayfeather Highlands            terrain  chunks=  152 depth=5 at  54.1, 71.6
+Feralas                Gordunni Outpost                 terrain  chunks=  172 depth=5 at  80.5, 34.9
+Feralas                Sardor Isle                      terrain  chunks= 1061 depth=8 at  21.9, 37.1
+Feralas                The Twin Colossals               terrain  chunks= 1024 depth=9 at  46.4, 15.5
+Hillsbrad Foothills    Southshore                       terrain  chunks=   99 depth=4 at  47.4, 58.6
+Hillsbrad Foothills    Dun Garok                        terrain  chunks=   90 depth=3 at  70.3, 77.3
+Hillsbrad Foothills    Hillsbrad Fields                 terrain  chunks=  224 depth=6 at  29.7, 43.0
+Hillsbrad Foothills    Purgation Isle                   terrain  chunks=  204 depth=6 at  15.1, 82.0
+Hillsbrad Foothills    Azurelode Mine                   terrain  chunks=   93 depth=3 at  30.7, 61.7
+Hillsbrad Foothills    Darrow Hill                      terrain  chunks=   60 depth=3 at  49.5, 32.0
+Hillsbrad Foothills    Tarren Mill                      terrain  chunks=  112 depth=5 at  60.9, 24.2
+Hillsbrad Foothills    Durnholde Keep                   terrain  chunks=  249 depth=6 at  75.5, 41.4
+Hillsbrad Foothills    Nethander Stead                  terrain  chunks=  122 depth=4 at  65.1, 61.7
+Hillsbrad Foothills    Eastern Strand                   terrain  chunks=  361 depth=7 at  63.0, 82.0
+Hillsbrad Foothills    Western Strand                   terrain  chunks=  281 depth=5 at  43.2, 75.8
+Hillsbrad Foothills    Southpoint Tower                 terrain  chunks=   45 depth=3 at  19.3, 52.3
+Loch Modan             Ironband's Excavation Site       terrain  chunks=  151 depth=5 at  68.5, 75.9
+Loch Modan             Grizzlepaw Ridge                 terrain  chunks=   97 depth=4 at  40.7, 68.6
+Loch Modan             North Gate Pass                  terrain  chunks=   63 depth=3 at  25.0, 17.9
+Loch Modan             Stonewrought Dam                 terrain  chunks=   77 depth=2 at  52.8, 14.3
+Loch Modan             The Farstrider Lodge             terrain  chunks=  142 depth=4 at  83.0, 63.2
+Loch Modan             Mo'grosh Stronghold              terrain  chunks=  182 depth=6 at  72.1, 25.1
+Loch Modan             The Loch                         terrain  chunks=  331 depth=4 at  60.0, 50.5
+Loch Modan             Thelsamar                        terrain  chunks=   61 depth=3 at  35.9, 52.3
+Loch Modan             Stonesplinter Valley             terrain  chunks=  153 depth=5 at  33.5, 72.3
+Loch Modan             Valley of Kings                  terrain  chunks=  131 depth=4 at  20.2, 75.9
+Loch Modan             Silver Stream Mine               terrain  chunks=  119 depth=4 at  32.3, 12.5
+Moonglade              Lake Elune'ara                   terrain  chunks=  275 depth=5 at  52.1, 41.7
+Mount Hyjal            Cradle of Tranquility            terrain  chunks=  279 depth=6 at  33.4, 54.2
+Mount Hyjal            Dae'gun                          terrain  chunks=  464 depth=9 at  49.7, 39.8
+Mount Hyjal            Elderwild                        terrain  chunks=  113 depth=5 at  15.2, 52.7
+Mount Hyjal            Felblood Scar                    terrain  chunks=  211 depth=6 at  44.9, 68.6
+Mount Hyjal            Malorne's Retreat                terrain  chunks=  165 depth=4 at  35.3, 68.6
+Mount Hyjal            Mourning's Rest                  terrain  chunks=  112 depth=4 at  25.7, 55.6
+Mount Hyjal            Shrine of Aviana                 terrain  chunks=  124 depth=4 at  48.8, 57.1
+Mount Hyjal            Summit of Eternity               terrain  chunks=  379 depth=7 at  80.4, 35.5
+Mount Hyjal            Tainted Foothills                terrain  chunks=  218 depth=5 at  62.2, 74.3
+Mulgore                Palemane Rock                    terrain  chunks=   36 depth=3 at  36.2, 65.4
+Mulgore                Winterhoof Water Well            terrain  chunks=   37 depth=3 at  51.9, 68.7
+Mulgore                Thunderhorn Water Well           terrain  chunks=   39 depth=3 at  44.3, 50.8
+Mulgore                The Golden Plains                terrain  chunks=  554 depth=9 at  50.3, 35.3
+Mulgore                Wildmane Water Well              terrain  chunks=   37 depth=3 at  42.7, 24.8
+Mulgore                The Rolling Plains               terrain  chunks=  194 depth=5 at  57.3, 69.5
+Mulgore                Bael'Dun Digsite                 terrain  chunks=   50 depth=3 at  34.6, 53.2
+Mulgore                Red Cloud Mesa                   terrain  chunks=  727 depth=9 at  44.3, 83.3
+Mulgore                Ravaged Caravan                  terrain  chunks=   27 depth=2 at  51.9, 51.6
+Mulgore                Bloodhoof Village                terrain  chunks=   60 depth=3 at  46.5, 62.2
+Mulgore                Thunder Bluff                    terrain  chunks=  160 depth=5 at  42.2, 36.2
+Mulgore                Windfury Ridge                   terrain  chunks=  135 depth=4 at  50.3, 19.9
+Mulgore                The Venture Co. Mine             terrain  chunks=   40 depth=3 at  57.9, 54.0
+Mulgore                Red Rocks                        terrain  chunks=  130 depth=4 at  56.8, 32.1
+Redridge Mountains     Lake Everstill                   terrain  chunks=  186 depth=4 at  43.1, 60.4
+Redridge Mountains     Galardell Valley                 terrain  chunks=  165 depth=5 at  73.8, 37.4
+Redridge Mountains     Stonewatch Falls                 terrain  chunks=   69 depth=3 at  72.3, 65.0
+Redridge Mountains     Stonewatch                       terrain  chunks=   90 depth=3 at  61.5, 53.5
+Redridge Mountains     Lakeshire                        terrain  chunks=   43 depth=2 at  23.1, 44.3
+Redridge Mountains     Three Corners                    terrain  chunks=  184 depth=5 at  12.4, 74.2
+Redridge Mountains     Render's Camp                    terrain  chunks=   74 depth=3 at  30.8,  9.8
+Redridge Mountains     Alther's Mill                    terrain  chunks=   70 depth=3 at  47.7, 44.3
+Redridge Mountains     Lakeridge Highway                terrain  chunks=  167 depth=4 at  24.7, 81.2
+Redridge Mountains     Redridge Canyons                 terrain  chunks=  124 depth=4 at  23.1, 28.2
+Redridge Mountains     Render's Valley                  terrain  chunks=   89 depth=4 at  69.2, 81.2
+Riverglades            Bolder'ok                        terrain  chunks=  205 depth=6 at  64.4, 22.2
+Riverglades            Bristle Hills                    terrain  chunks=  403 depth=6 at  21.1, 67.5
+Riverglades            Farholde Keep                    terrain  chunks=  133 depth=5 at  61.0, 85.1
+Riverglades            Meadowsbrook                     terrain  chunks=   81 depth=4 at  45.2, 80.9
+Riverglades            Powderfuse Port                  terrain  chunks=  119 depth=4 at  76.1, 54.1
+Riverglades            Rog'mar                          terrain  chunks=   34 depth=3 at  58.2, 45.9
+Riverglades            Sunnyglade                       terrain  chunks=  135 depth=4 at  47.9, 49.0
+Riverglades            Terral's Watch                   terrain  chunks=   19 depth=2 at  59.6, 64.4
+Riverglades            Turner's Logging Camp            terrain  chunks=  105 depth=4 at  39.7, 59.3
+Riverglades            Twilight's Shroud                terrain  chunks=  167 depth=5 at  25.9, 43.8
+Riverglades            Wheeler's Grange                 terrain  chunks=   49 depth=3 at  54.8, 75.8
+Riverglades            Windstead                        terrain  chunks=  215 depth=5 at  78.9, 37.6
+Searing Gorge          Firewatch Ridge                  terrain  chunks=  143 depth=5 at  23.6, 37.0
+Searing Gorge          Dustfire Valley                  terrain  chunks=  131 depth=5 at  75.9, 19.0
+Searing Gorge          Grimesilt Dig Site               terrain  chunks=   32 depth=3 at  65.5, 63.9
+Searing Gorge          Tanner Camp                      terrain  chunks=   42 depth=3 at  64.0, 75.1
+Searing Gorge          The Cauldron                     terrain  chunks=  154 depth=4 at  40.1, 50.4
+Searing Gorge          Blackchar Cave                   terrain  chunks=   41 depth=3 at  22.1, 77.3
+Searing Gorge          The Sea of Cinders               terrain  chunks=  110 depth=4 at  53.5, 70.6
+Shen'dralas            Bristleback Retreat              terrain  chunks=  149 depth=5 at  72.0, 30.5
+Shen'dralas            Evenshade's Overlook             terrain  chunks=   31 depth=2 at  31.3, 47.6
+Shen'dralas            Forlorn Gardens                  terrain  chunks=   74 depth=3 at  70.3, 72.0
+Shen'dralas            Magram Front                     terrain  chunks=   20 depth=2 at  60.6, 54.9
+Shen'dralas            Outcast Hideaway                 terrain  chunks=   21 depth=2 at  32.9, 76.8
+Shen'dralas            Valley of Bones                  terrain  chunks=  276 depth=5 at  50.8, 23.2
+Silithus               Cenarion Hold                    terrain  chunks=  180 depth=4 at  51.3, 38.4
+Silithus               Valor's Rest                     terrain  chunks=  245 depth=6 at  81.9, 18.3
+Silithus               The Crystal Vale                 terrain  chunks=  107 depth=3 at  21.7, 15.4
+Silithus               The Scarab Wall                  terrain  chunks=   70 depth=3 at  29.3, 91.5
+Silithus               Hive'Zora                        terrain  chunks=  346 depth=8 at  23.6, 61.3
+Silithus               Hive'Regal                       terrain  chunks=  418 depth=9 at  51.3, 78.6
+Silverpine Forest      North Tide's Hollow              terrain  chunks=   77 depth=3 at  40.5, 28.0
+Silverpine Forest      The Dead Field                   terrain  chunks=   33 depth=3 at  45.2, 22.0
+Silverpine Forest      Deep Elem Mine                   terrain  chunks=   24 depth=2 at  56.3, 47.0
+Silverpine Forest      The Greymane Wall                terrain  chunks=  194 depth=4 at  46.8, 85.1
+Silverpine Forest      Malden's Orchard                 terrain  chunks=   67 depth=3 at  52.4, 13.7
+Silverpine Forest      The Shining Strand               terrain  chunks=  142 depth=3 at  54.0, 25.6
+Silverpine Forest      The Decrepit Ferry               terrain  chunks=   42 depth=3 at  56.3, 35.1
+Silverpine Forest      The Sepulcher                    terrain  chunks=   35 depth=2 at  44.4, 42.3
+Silverpine Forest      Olsen's Farthing                 terrain  chunks=   23 depth=2 at  46.8, 54.2
+Silverpine Forest      Ambermill                        terrain  chunks=  171 depth=5 at  60.3, 66.1
+Silverpine Forest      Pyrewood Village                 terrain  chunks=   36 depth=3 at  45.2, 73.2
+Silverpine Forest      The Skittering Dark              terrain  chunks=   57 depth=3 at  36.5, 16.1
+Silverpine Forest      Fenris Isle                      terrain  chunks=  306 depth=4 at  65.9, 24.4
+Silverpine Forest      Shadowfang Keep                  terrain  chunks=   59 depth=3 at  43.7, 67.3
+Silverpine Forest      Beren's Peril                    terrain  chunks=   30 depth=3 at  60.3, 74.4
+Stonetalon Mountains   Grimtotem Post                   terrain  chunks=   78 depth=3 at  73.6, 86.0
+Stonetalon Mountains   Boulderslide Ravine              terrain  chunks=   82 depth=4 at  64.8, 93.2
+Stonetalon Mountains   Mirkfallon Lake                  terrain  chunks=  301 depth=6 at  51.8, 43.0
+Stonetalon Mountains   The Charred Vale                 terrain  chunks=  411 depth=9 at  29.9, 69.6
+Stonetalon Mountains   Camp Aparaje                     terrain  chunks=   46 depth=3 at  77.0, 91.1
+Stonetalon Mountains   Sishir Canyon                    terrain  chunks=  114 depth=5 at  53.2, 72.7
+Stonetalon Mountains   Windshear Crag                   terrain  chunks=  861 depth=7 at  60.0, 61.4
+Stonetalon Mountains   Sun Rock Retreat                 terrain  chunks=  119 depth=5 at  46.3, 58.3
+Stonetalon Mountains   Webwinder Path                   terrain  chunks=  380 depth=4 at  60.0, 75.8
+Stonetalon Mountains   Malaka'jin                       terrain  chunks=   54 depth=3 at  71.6, 94.2
+Stonetalon Mountains   Stonetalon Peak                  terrain  chunks=  608 depth=9 at  36.8, 14.3
+Stranglethorn Vale     Lake Nazferiti                   terrain  chunks=   54 depth=2 at  40.8, 16.8
+Stranglethorn Vale     Booty Bay                        terrain  chunks=  112 depth=4 at  27.2, 75.6
+Stranglethorn Vale     Bloodsail Compound               terrain  chunks=   67 depth=3 at  24.1, 52.8
+Stranglethorn Vale     Ruins of Zul'Mamwe               terrain  chunks=  106 depth=4 at  45.0, 42.7
+Stranglethorn Vale     Kal'ai Ruins                     terrain  chunks=   29 depth=2 at  35.1, 23.1
+Stranglethorn Vale     Jaguero Isle                     terrain  chunks=  193 depth=6 at  40.3, 81.8
+Stranglethorn Vale     Ruins of Aboraz                  terrain  chunks=   59 depth=3 at  39.2, 58.3
+Stranglethorn Vale     Balia'mah Ruins                  terrain  chunks=   45 depth=3 at  46.0, 32.5
+Stranglethorn Vale     Mizjah Ruins                     terrain  chunks=   25 depth=2 at  37.2, 30.9
+Stranglethorn Vale     Venture Co. Base Camp            terrain  chunks=  117 depth=4 at  46.0, 24.6
+Stranglethorn Vale     Bal'lal Ruins                    terrain  chunks=   16 depth=2 at  29.3, 19.9
+Stranglethorn Vale     The Vile Reef                    terrain  chunks=  268 depth=6 at  27.2, 34.0
+Stranglethorn Vale     Zul'Gurub                        terrain  chunks= 1311 depth=15 at  54.9,  9.7
+Stranglethorn Vale     Zuuldaia Ruins                   terrain  chunks=   58 depth=3 at  20.4, 14.4
+Stranglethorn Vale     Kurzen's Compound                terrain  chunks=   97 depth=4 at  44.5,  8.2
+Stranglethorn Vale     Crystalvein Mine                 terrain  chunks=   52 depth=3 at  40.8, 50.5
+Stranglethorn Vale     Nesingwary's Expedition          terrain  chunks=   37 depth=3 at  35.1, 11.3
+Stranglethorn Vale     Rebel Camp                       terrain  chunks=   15 depth=2 at  38.2,  3.5
+Stranglethorn Vale     Gurubashi Arena                  terrain  chunks=  156 depth=4 at  32.5, 51.3
+Stranglethorn Vale     Ruins of Zul'Kunda               terrain  chunks=   91 depth=4 at  25.7,  9.7
+Stranglethorn Vale     Grom'gol Base Camp               terrain  chunks=   41 depth=3 at  31.9, 28.6
+Stranglethorn Vale     Ziata'jai Ruins                  terrain  chunks=   34 depth=3 at  43.4, 35.6
+Stranglethorn Vale     Wild Shore                       terrain  chunks=  791 depth=10 at  32.5, 89.7
+Stranglethorn Vale     Nek'mani Wellspring              terrain  chunks=   22 depth=2 at  28.3, 63.8
+Stranglethorn Vale     Mistvale Valley                  terrain  chunks=   67 depth=3 at  33.5, 64.6
+Stranglethorn Vale     Ruins of Jubuwal                 terrain  chunks=   21 depth=2 at  35.1, 51.3
+Stranglethorn Vale     Mosh'Ogg Ogre Mound              terrain  chunks=   73 depth=3 at  49.7, 27.8
+Swamp of Sorrows       Stagalbog                        terrain  chunks=   81 depth=4 at  69.5, 78.2
+Swamp of Sorrows       The Shifting Mire                terrain  chunks=  189 depth=6 at  41.9, 30.2
+Swamp of Sorrows       Misty Valley                     terrain  chunks=   93 depth=4 at  11.4, 30.2
+Swamp of Sorrows       The Harborage                    terrain  chunks=   38 depth=3 at  25.9, 32.4
+Swamp of Sorrows       Splinterspear Junction           terrain  chunks=   25 depth=3 at  18.6, 49.9
+Swamp of Sorrows       Pool of Tears                    terrain  chunks=  152 depth=5 at  69.5, 52.0
+Swamp of Sorrows       Fallow Sanctuary                 terrain  chunks=   49 depth=3 at  57.9, 25.9
+Swamp of Sorrows       Itharius's Cave                  terrain  chunks=   57 depth=3 at  14.3, 60.8
+Swamp of Sorrows       Stonard                          terrain  chunks=   64 depth=4 at  44.8, 54.2
+Swamp of Sorrows       Sorrowmurk                       terrain  chunks=  137 depth=4 at  86.9, 45.5
+Swamp of Sorrows       Misty Reed Strand                terrain  chunks=  280 depth=3 at  84.0, 86.9
+Tanaris                Broken Pillar                    terrain  chunks=  149 depth=5 at  55.5, 45.1
+Tanaris                Southmoon Ruins                  terrain  chunks=  248 depth=6 at  39.6, 76.3
+Tanaris                Valley of the Watchers           terrain  chunks=  180 depth=5 at  35.7, 75.5
+Tanaris                Noonshade Ruins                  terrain  chunks=  173 depth=5 at  60.4, 24.1
+Tanaris                Lost Rigger Cove                 terrain  chunks=  522 depth=9 at  75.8, 44.4
+Tanaris                The Noxious Lair                 terrain  chunks=  399 depth=7 at  35.2, 35.7
+Tanaris                Dunemaul Compound                terrain  chunks=  236 depth=6 at  41.0, 53.1
+Tanaris                The Gaping Chasm                 terrain  chunks=  561 depth=9 at  54.6, 67.6
+Tanaris                Waterspring Field                terrain  chunks=  459 depth=7 at  63.7, 29.2
+Tanaris                Thistleshrub Valley              terrain  chunks=  148 depth=5 at  28.5, 66.8
+Tanaris                Zul'Farrak                       terrain  chunks=  469 depth=8 at  33.8,  5.3
+Tanaris                Land's End Beach                 terrain  chunks= 1883 depth=10 at  47.8, 88.6
+Tanaris                Steamwheedle Port                terrain  chunks=  143 depth=4 at  66.6, 19.0
+Tanaris                Eastmoon Ruins                   terrain  chunks=  209 depth=6 at  45.9, 61.1
+Tanaris                Sandsorrow Watch                 terrain  chunks=  409 depth=7 at  42.0, 22.6
+Tanaris                Abyssal Sands                    terrain  chunks=  617 depth=11 at  40.5, 36.4
+Tanaris                Southbreak Shore                 terrain  chunks=  651 depth=8 at  66.2, 59.6
+Tanaris                Gadgetzan                        terrain  chunks=  120 depth=4 at  51.2, 28.4
+Tanaris                Zalashji's Den                   terrain  chunks=   32 depth=3 at  68.6, 32.1
+Tanaris                Caverns of Time                  terrain  chunks=  111 depth=4 at  64.2, 51.6
+Teldrassil             Rut'theran Village               terrain  chunks=  103 depth=4 at  55.6, 91.8
+Teldrassil             Pools of Arlithrien              terrain  chunks=  113 depth=4 at  39.9, 62.3
+Teldrassil             Lake Al'Ameth                    terrain  chunks=  199 depth=4 at  58.9, 71.1
+Teldrassil             Shadowglen                       terrain  chunks=  491 depth=6 at  62.2, 40.7
+Teldrassil             Ban'ethil Hollow                 terrain  chunks=   61 depth=3 at  44.5, 56.4
+Teldrassil             Dolanaar                         terrain  chunks=   37 depth=2 at  56.3, 58.4
+Teldrassil             Starbreeze Village               terrain  chunks=   41 depth=2 at  66.1, 58.4
+Teldrassil             The Oracle Glade                 terrain  chunks=  246 depth=7 at  35.3, 33.8
+Teldrassil             Wellspring Lake                  terrain  chunks=  106 depth=3 at  43.8, 26.0
+Teldrassil             Darnassus                        terrain  chunks=  105 depth=3 at  34.0, 54.5
+Teldrassil             Gnarlpine Hold                   terrain  chunks=   73 depth=3 at  41.2, 79.0
+The Barrens            Grol'dom Farm                    terrain  chunks=  101 depth=4 at  54.0, 20.7
+The Barrens            Boulder Lode Mine                terrain  chunks=   94 depth=4 at  61.9,  3.9
+The Barrens            Field of Giants                  terrain  chunks=  326 depth=6 at  43.8, 71.5
+The Barrens            Camp Taurajo                     terrain  chunks=   65 depth=4 at  44.8, 59.1
+The Barrens            Far Watch Post                   terrain  chunks=   10 depth=1 at  61.9, 19.2
+The Barrens            Bramblescar                      terrain  chunks=  272 depth=6 at  52.0, 54.2
+The Barrens            The Dry Hills                    terrain  chunks=  422 depth=8 at  40.2, 19.2
+The Barrens            The Forgotten Pools              terrain  chunks=   97 depth=3 at  44.5, 24.1
+The Barrens            Northwatch Hold                  terrain  chunks=  277 depth=7 at  60.6, 55.2
+The Barrens            Ratchet                          terrain  chunks=  115 depth=4 at  62.6, 37.9
+The Barrens            Blackthorn Ridge                 terrain  chunks=  336 depth=7 at  43.8, 81.3
+The Barrens            The Sludge Fen                   terrain  chunks=   45 depth=3 at  56.3,  8.3
+The Barrens            The Mor'shan Rampart             terrain  chunks=   87 depth=3 at  47.8,  5.4
+The Barrens            Dreadmist Peak                   terrain  chunks=   81 depth=3 at  47.4, 18.7
+The Barrens            The Crossroads                   terrain  chunks=   48 depth=3 at  51.7, 29.5
+The Barrens            Lushwater Oasis                  terrain  chunks=  124 depth=4 at  47.4, 38.9
+The Barrens            Agama'gor                        terrain  chunks=  598 depth=7 at  44.1, 47.8
+The Barrens            Honor's Stand                    terrain  chunks=  236 depth=6 at  39.2, 29.5
+The Barrens            The Stagnant Oasis               terrain  chunks=  123 depth=4 at  54.7, 43.4
+The Barrens            The Merchant Coast               terrain  chunks=  773 depth=6 at  65.9, 54.2
+The Barrens            Bael Modan                       terrain  chunks=  140 depth=4 at  47.8, 85.3
+The Barrens            Razorfen Kraul                   terrain  chunks=   26 depth=2 at  43.2, 90.2
+The Barrens            Razorfen Downs                   terrain  chunks=  447 depth=5 at  54.0, 97.1
+The Barrens            Thorn Hill                       terrain  chunks=  302 depth=5 at  54.7, 27.1
+The Barrens            Raptor Grounds                   terrain  chunks=   62 depth=3 at  57.3, 53.7
+The Hinterlands        Skulk Rock                       terrain  chunks=   90 depth=4 at  60.8, 40.9
+The Hinterlands        The Overlook Cliffs              terrain  chunks= 1060 depth=9 at  75.5, 66.9
+The Hinterlands        Agol'watha                       terrain  chunks=   63 depth=4 at  46.1, 39.6
+The Hinterlands        Shadra'Alor                      terrain  chunks=  166 depth=5 at  32.3, 72.1
+The Hinterlands        Quel'Danil Lodge                 terrain  chunks=   97 depth=4 at  31.4, 48.7
+The Hinterlands        Seradane                         terrain  chunks=  504 depth=10 at  60.8, 29.2
+The Hinterlands        Plaguemist Ravine                terrain  chunks=   61 depth=2 at  24.5, 35.7
+The Hinterlands        Shaol'watha                      terrain  chunks=   28 depth=2 at  72.9, 52.6
+The Hinterlands        Aerie Peak                       terrain  chunks=   81 depth=3 at  10.6, 44.8
+The Hinterlands        Hiri'watha                       terrain  chunks=   33 depth=3 at  32.3, 59.1
+The Hinterlands        The Creeping Ruin                terrain  chunks=   30 depth=3 at  48.7, 52.6
+The Hinterlands        The Altar of Zul                 terrain  chunks=  143 depth=4 at  48.7, 68.2
+The Hinterlands        Jintha'Alor                      terrain  chunks=  318 depth=7 at  60.8, 68.2
+The Hinterlands        Valorwind Lake                   terrain  chunks=   61 depth=3 at  43.5, 57.8
+Thousand Needles       Darkcloud Pinnacle               terrain  chunks=  189 depth=6 at  34.5, 39.2
+Thousand Needles       The Screeching Canyon            terrain  chunks=  108 depth=4 at  27.7, 48.3
+Thousand Needles       Splithoof Crag                   terrain  chunks=   65 depth=3 at  42.8, 38.1
+Thousand Needles       Highperch                        terrain  chunks=  119 depth=4 at  11.0, 35.8
+Thousand Needles       The Great Lift                   terrain  chunks=   16 depth=2 at  31.4, 24.4
+Thousand Needles       Windbreak Canyon                 terrain  chunks=   93 depth=4 at  54.9, 46.0
+Thousand Needles       The Shimmering Flats             terrain  chunks=  864 depth=5 at  91.3, 68.8
+Thousand Needles       Camp E'thok                      terrain  chunks=   73 depth=3 at  18.6, 22.2
+Thousand Needles       Freewind Post                    terrain  chunks=   77 depth=3 at  45.8, 50.6
+Tirisfal Glades        Deathknell                       terrain  chunks=  380 depth=7 at  33.6, 64.9
+Tirisfal Glades        Agamand Mills                    terrain  chunks=  252 depth=6 at  48.3, 33.9
+Tirisfal Glades        Brill                            terrain  chunks=   54 depth=3 at  60.9, 51.6
+Tirisfal Glades        Garren's Haunt                   terrain  chunks=   74 depth=4 at  59.4, 33.9
+Tirisfal Glades        Balnir Farmstead                 terrain  chunks=   86 depth=4 at  75.6, 60.4
+Tirisfal Glades        Crusader Outpost                 terrain  chunks=   46 depth=3 at  79.3, 54.9
+Tirisfal Glades        Whispering Gardens               terrain  chunks=   38 depth=2 at  83.7, 29.5
+Tirisfal Glades        Nightmare Vale                   terrain  chunks=  193 depth=6 at  46.8, 62.7
+Tirisfal Glades        The Bulwark                      terrain  chunks=   55 depth=2 at  83.0, 68.2
+Tirisfal Glades        Cold Hearth Manor                terrain  chunks=   36 depth=3 at  53.5, 58.2
+Tirisfal Glades        Solliden Farmstead               terrain  chunks=   40 depth=3 at  36.5, 50.5
+Tirisfal Glades        Brightwater Lake                 terrain  chunks=  118 depth=3 at  68.2, 48.3
+Tirisfal Glades        Scarlet Watch Post               terrain  chunks=   82 depth=3 at  77.8, 31.7
+Tirisfal Glades        Venomweb Vale                    terrain  chunks=  304 depth=7 at  88.9, 52.7
+Tirisfal Glades        Stillwater Pond                  terrain  chunks=   93 depth=4 at  49.8, 50.5
+Tirisfal Glades        Undercity                        overlay  chunks=    0 depth=0 at  61.9, 71.6
+Un'Goro Crater         Terror Run                       terrain  chunks=  350 depth=6 at  39.2, 72.3
+Un'Goro Crater         Golakka Hot Springs              terrain  chunks=  345 depth=8 at  29.3, 60.1
+Un'Goro Crater         The Slithering Scar              terrain  chunks=  215 depth=7 at  54.5, 84.5
+Un'Goro Crater         The Marshlands                   terrain  chunks=  738 depth=11 at  68.0, 61.5
+Un'Goro Crater         Fire Plume Ridge                 terrain  chunks=  232 depth=7 at  44.6, 45.3
+Un'Goro Crater         Lakkari Tar Pits                 terrain  chunks=  560 depth=9 at  56.3, 30.4
+Un'Goro Crater         Ironstone Plateau                terrain  chunks=   86 depth=4 at  77.9, 33.1
+Western Plaguelands    Sorrow Hill                      terrain  chunks=  141 depth=3 at  48.8, 78.5
+Western Plaguelands    Thondroril River                 terrain  chunks=   85 depth=2 at  65.1, 35.5
+Western Plaguelands    Northridge Lumber Camp           terrain  chunks=  211 depth=6 at  48.8, 32.0
+Western Plaguelands    Dalson's Tears                   terrain  chunks=  106 depth=4 at  45.7, 52.9
+Western Plaguelands    Gahrron's Withering              terrain  chunks=   95 depth=3 at  62.8, 58.7
+Western Plaguelands    Ruins of Andorhal                terrain  chunks=  234 depth=6 at  45.0, 72.7
+Western Plaguelands    Darrowmere Lake                  terrain  chunks=  588 depth=5 at  79.8, 72.7
+Western Plaguelands    Caer Darrow                      terrain  chunks=  129 depth=4 at  69.8, 72.7
+Western Plaguelands    The Writhing Haunt               terrain  chunks=  112 depth=4 at  52.7, 66.9
+Western Plaguelands    Felstone Field                   terrain  chunks=  101 depth=4 at  37.2, 55.2
+Western Plaguelands    The Weeping Cave                 terrain  chunks=   80 depth=4 at  65.9, 44.8
+Western Plaguelands    Hearthglen                       terrain  chunks=  181 depth=7 at  44.2, 13.4
+Western Plaguelands    The Bulwark                      terrain  chunks=   87 depth=4 at  31.0, 57.6
+Westfall               Moonbrook                        terrain  chunks=  163 depth=4 at  44.8, 70.7
+Westfall               The Molsen Farm                  terrain  chunks=   70 depth=3 at  45.7, 35.0
+Westfall               Gold Coast Quarry                terrain  chunks=   43 depth=3 at  31.4, 43.6
+Westfall               Sentinel Hill                    terrain  chunks=   78 depth=4 at  54.3, 53.6
+Westfall               The Jansen Stead                 terrain  chunks=   47 depth=3 at  58.1, 17.9
+Westfall               Jangolode Mine                   terrain  chunks=   64 depth=4 at  42.9, 17.9
+Westfall               Westfall Lighthouse              terrain  chunks=   39 depth=2 at  30.5, 89.3
+Westfall               The Dust Plains                  terrain  chunks=  175 depth=6 at  63.8, 70.7
+Westfall               Alexston Farmstead               terrain  chunks=  126 depth=4 at  37.1, 50.7
+Westfall               Saldean's Farm                   terrain  chunks=   61 depth=3 at  54.3, 33.6
+Westfall               The Dead Acre                    terrain  chunks=   68 depth=3 at  62.9, 59.3
+Westfall               The Dagger Hills                 terrain  chunks=  160 depth=4 at  45.7, 79.3
+Westfall               Demont's Place                   terrain  chunks=   54 depth=3 at  35.2, 73.6
+Westfall               Furlbrow's Pumpkin Farm          terrain  chunks=   69 depth=4 at  50.5, 22.1
+Wetlands               Saltspray Glen                   terrain  chunks=  176 depth=5 at  35.3, 18.2
+Wetlands               Ironbeard's Tomb                 terrain  chunks=   86 depth=4 at  43.4, 26.7
+Wetlands               Raptor Ridge                     terrain  chunks=  134 depth=3 at  70.8, 38.8
+Wetlands               Whelgar's Excavation Site        terrain  chunks=   94 depth=4 at  33.7, 48.5
+Wetlands               Black Channel Marsh              terrain  chunks=  143 depth=4 at  24.0, 49.7
+Wetlands               Sundown Marsh                    terrain  chunks=  218 depth=4 at  21.6, 26.7
+Wetlands               Dun Modr                         terrain  chunks=   62 depth=3 at  50.6, 18.2
+Wetlands               Dun Algaz                        terrain  chunks=  239 depth=4 at  54.7, 65.4
+Wetlands               The Green Belt                   terrain  chunks=  184 depth=4 at  54.7, 38.8
+Wetlands               Mosshide Fen                     terrain  chunks=  155 depth=5 at  65.1, 61.8
+Wetlands               Bluegill Marsh                   terrain  chunks=  165 depth=5 at  21.6, 37.6
+Wetlands               Angerfang Encampment             terrain  chunks=  133 depth=3 at  48.2, 47.2
+Wetlands               Grim Batol                       terrain  chunks=  545 depth=6 at  72.4, 76.3
+Wetlands               Menethil Harbor                  terrain  chunks=  112 depth=4 at   9.5, 56.9
+Wetlands               Direforge Hill                   terrain  chunks=  160 depth=5 at  61.9, 26.7
+Winterspring           Starfall Village                 terrain  chunks=  167 depth=5 at  51.6, 29.2
+Winterspring           Lake Kel'Theril                  terrain  chunks=  165 depth=5 at  54.5, 40.5
+Winterspring           Ice Thistle Hills                terrain  chunks=  299 depth=6 at  66.2, 48.9
+Winterspring           Owl Wing Thicket                 terrain  chunks=  161 depth=5 at  65.7, 60.2
+Winterspring           Darkwhisper Gorge                terrain  chunks= 1169 depth=13 at  61.0, 82.7
+Winterspring           Frostfire Hot Springs            terrain  chunks=  330 depth=6 at  30.5, 38.4
+Winterspring           Timbermaw Post                   terrain  chunks=  186 depth=5 at  40.8, 43.3
+Winterspring           Frostwhisper Gorge               terrain  chunks=  298 depth=6 at  63.8, 69.4
+Winterspring           Winterfall Village               terrain  chunks=  219 depth=6 at  66.2, 34.9
+Winterspring           Frostsaber Rock                  terrain  chunks=  539 depth=9 at  53.1, 13.7
+Winterspring           The Hidden Grove                 terrain  chunks=   73 depth=3 at  65.7, 13.7
+Winterspring           Mazthoril                        terrain  chunks=  258 depth=7 at  60.1, 49.6
+Winterspring           Everlook                         terrain  chunks=   89 depth=4 at  61.5, 38.4

@@ -1,0 +1,24 @@
+## Interface: 16001
+## Title: Chair Legacy
+## Notes: Every Legacy challenge with its steps, and the shortest walk through each zone's map areas with an arrow to every spot. Type /legacy.
+## Author: Chairface Chippendale
+## Version: 0.1
+## SavedVariables: ChairLegacyDB
+## IconTexture: Interface\Icons\INV_Misc_Map_01
+
+Libs\LibStub\LibStub.lua
+Libs\CallbackHandler-1.0\CallbackHandler-1.0.lua
+Libs\LibDataBroker-1.1\LibDataBroker-1.1.lua
+Libs\LibDBIcon-1.0\LibDBIcon-1.0.lua
+
+Core.lua
+Data\Challenges.lua
+Data\Exploration.lua
+Progress.lua
+Route.lua
+Arrow.lua
+Tracker.lua
+MapPins.lua
+UI.lua
+Minimap.lua
+Commands.lua

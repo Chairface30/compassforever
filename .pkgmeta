@@ -1,0 +1,6 @@
+package-as: ChairLegacy
+
+ignore:
+  - tools
+  - tests
+  - .gitignore

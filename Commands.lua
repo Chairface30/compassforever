@@ -1,0 +1,143 @@
+-- Chair Legacy: Commands.lua
+-- /legacy and /chairlegacy.
+
+local _, ns = ...
+
+local function ZoneFromText(text)
+    if not text or text == "" then
+        local here = ns.PlayerMap()
+        -- A city or a subzone map: walk up to its zone.
+        for _ = 1, 5 do
+            if not here then break end
+            local zone = ns.ZoneByMap(here)
+            if zone then return zone end
+            local ok, info = ns.Ask(ns.API("C_Map", "GetMapInfo"), here)
+            here = ok and type(info) == "table" and ns.Num(info.parentMapID) or nil
+        end
+        return nil
+    end
+    text = text:lower()
+    for _, zone in ipairs(ns.ZONES) do
+        if zone.name:lower() == text then return zone end
+    end
+    for _, zone in ipairs(ns.ZONES) do
+        if zone.name:lower():find(text, 1, true) then return zone end
+    end
+    return nil
+end
+
+-- What /legacy probe prints: the functions this relies on, what they say
+-- about the zone the player is in, and whether the map's uncovered art lines
+-- up with the built-in data. This is what to send back when something is off.
+local function Probe()
+    ns.Print("probe:")
+    local names = {
+        { nil, "GetAchievementInfo" }, { nil, "GetAchievementNumCriteria" },
+        { nil, "GetAchievementCriteriaInfo" }, { "C_MapExplorationInfo", "GetExploredMapTextures" },
+        { "C_Map", "GetBestMapForUnit" }, { "C_Map", "GetPlayerMapPosition" },
+        { "C_Map", "GetWorldPosFromMapPos" }, { "C_GameRules", "IsHardcoreActive" },
+        { nil, "GetPlayerFacing" },
+    }
+    for _, pair in ipairs(names) do
+        print(string.format("  %s%s = %s", pair[1] and (pair[1] .. ".") or "", pair[2],
+            ns.API(pair[1], pair[2]) and "|cff55ff55yes|r" or "|cffff5555missing|r"))
+    end
+    local done, total, unknown = ns.ChallengeCounts()
+    print(string.format("  challenges: %d of %d done, %d unreadable", done, total, unknown))
+
+    local zone = ZoneFromText()
+    print("  player map = " .. tostring(ns.PlayerMap()) .. ", zone = " .. tostring(zone and zone.name))
+    if not zone then return end
+    local px, py = ns.PlayerOn(zone.map)
+    print(string.format("  position = %s", px and string.format("%.1f, %.1f", px * 100, py * 100) or "unknown"))
+    local info = ns.AchInfo(zone.ach)
+    print(string.format("  achievement %d: %s", zone.ach,
+        info and ((info.name or "?") .. (info.completed and " (complete)" or "")) or "|cffff5555unreadable|r"))
+    local crit = ns.Criteria(zone.ach)
+    if crit then
+        local matched = 0
+        for _, c in ipairs(crit) do
+            for _, node in ipairs(zone.nodes) do
+                if node.criteria == c.id or node.overlay == c.asset then matched = matched + 1 break end
+            end
+        end
+        print(string.format("  criteria: %d read, %d match the built-in areas (of %d)", #crit, matched, #zone.nodes))
+        local c = crit[1]
+        if c then
+            print(string.format("    first: %s done=%s id=%s asset=%s", tostring(c.name), tostring(c.done),
+                tostring(c.id), tostring(c.asset)))
+        end
+    else
+        print("  criteria: |cffff5555unreadable|r")
+    end
+    local ok, list = ns.Ask(ns.API("C_MapExplorationInfo", "GetExploredMapTextures"), zone.map)
+    if ok and type(list) == "table" then
+        local known = {}
+        for _, node in ipairs(zone.nodes) do known[node.ox .. ":" .. node.oy] = node.name end
+        local hit = 0
+        for _, t in ipairs(list) do
+            if known[tostring(ns.Num(t.offsetX)) .. ":" .. tostring(ns.Num(t.offsetY))] then hit = hit + 1 end
+        end
+        print(string.format("  map art uncovered: %d pieces, %d match the built-in areas", #list, hit))
+    else
+        print("  map art uncovered: |cffff5555unreadable|r")
+    end
+    local d, t, u = ns.ZoneCounts(zone)
+    print(string.format("  result: %d of %d areas uncovered, %d unknown (from %s)", d, t, u,
+        tostring(ns.ZoneState(zone).source)))
+end
+
+local function Help()
+    ns.Print("commands:")
+    print("  /legacy - open or close the window")
+    print("  /legacy route [zone] - walk the shortest route through the zone's uncovered areas (default: this zone)")
+    print("  /legacy next - say the next stop in chat")
+    print("  /legacy skip - leave the current stop for the end of the route")
+    print("  /legacy stop - stop the route")
+    print("  /legacy tracker - show or hide the tracker")
+    print("  /legacy arrow <0.5-2> - size of the arrow")
+    print("  /legacy probe - what the client says; send this when something looks wrong")
+end
+
+SLASH_CHAIRLEGACY1 = "/legacy"
+SLASH_CHAIRLEGACY2 = "/chairlegacy"
+SlashCmdList.CHAIRLEGACY = function(msg)
+    msg = (msg or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    local cmd, rest = msg:match("^(%S*)%s*(.-)$")
+    cmd = (cmd or ""):lower()
+    if cmd == "" then
+        ns.ToggleWindow()
+    elseif cmd == "route" or cmd == "go" then
+        local zone = ZoneFromText(rest)
+        if not zone then
+            ns.Print(rest ~= "" and ("No zone called \"" .. rest .. "\".") or "This zone has no map to explore.")
+            return
+        end
+        ns.InvalidateProgress()
+        ns.StartRoute(zone)
+    elseif cmd == "next" then
+        local stop, i = ns.CurrentStop()
+        if not stop then ns.Print("No route.") return end
+        local _, yards = ns.StopVector(ns.route.zone, stop)
+        ns.Print(string.format("stop %d of %d: %s at %.1f, %.1f%s", i, #ns.route.stops, stop.node.name,
+            stop.x * 100, stop.y * 100, type(yards) == "number" and string.format(" (%d yd)", yards) or ""))
+    elseif cmd == "skip" then
+        ns.SkipStop()
+    elseif cmd == "stop" then
+        ns.StopRoute()
+    elseif cmd == "tracker" then
+        ns.SetTrackerShown(not ns.db.trackerShown)
+    elseif cmd == "arrow" then
+        local n = tonumber(rest)
+        if n then
+            ns.db.arrowScale = math.max(0.5, math.min(2, n))
+            ns.ApplyArrowScale()
+        end
+        ns.Print("arrow size " .. ns.db.arrowScale)
+    elseif cmd == "probe" then
+        ns.InvalidateProgress()
+        Probe()
+    else
+        Help()
+    end
+end
