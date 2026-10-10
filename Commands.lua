@@ -75,6 +75,16 @@ local function Probe()
     local d, t, u = ns.ZoneCounts(zone)
     print(string.format("  result: %d of %d areas uncovered, %d unknown (from %s)", d, t, u,
         tostring(ns.ZoneState(zone).source)))
+    local g = ns.Grid and ns.Grid(zone)
+    print("  terrain: " .. (g and string.format("%dx%d points", g.nx, g.ny) or "|cffff5555none|r"))
+    local known = 0
+    for _ in pairs(ns.KnownFlights and ns.KnownFlights() or {}) do known = known + 1 end
+    print(string.format("  flight points known on this character: %d%s", known,
+        known == 0 and " (open any flight map once to fill this in)" or ""))
+    print("  UnitOnTaxi = " .. (ns.API(nil, "UnitOnTaxi") and "|cff55ff55yes|r" or "|cffff5555missing|r")
+        .. ", C_TaxiMap.GetAllTaxiNodes = "
+        .. (ns.API("C_TaxiMap", "GetAllTaxiNodes") and "|cff55ff55yes|r" or "|cffff5555missing|r"))
+    if ns.travel then print("  travel: " .. (ns.TravelText() or "")) end
 end
 
 local function Help()

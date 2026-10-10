@@ -24,8 +24,18 @@ function ns.Compass(bearing)
     return COMPASS[i + 1]
 end
 
--- Bearing (radians counter-clockwise from north, as GetPlayerFacing) and
--- distance in yards from the player to a stop. nil, "elsewhere" when the
+-- Bearing (radians counter-clockwise from north, as GetPlayerFacing) from
+-- one map point to another, w x h yards in size, and the distance.
+local function Bearing(fx, fy, tx, ty, w, h)
+    local east = (tx - fx) * w
+    local north = -(ty - fy) * h
+    return math.atan2(-east, north), math.sqrt(east * east + north * north)
+end
+
+-- Bearing and distance in yards from the player to a stop. Where the zone's
+-- terrain is known, both follow the walking path around cliffs and
+-- mountains (the bearing aims a little way along it); until the path is
+-- found, or without terrain, they are straight. nil, "elsewhere" when the
 -- player is on another continent.
 function ns.StopVector(zone, stop)
     local px, py = ns.PlayerOn(zone.map)
@@ -37,9 +47,24 @@ function ns.StopVector(zone, stop)
         end
         return nil
     end
-    local east = (stop.x - px) * zone.w
-    local north = -(stop.y - py) * zone.h
-    return math.atan2(-east, north), math.sqrt(east * east + north * north)
+    local inside = px >= 0 and px <= 1 and py >= 0 and py <= 1
+    if inside and ns.Steer then
+        local ax, ay, left = ns.Steer(zone, stop, px, py)
+        if ax then
+            local bearing = Bearing(px, py, ax, ay, zone.w, zone.h)
+            return bearing, left
+        end
+    end
+    return Bearing(px, py, stop.x, stop.y, zone.w, zone.h)
+end
+
+-- Bearing and distance to the flight master while a flight is planned.
+local function TravelVector()
+    local t = ns.TravelTarget and ns.TravelTarget()
+    if not t then return nil end
+    local px, py = ns.PlayerOn(t.map)
+    if not px then return nil end
+    return Bearing(px, py, t.x, t.y, t.w, t.h)
 end
 
 local function Cell(relative)
@@ -76,7 +101,24 @@ local function Update()
     nameText:SetText(stop.node.name)
     stepText:SetText(string.format("%s: stop %d of %d", zone.name, index, #r.stops))
 
-    local bearing, yards = ns.StopVector(zone, stop)
+    -- A flight planned: the flight master first.
+    local bearing, yards
+    if ns.travel then
+        bearing, yards = TravelVector()
+        if bearing then
+            local from, to = ns.travel.from.name:match("^([^,]+)"), ns.travel.to.name:match("^([^,]+)")
+            nameText:SetText("Flight master: " .. (from or ""))
+            stepText:SetText("then fly to " .. (to or "") .. " for " .. stop.node.name)
+            if yards <= CLOSE_YARDS * 2 then
+                Point(0)
+                arrowTex:Show()
+                arrowTex:SetVertexColor(0.3, 0.8, 1, 0.6)
+                distText:SetText("Fly to " .. (to or ""))
+                return
+            end
+        end
+    end
+    if not bearing then bearing, yards = ns.StopVector(zone, stop) end
     if not bearing then
         arrowTex:Hide()
         distText:SetText(yards == "elsewhere" and "Go to " .. zone.name or "Can't place you here")

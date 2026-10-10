@@ -203,7 +203,7 @@ end
 -------------------------------------------------------------------------------
 
 local baseTiles, colorArt, grayArt
-local pins, badges, lines = {}, {}, {}
+local pins, badges, lines, legLines = {}, {}, {}, {}
 local playerDot, highlight
 local hasLines
 
@@ -492,7 +492,17 @@ local function Join(l, x1, y1, x2, y2, r, g, b, a)
     l:SetColorTexture(r, g, b, a)
 end
 
--- The player on the shown map, and the leg from them to the first stop.
+local function LegLine(i)
+    return Pool(legLines, i, function()
+        local l = canvas:CreateLine(nil, "ARTWORK", nil, 2)
+        l:SetThickness(3)
+        return l
+    end)
+end
+
+-- The player on the shown map, and the leg from them to the first stop:
+-- the walking path around cliffs once it is found, a straight line until
+-- then.
 local function DrawPlayer()
     local px, py = ns.PlayerOn(view.map)
     local inside = px and px >= 0 and px <= 1 and py >= 0 and py <= 1
@@ -503,15 +513,31 @@ local function DrawPlayer()
         local ok, facing = pcall(GetPlayerFacing)
         if ok and ns.Num(facing) and playerDot.SetRotation then pcall(playerDot.SetRotation, playerDot, facing) end
     end
+    for _, l in ipairs(legLines) do l:Hide() end
     local first = lines[1]
     local stop = ns.CurrentStop()
-    if hasLines and first and view.kind == "zone" and ns.route and ns.route.zone == view.zone and stop then
-        if inside then
-            first:Show()
-            Join(first, px, py, stop.x, stop.y, 0.3, 1, 0.35, 0.9)
-        else
-            first:Hide()
-        end
+    if not (hasLines and first and view.kind == "zone" and ns.route and ns.route.zone == view.zone and stop) then
+        return
+    end
+    first:Hide()
+    if not inside then return end
+    local path, k, cx, cy
+    if ns.Steer then
+        local ax
+        ax, _, _, path, k, cx, cy = ns.Steer(view.zone, stop, px, py)
+    end
+    if not path then
+        first:Show()
+        Join(first, px, py, stop.x, stop.y, 0.3, 1, 0.35, 0.9)
+        return
+    end
+    local n = 1
+    Join(LegLine(n), px, py, cx, cy, 0.3, 1, 0.35, 0.9)
+    local ax, ay = cx, cy
+    for i = k + 1, #path do
+        n = n + 1
+        Join(LegLine(n), ax, ay, path[i].x, path[i].y, 0.3, 1, 0.35, 0.9)
+        ax, ay = path[i].x, path[i].y
     end
 end
 
@@ -850,3 +876,5 @@ ns.WindowTarget = Target
 ns.On("progress", function() Refresh() end)
 ns.On("route", function() Refresh() end)
 ns.On("settings", function() Refresh() end)
+ns.On("path", function() if frame and frame:IsShown() then pcall(DrawPlayer) end end)
+ns.On("travel", function() Refresh() end)

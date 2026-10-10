@@ -164,6 +164,14 @@ end
 C_Map.GetMapRectOnMap = function() return 0.4, 0.5, 0.4, 0.5 end
 C_Map.GetMapHighlightInfoAtPosition = function() return 5555, nil, 1, 1, 0.1, 0.1, 0.4, 0.4 end
 
+-- One frame of every OnUpdate script.
+function FRAME(dt)
+    for _, f in ipairs(FRAMES) do
+        local fn = f._scripts.OnUpdate
+        if fn and rawget(f, "_shown") ~= false then fn(f, dt or 0.05) end
+    end
+end
+
 -- Every text a font string was given.
 function TEXTS()
     local out = {}
@@ -417,6 +425,117 @@ rt.execute("PLAYER.map = 1429 SlashCmdList.COMPASSFOREVER('route westfall') FIRE
 check("a route the player started is kept on entering another zone", rt.eval("NS.route.zone.name") == "Westfall")
 rt.execute("NS.StopRoute() SlashCmdList.COMPASSFOREVER('auto')")
 check("auto can be turned off again", rt.eval("NS.db.autoRoute") is False)
+
+print("terrain")
+check("every zone has terrain", rt.eval("(function() local n = 0 for _, z in ipairs(NS.ZONES) do if NS.TERRAIN[z.ach] then n = n + 1 end end return n end)()") == 43)
+check("a grid decodes to one digit per point", rt.eval("(function() local z = NS.ZoneByMap(1413) local g = NS.Grid(z) return #g.cells == g.nx * g.ny end)()"))
+# The game's path search must agree with the build's: the same grid, the same
+# rules, the same costs (to the yard the build rounds to).
+worst, pairs_checked = 0.0, 0
+for zone_map in (1441, 1427, 1434):      # Thousand Needles, Searing Gorge, Stranglethorn
+    n = rt.eval(f"#NS.ZoneByMap({zone_map}).nodes")
+    for a in range(1, n + 1, max(1, n // 4)):
+        for b in range(1, n + 1, max(1, n // 3)):
+            if a == b:
+                continue
+            got, want = rt.eval(f"""(function()
+                local z = NS.ZoneByMap({zone_map})
+                local na, nb = z.nodes[{a}], z.nodes[{b}]
+                local pa, pb = NS.NodePoints(na)[1], NS.NodePoints(nb)[1]
+                local _, cost = NS.FindPathNow(z, pa[1], pa[2], pb[1], pb[2])
+                return cost, NS.WalkCost(z, NS.PointID(z, na, 1), NS.PointID(z, nb, 1))
+            end)()""")
+            worst = max(worst, abs(got - want))
+            pairs_checked += 1
+check(f"the game's path search matches the build's costs ({pairs_checked} pairs, worst {worst:.2f} yd)", worst <= 1.0, worst)
+# A cliff the straight line crosses: the path goes round, and costs more.
+found = rt.eval("""(function()
+    local z = NS.ZoneByMap(1441)
+    local g = NS.Grid(z)
+    for _, na in ipairs(z.nodes) do for _, nb in ipairs(z.nodes) do if na ~= nb then
+        local pa, pb = NS.NodePoints(na)[1], NS.NodePoints(nb)[1]
+        local straight = math.sqrt(((pa[1] - pb[1]) * z.w) ^ 2 + ((pa[2] - pb[2]) * z.h) ^ 2)
+        local cost = NS.WalkCost(z, NS.PointID(z, na, 1), NS.PointID(z, nb, 1))
+        if cost and cost > straight * 1.3 and cost < straight * 5 then return na.name .. " > " .. nb.name, straight, cost end
+    end end end
+end)()""")
+check("some legs in Thousand Needles go round the mesas", found is not None and found[0] is not None, found)
+if found and found[0]:
+    print(f"       e.g. {found[0]}: {found[1]:.0f} yd straight, {found[2]:.0f} yd walking")
+
+print("route planner walks round cliffs")
+legs = rt.eval("""(function()
+    local z = NS.ZoneByMap(1441)
+    local stops, len = NS.PlanRoute(z, z.nodes)
+    local sum = 0
+    for i = 2, #stops do
+        local function id(stop) for k, p in ipairs(NS.NodePoints(stop.node)) do
+            if math.abs(p[1] - stop.x) < 1e-9 and math.abs(p[2] - stop.y) < 1e-9 then return NS.PointID(z, stop.node, k) end end end
+        local a, b = id(stops[i - 1]), id(stops[i])
+        sum = sum + (NS.WalkCost(z, a, b) + NS.WalkCost(z, b, a)) / 2
+    end
+    return len, sum
+end)()""")
+check("a route's length is its legs' walking costs", abs(legs[0] - legs[1]) < 1, legs)
+
+print("the arrow follows the path")
+rt.execute("""TN = NS.ZoneByMap(1441)
+    NS.StopRoute()
+    for _, n in ipairs(TN.nodes) do DONE[n.criteria] = nil end NS.InvalidateProgress()""")
+bend = rt.eval("""(function()
+    local z = TN
+    for _, na in ipairs(z.nodes) do for _, nb in ipairs(z.nodes) do if na ~= nb then
+        local pa, pb = NS.NodePoints(na)[1], NS.NodePoints(nb)[1]
+        local straight = math.sqrt(((pa[1] - pb[1]) * z.w) ^ 2 + ((pa[2] - pb[2]) * z.h) ^ 2)
+        local cost = NS.WalkCost(z, NS.PointID(z, na, 1), NS.PointID(z, nb, 1))
+        if cost and cost > straight * 1.5 and cost < straight * 4 and straight > 300 then
+            PLAYER.map, PLAYER.x, PLAYER.y = z.map, pa[1], pa[2]
+            STEER_STOP = { x = pb[1], y = pb[2], node = nb }
+            return true
+        end
+    end end end
+end)()""")
+check("found a leg that bends", bend is True)
+straight_b = rt.eval("(NS.StopVector({ w = TN.w, h = TN.h, map = TN.map }, STEER_STOP))")
+rt.execute("NS.StopVector(TN, STEER_STOP)")
+for _ in range(400):
+    rt.execute("FRAME(0.05)")
+path_b, path_d = rt.eval("NS.StopVector(TN, STEER_STOP)")
+check("once the path is found, the arrow points along it, not straight", abs(path_b - straight_b) > 0.05, (path_b, straight_b))
+check("and the distance is the walk, not the straight line",
+      path_d > rt.eval("select(2, NS.StopVector({ w = TN.w, h = TN.h, map = TN.map }, STEER_STOP))") * 1.2, path_d)
+
+print("flights")
+rt.execute("""
+    DW = NS.ZoneByMap(1431)
+    REAL_PLAYERON, REAL_TRANSLATE = NS.PlayerOn, NS.Translate
+    -- On the Eastern Kingdoms map: the player at Ironforge's flight point, the
+    -- stop a little way from Darkshire's.
+    NS.PlayerOn = function(map) if map == 1415 then return 0.48737, 0.52365 end return REAL_PLAYERON(map) end
+    NS.Translate = function(from, x, y, to) if to == 1415 then return 0.4920, 0.7680 end return REAL_TRANSLATE(from, x, y, to) end
+    function UnitFactionGroup() return "Alliance" end
+    function GetRealmName() return "Forever" end
+    STOP = { x = 0.5, y = 0.5, node = DW.nodes[1] }
+""")
+rt.execute("NS.db.taxi = {} NS.PlanTravel(DW, STOP)")
+check("no flight points known: walk", rt.eval("NS.travel == nil"))
+rt.execute("""C_TaxiMap = { GetAllTaxiNodes = function() return {
+        { nodeID = 6, name = "Ironforge, Dun Morogh", state = 0 },
+        { nodeID = 2, name = "Stormwind, Elwynn", state = 1 },
+        { nodeID = 12, name = "Darkshire, Duskwood", state = 1 },
+        { nodeID = 5, name = "Lakeshire, Redridge", state = 2 } } end }
+    Enum = Enum or {} Enum.FlightPathState = { Current = 0, Reachable = 1, Unreachable = 2 }
+    FIRE('TAXIMAP_OPENED')""")
+known = rt.eval("(function() local t = {} for id in pairs(NS.KnownFlights()) do t[#t + 1] = id end table.sort(t) return table.concat(t, ',') end)()")
+check("opening a flight map remembers the known points, not the unreachable", known == "2,6,12", known)
+rt.execute("NS.PlanTravel(DW, STOP)")
+check("far away with flights known: fly Ironforge to Darkshire",
+      rt.eval("NS.travel and NS.travel.fromID") == 6 and rt.eval("NS.travel and NS.travel.toID") == 12,
+      rt.eval("NS.travel and (NS.travel.fromID .. '>' .. NS.travel.toID)"))
+check("the flight is said plainly", "Ironforge" in (rt.eval("NS.TravelText()") or "") and "Darkshire" in (rt.eval("NS.TravelText()") or ""))
+rt.execute("NS.PlayerOn = function(map) if map == 1415 then return 0.4900, 0.7600 end return REAL_PLAYERON(map) end NS.PlanTravel(DW, STOP)")
+check("close by: walk", rt.eval("NS.travel == nil"))
+rt.execute("NS.PlayerOn, NS.Translate = REAL_PLAYERON, REAL_TRANSLATE NS.travel = nil")
 
 print("window and world map")
 rt.execute("PRINTED = {} NS.ShowZone(ELWYNN)")

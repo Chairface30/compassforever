@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Routes go round what can't be walked. The terrain of every zone is mapped
+  every 8 yards: slopes too steep to climb (over 50 degrees), sheer drops,
+  lava and slime are avoided, deep water is swum. The route's order uses real
+  walking distances, the arrow follows the walking path (aiming a little way
+  ahead along it), and the window draws that path.
+- Flying when it's quicker. Each character's flight points are remembered
+  whenever a flight map is open; when the next stop is far and a flight saves
+  real time, the arrow takes you to the flight master first and says where to
+  fly, and the route carries on from where you land.
 - The window's map zooms with the mouse wheel, around the point under the
   cursor, up to 4x. Drag a zoomed map to move around it. Scrolling out past
   full size goes up a level (zone, continent, Azeroth), as the world map does.

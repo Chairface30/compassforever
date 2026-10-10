@@ -108,90 +108,109 @@ ns.NodePoints = Points
 -- Plan a route through `nodes` on `zone`, starting at (sx, sy) or, with no
 -- start, wherever makes the walk shortest. Returns { { node, x, y } ... } and
 -- its length in yards.
+--
+-- Legs between standing points cost what walking them costs around cliffs
+-- and mountains (Pathing.lua, worked out ahead of time); a leg from the
+-- player, or between points the terrain data doesn't cover, is a straight
+-- line. Walking costs differ a little each way (down is easier than up), so
+-- the planner uses the average of the two: its moves assume a leg costs the
+-- same both ways.
 function ns.PlanRoute(zone, nodes, sx, sy)
     local w, h = zone.w, zone.h
-    local function D(ax, ay, bx, by)
-        local dx, dy = (ax - bx) * w, (ay - by) * h
+    local function Straight(a, b)
+        local dx, dy = (a.x - b.x) * w, (a.y - b.y) * h
         return math.sqrt(dx * dx + dy * dy)
+    end
+    local function D(a, b)
+        if a.id and b.id then
+            local ab, ba = ns.WalkCost(zone, a.id, b.id), ns.WalkCost(zone, b.id, a.id)
+            if ab and ba then return (ab + ba) / 2 end
+        end
+        return Straight(a, b)
     end
     local n = #nodes
     if n == 0 then return {}, 0 end
+    local start = sx and { x = sx, y = sy } or nil
     local pts = {}
-    for i, node in ipairs(nodes) do pts[i] = Points(node) end
+    for i, node in ipairs(nodes) do
+        pts[i] = {}
+        for k, p in ipairs(Points(node)) do
+            pts[i][k] = { x = p[1], y = p[2], id = ns.PointID and ns.PointID(zone, node, k) or nil }
+        end
+    end
 
-    -- 1. Nearest first, from the start (or from each node in turn when there
-    -- is no start, keeping the shortest).
-    local function Greedy(fromX, fromY, firstNode)
+    -- 1. Nearest first, from the start (or from a given first node).
+    local function Greedy(from, firstNode)
         local used, order, pick = {}, {}, {}
-        local cx, cy = fromX, fromY
+        local cur = from
         if firstNode then
             used[firstNode] = true
             order[1], pick[1] = firstNode, 1
-            cx, cy = pts[firstNode][1][1], pts[firstNode][1][2]
+            cur = pts[firstNode][1]
         end
         while #order < n do
             local best, bestK, bestD
             for i = 1, n do
                 if not used[i] then
                     for k, p in ipairs(pts[i]) do
-                        local d = D(cx, cy, p[1], p[2])
+                        local d = cur and D(cur, p) or 0
                         if not bestD or d < bestD then best, bestK, bestD = i, k, d end
                     end
                 end
             end
             used[best] = true
             order[#order + 1], pick[#pick + 1] = best, bestK
-            cx, cy = pts[best][bestK][1], pts[best][bestK][2]
+            cur = pts[best][bestK]
         end
         return order, pick
     end
 
     local function P(order, pick, i)
-        local p = pts[order[i]][pick[i]]
-        return p[1], p[2]
+        return pts[order[i]][pick[i]]
     end
 
     local function Length(order, pick)
-        local total, cx, cy = 0, sx, sy
+        local total, cur = 0, start
         for i = 1, #order do
-            local x, y = P(order, pick, i)
-            if cx then total = total + D(cx, cy, x, y) end
-            cx, cy = x, y
+            local p = P(order, pick, i)
+            if cur then total = total + D(cur, p) end
+            cur = p
         end
         return total
     end
 
+    -- Each stop takes the point that sits best between its neighbours.
+    local function Reselect(order, pick)
+        local m = #order
+        local moved = false
+        for i = 1, m do
+            local prev = i > 1 and P(order, pick, i - 1) or start
+            local nxt = i < m and P(order, pick, i + 1) or nil
+            local bestK, bestC = pick[i], nil
+            for k, p in ipairs(pts[order[i]]) do
+                local c = (prev and D(prev, p) or 0) + (nxt and D(p, nxt) or 0)
+                if not bestC or c < bestC - 0.01 then bestK, bestC = k, c end
+            end
+            if bestK ~= pick[i] then pick[i], moved = bestK, true end
+        end
+        return moved
+    end
+
     -- 2. Improve until no move helps. Each move is costed by the few legs it
-    -- changes, not by re-measuring the walk, so a 27-area zone still plans
-    -- in a blink. Position 0 is the start, when there is one.
+    -- changes, not by re-measuring the walk. Position 0 is the start.
     local function Improve(order, pick)
         local m = #order
         local function Pos(i)
-            if i == 0 then return sx, sy end
+            if i == 0 then return start end
             if i < 1 or i > m then return nil end
             return P(order, pick, i)
         end
         local function E(i, j)
-            local ax, ay = Pos(i)
-            local bx, by = Pos(j)
-            if not (ax and bx) then return 0 end
-            return D(ax, ay, bx, by)
+            local a, b = Pos(i), Pos(j)
+            if not (a and b) then return 0 end
+            return D(a, b)
         end
 
-        local function Reselect()
-            for i = 1, m do
-                local px, py = Pos(i - 1)
-                local nx, ny = Pos(i + 1)
-                local bestK, bestC = pick[i], nil
-                for k, p in ipairs(pts[order[i]]) do
-                    local c = (px and D(px, py, p[1], p[2]) or 0) + (nx and D(p[1], p[2], nx, ny) or 0)
-                    if not bestC or c < bestC - 0.01 then bestK, bestC = k, c end
-                end
-                pick[i] = bestK
-            end
-        end
-
-        -- One improving move, applied; false when there is none.
         local function Step()
             -- 2-opt: reverse positions i..j.
             for i = 1, m - 1 do
@@ -228,16 +247,13 @@ function ns.PlanRoute(zone, nodes, sx, sy)
                                                 segK[a], segK[len - a + 1] = segK[len - a + 1], segK[a]
                                             end
                                         end
+                                        if j == 0 then
+                                            for b = 1, len do o2[#o2 + 1], k2[#k2 + 1] = segO[b], segK[b] end
+                                        end
                                         for a = 1, m do
                                             if a < i or a > e then o2[#o2 + 1], k2[#k2 + 1] = order[a], pick[a] end
                                             if a == j then
                                                 for b = 1, len do o2[#o2 + 1], k2[#k2 + 1] = segO[b], segK[b] end
-                                            end
-                                        end
-                                        if j == 0 then
-                                            for b = len, 1, -1 do
-                                                table.insert(o2, 1, segO[b])
-                                                table.insert(k2, 1, segK[b])
                                             end
                                         end
                                         for a = 1, m do order[a], pick[a] = o2[a], k2[a] end
@@ -253,10 +269,10 @@ function ns.PlanRoute(zone, nodes, sx, sy)
         end
 
         for _ = 1, 2000 do
-            Reselect()
+            Reselect(order, pick)
             if not Step() then break end
         end
-        Reselect()
+        Reselect(order, pick)
         return order, pick, Length(order, pick)
     end
 
@@ -267,16 +283,15 @@ function ns.PlanRoute(zone, nodes, sx, sy)
     local function Exact(order, pick)
         local m = #order
         for _ = 1, 4 do
-            local px, py = {}, {}
-            for i = 1, m do px[i], py[i] = P(order, pick, i) end
+            local P2 = {}
+            for i = 1, m do P2[i] = P(order, pick, i) end
             local full = 2 ^ m - 1
-            local dp, from = {}, {}
-            local bit = {}
+            local dp, from, bit = {}, {}, {}
             for i = 1, m do bit[i] = 2 ^ (i - 1) end
             for i = 1, m do
                 dp[bit[i]] = dp[bit[i]] or {}
                 from[bit[i]] = from[bit[i]] or {}
-                dp[bit[i]][i] = sx and D(sx, sy, px[i], py[i]) or 0
+                dp[bit[i]][i] = start and D(start, P2[i]) or 0
             end
             for mask = 1, full do
                 local row = dp[mask]
@@ -287,7 +302,7 @@ function ns.PlanRoute(zone, nodes, sx, sy)
                             for k = 1, m do
                                 if math.floor(mask / bit[k]) % 2 == 0 then
                                     local nm = mask + bit[k]
-                                    local nc = c + D(px[j], py[j], px[k], py[k])
+                                    local nc = c + D(P2[j], P2[k])
                                     dp[nm] = dp[nm] or {}
                                     from[nm] = from[nm] or {}
                                     if not dp[nm][k] or nc < dp[nm][k] then
@@ -313,21 +328,7 @@ function ns.PlanRoute(zone, nodes, sx, sy)
             local o2, k2 = {}, {}
             for i, idx in ipairs(seq) do o2[i], k2[i] = order[idx], pick[idx] end
             order, pick = o2, k2
-            -- Re-choose points; stop once none moves.
-            local moved = false
-            for i = 1, m do
-                local ax, ay
-                if i > 1 then ax, ay = P(order, pick, i - 1) else ax, ay = sx, sy end
-                local bx, by
-                if i < m then bx, by = P(order, pick, i + 1) end
-                local bestK, bestC = pick[i], nil
-                for k, p in ipairs(pts[order[i]]) do
-                    local c = (ax and D(ax, ay, p[1], p[2]) or 0) + (bx and D(p[1], p[2], bx, by) or 0)
-                    if not bestC or c < bestC - 0.01 then bestK, bestC = k, c end
-                end
-                if bestK ~= pick[i] then pick[i], moved = bestK, true end
-            end
-            if not moved then break end
+            if not Reselect(order, pick) then break end
         end
         return order, pick, Length(order, pick)
     end
@@ -341,31 +342,31 @@ function ns.PlanRoute(zone, nodes, sx, sy)
         if n <= EXACT then o2, k2, len = Exact(o2, k2) end
         if not bestLen or len < bestLen - 0.5 then bestOrder, bestPick, bestLen = o2, k2, len end
     end
-    if sx then
-        Try(Greedy(sx, sy))
+    if start then
+        Try(Greedy(start))
         if n > EXACT then
             local near = {}
             for i = 1, n do
                 local d
                 for _, p in ipairs(pts[i]) do
-                    local dd = D(sx, sy, p[1], p[2])
+                    local dd = D(start, p)
                     if not d or dd < d then d = dd end
                 end
                 near[i] = { i = i, d = d }
             end
             table.sort(near, function(a, b) return a.d < b.d end)
-            for r = 2, math.min(n, 5) do Try(Greedy(sx, sy, near[r].i)) end
+            for r = 2, math.min(n, 5) do Try(Greedy(start, near[r].i)) end
         end
     elseif n <= EXACT then
-        Try(Greedy(nil, nil, 1))
+        Try(Greedy(nil, 1))
     else
-        for first = 1, n do Try(Greedy(nil, nil, first)) end
+        for first = 1, n do Try(Greedy(nil, first)) end
     end
 
     local stops = {}
     for i, idx in ipairs(bestOrder) do
         local p = pts[idx][bestPick[i]]
-        stops[i] = { node = nodes[idx], x = p[1], y = p[2] }
+        stops[i] = { node = nodes[idx], x = p.x, y = p.y }
     end
     return stops, bestLen
 end

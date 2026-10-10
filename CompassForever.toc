@@ -13,9 +13,13 @@ Libs\LibDBIcon-1.0\LibDBIcon-1.0.lua
 
 Core.lua
 Data\Exploration.lua
+Data\Terrain.lua
+Data\Flights.lua
 Progress.lua
 Route.lua
 MapArt.lua
+Pathing.lua
+Travel.lua
 Arrow.lua
 Banner.lua
 Auto.lua

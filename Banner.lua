@@ -41,11 +41,13 @@ function ns.Banner(head, sub)
     frame:Show()
 end
 
--- "Head northwest to Raven Hill, 420 yd", or just the name when the player
--- cannot be placed.
+-- "Head northwest to Raven Hill, 420 yd" (the way the walking path starts,
+-- and its length), the flight to take when flying is quicker, or just the
+-- name when the player cannot be placed.
 function ns.NextStopText()
     local stop = ns.CurrentStop()
     if not stop then return nil end
+    if ns.travel and ns.TravelText then return ns.TravelText() end
     local bearing, yards = ns.StopVector(ns.route.zone, stop)
     if bearing then
         return string.format("Head %s to |cffffd100%s|r, %s", ns.Compass(bearing), stop.node.name, ns.Yards(yards))

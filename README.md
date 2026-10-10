@@ -34,6 +34,23 @@ Type `/cf` (or `/compassforever`), or click the map icon on the minimap.
 The route is the shortest walk from where you stand: exact for up to 11 areas,
 and very close beyond that.
 
+## Around mountains, and by air
+
+Routes go round what can't be walked. Every zone's terrain is mapped every 8
+yards from the game's own height data: slopes too steep to climb (over 50
+degrees), sheer drops, lava and slime are avoided, and deep water is swum. The
+order of the stops uses real walking distances, and the arrow follows the
+walking path, aiming a little way ahead along it, so it bends round a cliff
+instead of pointing through it. Bridges and buildings aren't terrain, so a
+gorge with a bridge over it counts as hard going rather than impossible: the
+path will still cross where there's no other way.
+
+When the next stop is far away and a flight would save real time, the arrow
+takes you to the nearest useful flight master first and tells you where to
+fly; after you land the route carries on. Compass Forever learns which flight
+points each character knows from the flight map, so open any flight master's
+map once on each character.
+
 ## The fanfare
 
 Finishing a zone on a route plays `Sounds\fanfare.ogg`, the Final Fantasy VII
@@ -78,8 +95,11 @@ After a client patch:
 ```
 python tools/fetch_terrain.py <cache dir> --build <new build>
 python tools/build_data.py <cache dir> .
+python tools/build_terrain.py <cache dir> .
 python tests/addon_test.py
 ```
+
+`build_terrain.py` needs NumPy and SciPy (`pip install numpy scipy`).
 
 `fetch_terrain.py` downloads the tables and about 1,700 terrain tiles (around
 800 MB) from wago.tools. `tools/exploration_report.txt` lists every area, how

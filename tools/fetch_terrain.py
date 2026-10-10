@@ -26,6 +26,7 @@ BUILD = "1.60.1.70334"
 TABLES = [
     "Achievement", "Criteria", "CriteriaTree", "WorldMapOverlay", "UiMap",
     "UiMapXMapArt", "UiMapAssignment", "AreaTable", "Map", "Achievement_Category", "WorldMapOverlayTile",
+    "TaxiNodes", "TaxiPath", "TaxiPathNode",
 ]
 WDT = {0: 775971, 1: 782779}  # world/maps/azeroth/azeroth.wdt, kalimdor.wdt
 UA = {"User-Agent": "CompassForever data build"}
