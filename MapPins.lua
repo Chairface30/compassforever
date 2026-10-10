@@ -5,14 +5,18 @@
 --     none is running);
 --   - a bar across the top of the map saying how many are left, with a
 --     button to start or stop the route and one to open the zone in the
---     Compass Forever window.
+--     Compass Forever window;
+--   - the areas still covered drawn in gray, so the whole zone shows.
 --
 -- Everything sits on frames of our own laid over the map. The map is only
--- read (which map it shows, how big its canvas is), never driven.
+-- read (which map it shows, how big its canvas is, the frame levels its own
+-- pins use), never driven. Our markers and bar go above the map's top-most
+-- pin level, so nothing of the map's covers them; the gray art goes at the
+-- level of the map's own uncovered-area art, under every pin.
 
 local _, ns = ...
 
-local overlay, barFrame
+local overlay, barFrame, grayFrame, grayPool
 local pins, used = {}, 0
 local PIN = 16
 
@@ -87,13 +91,34 @@ local function RefreshBar(zone)
     bar:Show()
 end
 
+-- The map's own pin frame levels: its uncovered-area art, and the highest
+-- level any of its pins use. Read only; fallbacks if the map has none.
+local function Levels(map, child)
+    local base = (child:GetFrameLevel() or 1)
+    local okM, mgr = pcall(function() return map:GetPinFrameLevelsManager() end)
+    if not (okM and type(mgr) == "table" and mgr.GetValidFrameLevel) then return base + 1, base + 3000 end
+    local okE, explore = pcall(mgr.GetValidFrameLevel, mgr, "PIN_FRAME_LEVEL_MAP_EXPLORATION")
+    local okT, top = pcall(mgr.GetValidFrameLevel, mgr, "PIN_FRAME_LEVEL_TOPMOST")
+    explore = okE and ns.Num(explore) or base + 1
+    top = okT and ns.Num(top) or base + 3000
+    return explore, top
+end
+
 local function Refresh()
     if not overlay then return end
     for i = 1, used do pins[i]:Hide() end
     used = 0
+    grayPool:Begin()
+    local map, _, child = Canvas()
+    local explore, top = Levels(map, child)
+    grayFrame:SetFrameLevel(explore)
+    overlay:SetFrameLevel(math.min(top + 100, 9000))
+    barFrame:SetFrameLevel(math.min(top + 200, 9100))
     local zone = ns.db and ns.db.mapPins and ShownZone() or nil
     RefreshBar(zone)
     if not zone then return end
+    local lw = ns.ArtLayer(zone.map)
+    ns.DrawCoveredGray(grayPool, zone, (child:GetWidth() or 0) / lw)
     -- The canvas grows as the map zooms; the markers stay one size on screen.
     local okS, scale = pcall(overlay.GetEffectiveScale, overlay)
     local inv = (okS and ns.Num(scale) and scale > 0) and (UIParent:GetEffectiveScale() / scale) or 1
@@ -141,7 +166,9 @@ local function Setup()
     -- half made: the next login simply tries again.
     local o = CreateFrame("Frame", nil, child)
     o:SetAllPoints(child)
-    o:SetFrameLevel((child:GetFrameLevel() or 1) + 50)
+    local g = CreateFrame("Frame", nil, child)
+    g:SetAllPoints(child)
+    g:EnableMouse(false)
 
     local bar = CreateFrame("Frame", nil, map, "BackdropTemplate")
     bar:SetSize(420, 30)
@@ -167,7 +194,7 @@ local function Setup()
         if ns.route and ns.route.zone == bar.zone then ns.StopRoute() else ns.StartRoute(bar.zone) end
     end)
     bar:Hide()
-    overlay, barFrame = o, bar
+    overlay, barFrame, grayFrame, grayPool = o, bar, g, ns.TexturePool(g, "ARTWORK")
 
     if type(map.OnMapChanged) == "function" then
         pcall(hooksecurefunc, map, "OnMapChanged", SafeRefresh)

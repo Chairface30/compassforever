@@ -58,6 +58,9 @@ local function Widget(kind)
         elseif key == "GetEffectiveScale" then return function(s) return rawget(s, "_eff") or 1 end
         elseif key == "GetFrameLevel" then return function() return 1 end
         elseif key == "SetScale" then return function(s, v) rawset(s, "_scale", v) end
+        elseif key == "SetFrameLevel" then return function(s, v) rawset(s, "_level", v) end
+        elseif key == "SetDesaturated" then return function(s, v) rawset(s, "_gray", v) end
+        elseif key == "SetTexture" then return function(s, v) rawset(s, "_tex", v) end
         elseif key == "GetScale" then return function(s) return rawget(s, "_scale") or 1 end
         elseif key == "SetPoint" then return function(s, ...) rawset(s, "_point", { ... }) end
         elseif key == "CreateLine" then return function() local r = Widget("line") table.insert(LINES, r) return r end
@@ -141,6 +144,18 @@ WorldMapFrame.ScrollContainer = CreateFrame("Frame")
 WorldMapFrame.ScrollContainer.Child = CreateFrame("Frame")
 SHOWN_MAP = 1429
 WorldMapFrame.GetMapID = function() return SHOWN_MAP end
+PIN_LEVELS = { PIN_FRAME_LEVEL_MAP_EXPLORATION = 1990, PIN_FRAME_LEVEL_TOPMOST = 2150 }
+WorldMapFrame.GetPinFrameLevelsManager = function()
+    return { GetValidFrameLevel = function(_, kind) return PIN_LEVELS[kind] or 2000 end }
+end
+-- On a continent every point is "Westfall"; on Azeroth every point is
+-- Kalimdor. Each zone sits in a tenth of its continent.
+C_Map.GetMapInfoAtPosition = function(map, x, y)
+    if map == 1415 or map == 1414 then return { mapID = 1436 } end
+    if map == 947 then return { mapID = 1414 } end
+end
+C_Map.GetMapRectOnMap = function() return 0.4, 0.5, 0.4, 0.5 end
+C_Map.GetMapHighlightInfoAtPosition = function() return 5555, nil, 1, 1, 0.1, 0.1, 0.4, 0.4 end
 
 -- Every text a font string was given.
 function TEXTS()
@@ -303,6 +318,48 @@ check("with Sounds/fanfare.ogg: that plays, and only that",
 rt.execute("for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = nil end NS.InvalidateProgress() NS.StartRoute(ELWYNN)")
 rt.execute("SOUNDS = {} for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = true end FIRE('CRITERIA_UPDATE') FLUSH()")
 check("finishing a zone on a route plays it", rt.eval("SOUNDS[1]") is not None and "fanfare" in str(rt.eval("SOUNDS[1]")))
+
+print("window navigation")
+rt.execute("NS.ShowZone(ELWYNN)")
+check("opens on a zone", rt.eval("NS.WindowView().kind") == "zone")
+rt.execute("NS.WindowZoomOut()")
+check("right-click: back to the zone's continent", rt.eval("NS.WindowView().kind") == "continent"
+      and rt.eval("NS.WindowView().map") == 1415)
+check("the continent shows what each zone has left", "left|r" in rt.eval("TEXTS()"))
+target = rt.eval("NS.WindowTarget(0.45, 0.45).zone.name")
+check("the zone under the cursor is found", target == "Westfall", target)
+rt.execute("NS.WindowOpen(NS.WindowTarget(0.45, 0.45))")
+check("clicking it opens that zone", rt.eval("NS.WindowView().zone.name") == "Westfall")
+rt.execute("NS.WindowZoomOut() NS.WindowZoomOut()")
+check("right-click again: Azeroth", rt.eval("NS.WindowView().kind") == "world")
+rt.execute("NS.WindowOpen(NS.WindowTarget(0.5, 0.5))")
+check("clicking a continent opens it", rt.eval("NS.WindowView().map") == 1414)
+rt.execute("NS.WindowZoomOut() NS.WindowZoomOut()")
+check("right-click on Azeroth stays there", rt.eval("NS.WindowView().kind") == "world")
+
+print("gray covered areas")
+rt.execute("""for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = nil end
+    DONE[ELWYNN.nodes[1].criteria] = true NS.InvalidateProgress() NS.ShowZone(ELWYNN)""")
+def gray_count():
+    return rt.eval("""(function() local n, files = 0, {}
+        for _, f in ipairs(FRAMES) do if rawget(f, "_gray") and rawget(f, "_shown") then
+            n = n + 1 files[rawget(f, "_tex")] = true end end
+        return n, files end)()""")
+n, files = gray_count()
+want = rt.eval("(function() local n = 0 for i = 2, #ELWYNN.nodes do n = n + #ELWYNN.nodes[i].files end return n end)()")
+check("every covered area's art is drawn gray", n >= want, (n, want))
+first_files = list(rt.eval("ELWYNN.nodes[1].files").values())
+check("an uncovered area is not drawn gray", not any(files[f] for f in first_files if f in files))
+
+print("world map layers")
+rt.execute("PRINTED = {} SHOWN_MAP = 1429 NS.db.mapPins = true WorldMapFrame._scripts.OnShow()")
+levels = rt.eval("""(function() local out = {}
+    for _, f in ipairs(FRAMES) do local l = rawget(f, "_level") if l then out[#out + 1] = l end end
+    return table.concat(out, ",") end)()""")
+lv = [int(x) for x in levels.split(",") if x]
+check("markers and bar sit above the map's top-most pins", any(l > 2150 for l in lv), lv)
+check("gray art sits at the map's own explored-art level", 1990 in lv, lv)
+check("the world map draws its gray art", gray_count()[0] > 0)
 
 print("go here next")
 rt.execute("for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = nil end PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.42, 0.65")

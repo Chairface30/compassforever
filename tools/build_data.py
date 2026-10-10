@@ -188,6 +188,12 @@ def main():
     crit = {c["ID"]: c for c in load(cache, "Criteria")}
     kids = criteria_children(load(cache, "CriteriaTree"))
     overlays = {o["ID"]: o for o in load(cache, "WorldMapOverlay")}
+    # Each overlay's art: its tiles' file IDs, row by row (layer 0).
+    tiles = defaultdict(list)
+    for t in load(cache, "WorldMapOverlayTile"):
+        if t["LayerIndex"] == "0":
+            tiles[t["WorldMapOverlayID"]].append((int(t["RowIndex"]), int(t["ColIndex"]), int(t["FileDataID"])))
+    art = {k: [f for _, _, f in sorted(v)] for k, v in tiles.items()}
     # Forever redrew the zone maps: each zone has new art with new overlays,
     # while the achievements still name the old ones. The old art's zone comes
     # from the Classic Era table, and each old overlay is matched to the new
@@ -257,7 +263,12 @@ def main():
             nodes.append({"overlay": int(o["ID"]), "criteria": int(c["ID"]),
                           "name": t["Description_lang"] or areas.get(ids[0], {}).get("AreaName_lang", "?"),
                           "areas": [int(x) for x in ids], "points": coords,
-                          "ox": int(live["OffsetX"]), "oy": int(live["OffsetY"]), "rough": how != "terrain"})
+                          "ox": int(live["OffsetX"]), "oy": int(live["OffsetY"]),
+                          # A new overlay with no tiles yet (Zul'Gurub) keeps the
+                          # old art, which sits at the same spot.
+                          "tw": int((live if art.get(live["ID"]) else o)["TextureWidth"]),
+                          "th": int((live if art.get(live["ID"]) else o)["TextureHeight"]),
+                          "files": art.get(live["ID"]) or art.get(o["ID"], []), "rough": how != "terrain"})
             report.append(f"{uimaps[ui]['Name_lang']:22} {nodes[-1]['name']:32} {how:8} chunks={count:5} depth={best}"
                           f" at {coords[0][0]*100:5.1f},{coords[0][1]*100:5.1f}")
         zones.append({"ach": int(a["ID"]), "ui": int(ui), "name": uimaps[ui]["Name_lang"],
@@ -279,6 +290,9 @@ def write_exploration(addon, zones):
         "-- One entry per \"Explore <zone>\" achievement. Each node is one world map",
         "-- overlay the achievement needs: its criteria ID, its overlay ID, its name,",
         "-- and standing points on the zone's map (fractions x 10000, x then y).",
+        "-- ox, oy, tw, th and files are its map art: where it sits on the zone map",
+        "-- (in map art pixels), its size, and its tiles' file IDs row by row, so a",
+        "-- covered area can still be drawn (gray) on the map.",
         "-- A node whose area has no terrain of its own is marked rough = true: its",
         "-- point is the middle of the map art, not a checked spot.",
         "local _, ns = ...",
@@ -291,7 +305,8 @@ def write_exploration(addon, zones):
             pts = ", ".join(f"{round(x * 10000)}, {round(y * 10000)}" for x, y in n["points"])
             rough = ", rough = true" if n["rough"] else ""
             lines.append(f"        {{ criteria = {n['criteria']}, overlay = {n['overlay']}, "
-                         f"ox = {n['ox']}, oy = {n['oy']}, name = {lua_str(n['name'])}, points = {{ {pts} }}{rough} }},")
+                         f"ox = {n['ox']}, oy = {n['oy']}, tw = {n['tw']}, th = {n['th']}, "
+                         f"files = {{ {', '.join(str(f) for f in n['files'])} }}, name = {lua_str(n['name'])}, points = {{ {pts} }}{rough} }},")
         lines.append("    } },")
     lines.append("}")
     with open(os.path.join(addon, "Data", "Exploration.lua"), "w", encoding="utf-8", newline="\n") as f:

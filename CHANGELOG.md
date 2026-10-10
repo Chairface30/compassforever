@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- The window's map works like the world map: right-click backs out from a
+  zone to its continent and to Azeroth, and clicking a continent or zone opens
+  it. Zones light up under the cursor and show how many areas they have left.
+- Areas not yet uncovered are drawn in gray, on the world map and in the
+  window, instead of being left blank.
+- Markers and the route bar on the world map now sit above every other pin.
 - A zone finished on a route plays a victory fanfare (Sounds\fanfare.ogg;
   replace it with your own clip if you like).
 - Renamed to Compass Forever. The command is /cf (or /compassforever); /legacy

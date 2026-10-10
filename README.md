@@ -10,7 +10,8 @@ Type `/cf` (or `/compassforever`), or click the map icon on the minimap.
 
 - **Open the world map** on any zone. A bar at the top says how many areas are
   left, with **Start route**. Each area still to find has a marker; click one to
-  head there next.
+  head there next. Areas you haven't uncovered yet are drawn in gray, so you
+  see the whole zone.
 - **Or let it run itself.** Tick *Route me automatically when I enter a zone*.
   Every time you enter a zone with areas still covered, a route starts and a
   banner tells you where to run: "Duskwood: 7 areas to uncover. Head northwest
@@ -20,10 +21,13 @@ Type `/cf` (or `/compassforever`), or click the map icon on the minimap.
 - **As you go**, each area you uncover is announced with the next stop, and the
   route is planned again from where you are, including areas you crossed on the
   way to another.
-- **The window** lists every zone with how much of it is left. Pick one to see
-  its own map: the parts you have uncovered, the fog over the rest, a marker on
-  each area still to find, the route as a line, and you. Click a marker to go
-  there next.
+- **The window** lists every zone with how much of it is left, and its map
+  works like the world map. Right-click to back out from a zone to its
+  continent and then to Azeroth; click a continent or a zone to open it.
+  Zones light up as you point at them and show how many areas they have left.
+  A zone's own map shows what you have uncovered in color and the rest in
+  gray, a marker on each area still to find, the route as a line, and you.
+  Click a marker to go there next.
 
 The route is the shortest walk from where you stand: exact for up to 11 areas,
 and very close beyond that.

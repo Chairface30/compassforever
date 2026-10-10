@@ -1,28 +1,45 @@
 -- Compass Forever: UI.lua
 -- The window. Zones down the left with how much of each is uncovered; on the
--- right the chosen zone's own map, drawn with the parts this character has
--- uncovered (the rest stays in fog, as on the world map), a marker on every
--- area still to find, the route through them as a line, and you.
+-- right a map that works like the world map:
 --
--- Click a marker to go there next. Start or stop the route under the map.
--- The map art is read from the client (C_Map art layers and the uncovered
--- overlays) and drawn on our own textures; no Blizzard frame is touched.
+--   Azeroth    - both continents, each with its progress; click one to open it.
+--   continent  - its zones, each with what is left; hover one to light it up,
+--                click it to open it. Right-click goes back to Azeroth.
+--   zone       - the zone's own map: what you have uncovered in color, what is
+--                still covered in gray, a marker on every area still to find,
+--                the route as a line, and you. Click a marker to go there
+--                next. Right-click goes back to the continent.
+--
+-- A trail above the map (Azeroth > Eastern Kingdoms > Elwynn Forest) can be
+-- clicked too. Map art is read from the client and drawn on our own
+-- textures; no Blizzard frame is touched.
 
 local _, ns = ...
 
-local W, H = 900, 590
+local W, H = 900, 600
 local LIST_W = 250
 local MAP_W, MAP_H = 600, 400
 local ROW_H = 38
 local GREEN, GOLD, GRAY = "|cff55dd55", "|cffffd100", "|cff999999"
 
+local WORLD = 947
+local CONTINENT_MAP = { [0] = 1415, [1] = 1414 }
+local CONTINENT_NAME = { [0] = "Eastern Kingdoms", [1] = "Kalimdor" }
+
 local frame, mapBox, scroll, listChild
-local overallBar, autoBox, pinBox, contButtons
+local overallBar, autoBox, pinBox, contButtons, trail
 local zoneTitle, zoneInfo, nextInfo, routeButton, skipButton
 local zoneRows = {}
-local continent = 0
-local selected            -- the zone shown on the right
+local continent = 0          -- the continent the list shows
+local view = { kind = "continent", map = CONTINENT_MAP[0] }
 local Refresh
+
+local function ContinentOfMap(mapID)
+    for c, m in pairs(CONTINENT_MAP) do
+        if m == mapID then return c end
+    end
+    return nil
+end
 
 -------------------------------------------------------------------------------
 -- Small widgets
@@ -42,8 +59,7 @@ local function Bar(parent, w, h)
 end
 
 local function SetBar(bar, done, total)
-    local f = total > 0 and done / total or 0
-    bar:SetValue(f)
+    bar:SetValue(total > 0 and done / total or 0)
     if done == total then bar:SetStatusBarColor(0.25, 0.8, 0.3)
     else bar:SetStatusBarColor(0.95, 0.7, 0.15) end
 end
@@ -66,11 +82,38 @@ local function Check(parent, label, tip, onClick)
 end
 
 -------------------------------------------------------------------------------
+-- Moving between maps
+-------------------------------------------------------------------------------
+
+local function ShowZoneView(zone)
+    view = { kind = "zone", map = zone.map, zone = zone }
+    continent = zone.continent
+    Refresh()
+end
+
+local function ShowContinentView(c)
+    view = { kind = "continent", map = CONTINENT_MAP[c] }
+    continent = c
+    Refresh()
+end
+
+local function ShowWorldView()
+    view = { kind = "world", map = WORLD }
+    Refresh()
+end
+
+-- Right-click: one level up.
+local function ZoomOut()
+    if view.kind == "zone" then ShowContinentView(view.zone.continent)
+    elseif view.kind == "continent" then ShowWorldView() end
+end
+
+-------------------------------------------------------------------------------
 -- The zone list
 -------------------------------------------------------------------------------
 
-local function ZoneTooltip(owner, zone)
-    GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
+local function ZoneTooltip(owner, zone, anchor)
+    GameTooltip:SetOwner(owner, anchor or "ANCHOR_RIGHT")
     local d, t = ns.ZoneCounts(zone)
     GameTooltip:AddLine(zone.name, 1, 1, 1)
     if d == t then
@@ -92,7 +135,6 @@ local function ZoneRow(i)
     row:SetPoint("TOPLEFT", 0, -(i - 1) * ROW_H)
     row.bg = row:CreateTexture(nil, "BACKGROUND")
     row.bg:SetAllPoints()
-    row.bg:SetColorTexture(1, 1, 1, 0.05)
     local hl = row:CreateTexture(nil, "HIGHLIGHT")
     hl:SetAllPoints()
     hl:SetColorTexture(1, 0.82, 0, 0.12)
@@ -103,10 +145,7 @@ local function ZoneRow(i)
     row.count:SetPoint("TOPRIGHT", -6, -6)
     row.bar = Bar(row, LIST_W - 38, 5)
     row.bar:SetPoint("BOTTOMLEFT", 6, 6)
-    row:SetScript("OnClick", function(self)
-        selected = self.zone
-        Refresh()
-    end)
+    row:SetScript("OnClick", function(self) ShowZoneView(self.zone) end)
     row:SetScript("OnEnter", function(self) ZoneTooltip(self, self.zone) end)
     row:SetScript("OnLeave", function() GameTooltip:Hide() end)
     zoneRows[i] = row
@@ -128,99 +167,170 @@ local function RefreshList()
             row.name:SetText((d == t and GRAY or "") .. zone.name .. "|r" .. tag)
             row.count:SetText(d == t and (GREEN .. "Done|r") or (GOLD .. (t - d) .. " left|r"))
             SetBar(row.bar, d, t)
-            if zone == selected then row.bg:SetColorTexture(1, 0.82, 0, 0.22)
+            if view.zone == zone then row.bg:SetColorTexture(1, 0.82, 0, 0.22)
             else row.bg:SetColorTexture(1, 1, 1, d == t and 0.02 or 0.06) end
             row:Show()
         end
     end
     for i = n + 1, #zoneRows do zoneRows[i]:Hide() end
     listChild:SetHeight(math.max(1, n * ROW_H))
-    for _, b in ipairs(contButtons) do b:SetEnabled(b.continent ~= continent) end
+    for _, b in ipairs(contButtons) do
+        b:SetEnabled(not (view.kind == "continent" and b.continent == continent))
+    end
 end
 
 -------------------------------------------------------------------------------
 -- The map
 -------------------------------------------------------------------------------
 
-local tiles, overlays, pins, lines = {}, {}, {}, {}
-local playerDot
+local baseTiles, colorArt, grayArt
+local pins, badges, lines = {}, {}, {}
+local playerDot, highlight
 local hasLines
 
-local function Pool(list, used, make)
-    local t = list[used]
-    if not t then t = make() list[used] = t end
+local function Pool(list, i, make)
+    local t = list[i]
+    if not t then t = make() list[i] = t end
     t:Show()
     return t
 end
 
--- The zone's map art: base tiles, then each uncovered overlay on top.
-local function DrawArt(zone)
-    for _, t in ipairs(tiles) do t:Hide() end
-    for _, t in ipairs(overlays) do t:Hide() end
-    local okL, layers = ns.Ask(ns.API("C_Map", "GetMapArtLayers"), zone.map)
-    local layer = okL and type(layers) == "table" and layers[1]
-    local lw = layer and ns.Num(layer.layerWidth) or 1002
-    local tw = layer and ns.Num(layer.tileWidth) or 256
-    local th = layer and ns.Num(layer.tileHeight) or 256
+-- A map's art: base tiles, then each uncovered overlay in color, and for a
+-- zone each still-covered area in gray.
+local function DrawArt(mapID, zone)
+    baseTiles:Begin()
+    colorArt:Begin()
+    grayArt:Begin()
+    local lw, _, tw, th = ns.ArtLayer(mapID)
     local scale = MAP_W / lw
-    local okT, files = ns.Ask(ns.API("C_Map", "GetMapArtLayerTextures"), zone.map, 1)
+    local okT, files = ns.Ask(ns.API("C_Map", "GetMapArtLayerTextures"), mapID, 1)
     if okT and type(files) == "table" then
         local cols = math.ceil(lw / tw)
         for i, file in ipairs(files) do
-            local t = Pool(tiles, i, function() return mapBox:CreateTexture(nil, "BACKGROUND") end)
+            local t = baseTiles:Next()
             t:SetTexture(file)
             t:SetSize(tw * scale, th * scale)
             t:ClearAllPoints()
             t:SetPoint("TOPLEFT", ((i - 1) % cols) * tw * scale, -math.floor((i - 1) / cols) * th * scale)
         end
     end
-
-    local okE, explored = ns.Ask(ns.API("C_MapExplorationInfo", "GetExploredMapTextures"), zone.map)
-    if not (okE and type(explored) == "table") then return end
-    local used = 0
-    local TILE = 256
-    for _, info in ipairs(explored) do
-        local ids = info.fileDataIDs
-        local wide, tall = ns.Num(info.numTexturesWide), ns.Num(info.numTexturesTall)
-        local texW, texH = ns.Num(info.textureWidth), ns.Num(info.textureHeight)
-        local ox, oy = ns.Num(info.offsetX), ns.Num(info.offsetY)
-        if type(ids) == "table" and wide and tall and texW and texH and ox and oy and not info.isShownByMouseOver then
-            for j = 1, tall do
-                local ph, fh = TILE, TILE
-                if j == tall then
-                    ph = texH % TILE
-                    if ph == 0 then ph = TILE end
-                    fh = 16
-                    while fh < ph do fh = fh * 2 end
-                end
-                for k = 1, wide do
-                    local pw, fw = TILE, TILE
-                    if k == wide then
-                        pw = texW % TILE
-                        if pw == 0 then pw = TILE end
-                        fw = 16
-                        while fw < pw do fw = fw * 2 end
-                    end
-                    local file = ids[(j - 1) * wide + k]
-                    if file then
-                        used = used + 1
-                        local t = Pool(overlays, used, function() return mapBox:CreateTexture(nil, "BORDER") end)
-                        t:SetTexture(file)
-                        t:SetTexCoord(0, pw / fw, 0, ph / fh)
-                        t:SetSize(pw * scale, ph * scale)
-                        t:ClearAllPoints()
-                        t:SetPoint("TOPLEFT", (ox + TILE * (k - 1)) * scale, -(oy + TILE * (j - 1)) * scale)
-                    end
-                end
+    local okE, explored = ns.Ask(ns.API("C_MapExplorationInfo", "GetExploredMapTextures"), mapID)
+    if okE and type(explored) == "table" then
+        for _, info in ipairs(explored) do
+            local ids = info.fileDataIDs
+            local texW, texH = ns.Num(info.textureWidth), ns.Num(info.textureHeight)
+            local ox, oy = ns.Num(info.offsetX), ns.Num(info.offsetY)
+            if type(ids) == "table" and texW and texH and ox and oy and not info.isShownByMouseOver then
+                ns.EachTile(ox, oy, texW, texH, ids, tw, th, function(file, x, y, w, h, u, v)
+                    local t = colorArt:Next()
+                    t:SetTexture(file)
+                    t:SetTexCoord(0, u, 0, v)
+                    t:SetSize(w * scale, h * scale)
+                    t:ClearAllPoints()
+                    t:SetPoint("TOPLEFT", x * scale, -y * scale)
+                end)
             end
         end
     end
+    if zone then ns.DrawCoveredGray(grayArt, zone, scale) end
+end
+
+-- Where the cursor is on the map, as fractions; nil when off it.
+local function CursorOnMap()
+    local okC, cx, cy = pcall(GetCursorPosition)
+    if not okC or not cx then return nil end
+    local s = mapBox:GetEffectiveScale()
+    local left, top = mapBox:GetLeft(), mapBox:GetTop()
+    if not (s and left and top) then return nil end
+    local x, y = (cx / s - left) / MAP_W, (top - cy / s) / MAP_H
+    if x < 0 or x > 1 or y < 0 or y > 1 then return nil end
+    return x, y
+end
+
+-- The map under a point of the shown map: a zone (on a continent) or a
+-- continent (on Azeroth).
+local function MapAt(x, y)
+    local ok, info = ns.Ask(ns.API("C_Map", "GetMapInfoAtPosition"), view.map, x, y)
+    return ok and type(info) == "table" and ns.Num(info.mapID) or nil
+end
+
+local function Target(x, y)
+    local mapID = MapAt(x, y)
+    if not mapID then return nil end
+    if view.kind == "continent" then
+        local zone = ns.ZoneByMap(mapID)
+        return zone and { zone = zone } or nil
+    elseif view.kind == "world" then
+        local c = ContinentOfMap(mapID)
+        return c and { continent = c } or nil
+    end
+    return nil
+end
+
+-- Light up what the cursor is over, as the world map does.
+local hovered
+local function Hover()
+    if not (view.kind ~= "zone" and mapBox:IsMouseOver()) then
+        if hovered then
+            hovered = nil
+            highlight:Hide()
+            GameTooltip:Hide()
+        end
+        return
+    end
+    local x, y = CursorOnMap()
+    local target = x and Target(x, y)
+    local key = target and (target.zone or target.continent)
+    if key == hovered then return end
+    hovered = key
+    highlight:Hide()
+    if not target then
+        GameTooltip:Hide()
+        return
+    end
+    local ok, file, atlas, px, py, tx, ty, sx, sy =
+        ns.Ask(ns.API("C_Map", "GetMapHighlightInfoAtPosition"), view.map, x, y)
+    if ok and ns.Num(file) and file > 0 and ns.Num(tx) and tx > 0 and ns.Num(ty) and ty > 0 then
+        highlight:SetTexture(file)
+        highlight:SetTexCoord(0, px, 0, py)
+        highlight:SetSize(tx * MAP_W, ty * MAP_H)
+        highlight:ClearAllPoints()
+        highlight:SetPoint("TOPLEFT", mapBox, "TOPLEFT", sx * MAP_W, -sy * MAP_H)
+        highlight:Show()
+    end
+    if target.zone then
+        ZoneTooltip(mapBox, target.zone, "ANCHOR_CURSOR")
+        GameTooltip:AddLine("Click to open. Right-click to see Azeroth.", 0.6, 1, 0.6)
+        GameTooltip:Show()
+    else
+        local ad, at, zd, zt = ns.Totals(target.continent)
+        GameTooltip:SetOwner(mapBox, "ANCHOR_CURSOR")
+        GameTooltip:AddLine(CONTINENT_NAME[target.continent], 1, 1, 1)
+        GameTooltip:AddLine(string.format("%d of %d areas, %d of %d zones explored", ad, at, zd, zt), 1, 0.82, 0)
+        GameTooltip:AddLine("Click to open.", 0.6, 1, 0.6)
+        GameTooltip:Show()
+    end
+end
+
+local function OnMapClick(_, button)
+    if button == "RightButton" then
+        ZoomOut()
+        return
+    end
+    local x, y = CursorOnMap()
+    local target = x and Target(x, y)
+    if not target then return end
+    hovered = nil
+    highlight:Hide()
+    GameTooltip:Hide()
+    if target.zone then ShowZoneView(target.zone) else ShowContinentView(target.continent) end
 end
 
 local function Pin(i)
     return Pool(pins, i, function()
         local p = CreateFrame("Button", nil, mapBox)
         p:SetFrameLevel(mapBox:GetFrameLevel() + 5)
+        p:RegisterForClicks("LeftButtonUp", "RightButtonUp")
         p.dot = p:CreateTexture(nil, "ARTWORK")
         p.dot:SetAllPoints()
         p.dot:SetTexture("Interface\\COMMON\\Indicator-Yellow")
@@ -242,11 +352,43 @@ local function Pin(i)
             GameTooltip:Show()
         end)
         p:SetScript("OnLeave", function() GameTooltip:Hide() end)
-        p:SetScript("OnClick", function(self)
-            if not self.done then ns.RouteVia(selected, self.node) end
+        p:SetScript("OnClick", function(self, button)
+            if button == "RightButton" then ZoomOut()
+            elseif not self.done then ns.RouteVia(view.zone, self.node) end
         end)
         return p
     end)
+end
+
+-- A count over each zone of a continent (or each continent of Azeroth).
+local function Badge(i)
+    return Pool(badges, i, function()
+        local b = CreateFrame("Frame", nil, mapBox)
+        b:SetFrameLevel(mapBox:GetFrameLevel() + 4)
+        b:SetSize(80, 30)
+        b:EnableMouse(false)
+        b.bg = b:CreateTexture(nil, "BACKGROUND")
+        b.bg:SetPoint("CENTER")
+        b.bg:SetColorTexture(0, 0, 0, 0.55)
+        b.text = b:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        b.text:SetPoint("CENTER")
+        return b
+    end)
+end
+
+local function PlaceBadge(b, text, x, y)
+    b.text:SetText(text)
+    local w = (b.text:GetStringWidth() or 40) + 10
+    b.bg:SetSize(w, (b.text:GetStringHeight() or 12) + 6)
+    b:ClearAllPoints()
+    b:SetPoint("CENTER", mapBox, "TOPLEFT", x * MAP_W, -y * MAP_H)
+end
+
+-- Where `mapID` sits on the shown map: its middle, as fractions.
+local function MiddleOn(mapID)
+    local ok, left, right, top, bottom = ns.Ask(ns.API("C_Map", "GetMapRectOnMap"), mapID, view.map)
+    if not (ok and ns.Num(left) and ns.Num(right) and ns.Num(top) and ns.Num(bottom)) then return nil end
+    return (left + right) / 2, (top + bottom) / 2
 end
 
 local function Line(i)
@@ -265,8 +407,7 @@ end
 
 -- The player on the shown map, and the leg from them to the first stop.
 local function DrawPlayer()
-    if not selected then return end
-    local px, py = ns.PlayerOn(selected.map)
+    local px, py = ns.PlayerOn(view.map)
     local inside = px and px >= 0 and px <= 1 and py >= 0 and py <= 1
     playerDot:SetShown(inside and true or false)
     if inside then
@@ -277,7 +418,7 @@ local function DrawPlayer()
     end
     local first = lines[1]
     local stop = ns.CurrentStop()
-    if hasLines and first and ns.route and ns.route.zone == selected and stop then
+    if hasLines and first and view.kind == "zone" and ns.route and ns.route.zone == view.zone and stop then
         if inside then
             first:Show()
             Join(first, px, py, stop.x, stop.y, 0.3, 1, 0.35, 0.9)
@@ -287,23 +428,15 @@ local function DrawPlayer()
     end
 end
 
-local function DrawMap()
-    for _, p in ipairs(pins) do p:Hide() end
-    for _, l in ipairs(lines) do l:Hide() end
-    if not selected then return end
-    local zone = selected
-    pcall(DrawArt, zone)
-
+local function DrawZone(zone)
     local state = ns.ZoneState(zone).state
     local order = {}
     local routed = ns.route and ns.route.zone == zone
     if routed then
         for i, stop in ipairs(ns.route.stops) do order[stop.node] = { i = i, x = stop.x, y = stop.y } end
     end
-    local n = 0
     for i, node in ipairs(zone.nodes) do
-        n = n + 1
-        local p = Pin(n)
+        local p = Pin(i)
         local done = state[i] == true
         local o = order[node]
         local pt = ns.NodePoints(node)[1]
@@ -320,36 +453,105 @@ local function DrawMap()
             p.dot:SetVertexColor(0.3, 1, 0.35, 1)
             p.num:SetText(GREEN .. "1|r")
         else
-            p.dot:SetVertexColor(node.rough and 1 or 1, node.rough and 0.5 or 0.9, node.rough and 0.4 or 0.3, 1)
+            p.dot:SetVertexColor(1, node.rough and 0.5 or 0.9, node.rough and 0.4 or 0.3, 1)
             p.num:SetText(o and o.i or "")
         end
     end
-
     if routed and hasLines then
         local stops = ns.route.stops
         for i = 2, #stops do
-            local l = Line(i)
-            Join(l, stops[i - 1].x, stops[i - 1].y, stops[i].x, stops[i].y, 1, 0.82, 0.1, 0.75)
+            Join(Line(i), stops[i - 1].x, stops[i - 1].y, stops[i].x, stops[i].y, 1, 0.82, 0.1, 0.75)
         end
         Line(1)
     end
+end
+
+local function DrawContinent(c)
+    local n = 0
+    for _, zone in ipairs(ns.ZONES) do
+        if zone.continent == c then
+            local x, y = MiddleOn(zone.map)
+            if x then
+                n = n + 1
+                local d, t = ns.ZoneCounts(zone)
+                PlaceBadge(Badge(n), d == t and (GREEN .. "Done|r") or (GOLD .. (t - d) .. " left|r"), x, y)
+            end
+        end
+    end
+end
+
+local function DrawWorld()
+    for c, mapID in pairs(CONTINENT_MAP) do
+        local x, y = MiddleOn(mapID)
+        if x then
+            local ad, at, zd, zt = ns.Totals(c)
+            PlaceBadge(Badge(c + 1), string.format("%s\n%s%d / %d zones|r", CONTINENT_NAME[c],
+                zd == zt and GREEN or GOLD, zd, zt), x, y)
+        end
+    end
+end
+
+local function DrawMap()
+    for _, p in ipairs(pins) do p:Hide() end
+    for _, b in ipairs(badges) do b:Hide() end
+    for _, l in ipairs(lines) do l:Hide() end
+    highlight:Hide()
+    hovered = nil
+    pcall(DrawArt, view.map, view.zone)
+    if view.kind == "zone" then DrawZone(view.zone)
+    elseif view.kind == "continent" then DrawContinent(continent)
+    else DrawWorld() end
     DrawPlayer()
 end
 
 -------------------------------------------------------------------------------
--- Under the map
+-- The trail above the map, and the text under it
 -------------------------------------------------------------------------------
 
+local function RefreshTrail()
+    local parts = { { "Azeroth", ShowWorldView } }
+    if view.kind ~= "world" then
+        local c = view.zone and view.zone.continent or continent
+        parts[2] = { CONTINENT_NAME[c], function() ShowContinentView(c) end }
+    end
+    if view.kind == "zone" then parts[3] = { view.zone.name } end
+    local x = 0
+    for i, b in ipairs(trail) do
+        local part = parts[i]
+        if part then
+            local last = i == #parts
+            b.text:SetText((last and "|cffffffff" or GOLD) .. part[1] .. "|r" .. (last and "" or GRAY .. "  >|r"))
+            b:SetWidth((b.text:GetStringWidth() or 60) + 8)
+            b:ClearAllPoints()
+            b:SetPoint("BOTTOMLEFT", mapBox, "TOPLEFT", x, 8)
+            x = x + b:GetWidth() + 4
+            b.go = not last and part[2] or nil
+            b:Show()
+        else
+            b:Hide()
+        end
+    end
+end
+
 local function RefreshInfo()
-    if not selected then
-        zoneTitle:SetText("")
-        zoneInfo:SetText("Pick a zone on the left.")
-        nextInfo:SetText("")
-        routeButton:Hide()
-        skipButton:Hide()
+    routeButton:Hide()
+    skipButton:Hide()
+    nextInfo:SetText("")
+    if view.kind == "world" then
+        local ad, at, zd, zt = ns.Totals()
+        zoneTitle:SetText("Azeroth")
+        zoneInfo:SetText(string.format("%d of %d areas, %d of %d zones explored.", ad, at, zd, zt))
+        nextInfo:SetText(GRAY .. "Click a continent to open it.|r")
         return
     end
-    local zone = selected
+    if view.kind == "continent" then
+        local ad, at, zd, zt = ns.Totals(continent)
+        zoneTitle:SetText(CONTINENT_NAME[continent])
+        zoneInfo:SetText(string.format("%d of %d areas, %d of %d zones explored.", ad, at, zd, zt))
+        nextInfo:SetText(GRAY .. "Click a zone to open it. Right-click to see Azeroth.|r")
+        return
+    end
+    local zone = view.zone
     local d, t = ns.ZoneCounts(zone)
     zoneTitle:SetText(zone.name)
     local routed = ns.route and ns.route.zone == zone
@@ -362,7 +564,8 @@ local function RefreshInfo()
         zoneInfo:SetText(string.format("%d of %d areas uncovered. %s%d to find.|r", d, t, GOLD, t - d))
     end
     nextInfo:SetText(routed and (ns.NextStopText() or "") or
-        (d < t and (GRAY .. "Start the route, or click a marker to head there first.|r") or ""))
+        (GRAY .. (d < t and "Start the route, or click a marker to head there first. " or "")
+            .. "Right-click the map to go back.|r"))
     routeButton:SetShown(d < t)
     routeButton:SetText(routed and "Stop route" or "Start route")
     skipButton:SetShown(routed and #ns.route.stops > 1)
@@ -381,6 +584,7 @@ Refresh = function()
     pinBox:SetChecked(ns.db.mapPins)
     RefreshList()
     DrawMap()
+    RefreshTrail()
     RefreshInfo()
 end
 ns.RefreshWindow = Refresh
@@ -411,7 +615,7 @@ local function Build()
 
     local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     title:SetPoint("TOPLEFT", 22, -18)
-    title:SetText(ns.title .. ": Exploration")
+    title:SetText(ns.title)
     local close = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
     close:SetPoint("TOPRIGHT", -6, -6)
 
@@ -423,7 +627,8 @@ local function Build()
         .. "Leaving the zone ends that route.", function(on) ns.SetAutoRoute(on) end)
     autoBox:SetPoint("TOPLEFT", 380, -38)
     pinBox = Check(frame, "Show markers on the world map",
-        "Areas still to uncover, numbered in route order, plus a bar to start the route.",
+        "Areas still to uncover, numbered in route order, drawn in gray where still covered, "
+        .. "plus a bar to start the route.",
         function(on)
             ns.db.mapPins = on
             ns.Fire("settings")
@@ -431,29 +636,28 @@ local function Build()
     pinBox:SetPoint("TOPLEFT", 380, -60)
 
     contButtons = {}
-    for i, c in ipairs({ { 0, "Eastern Kingdoms" }, { 1, "Kalimdor" } }) do
+    for i, c in ipairs({ 0, 1 }) do
         local b = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
         b:SetSize(LIST_W / 2 - 4, 22)
-        b:SetPoint("TOPLEFT", 18 + (i - 1) * (LIST_W / 2), -92)
-        b:SetText(c[2])
-        b.continent = c[1]
+        b:SetPoint("TOPLEFT", 18 + (i - 1) * (LIST_W / 2), -100)
+        b:SetText(CONTINENT_NAME[c])
+        b.continent = c
         b:SetScript("OnClick", function()
-            continent = c[1]
             if scroll.SetVerticalScroll then scroll:SetVerticalScroll(0) end
-            Refresh()
+            ShowContinentView(c)
         end)
         contButtons[i] = b
     end
 
     scroll = CreateFrame("ScrollFrame", "CompassForeverZoneList", frame, "UIPanelScrollFrameTemplate")
-    scroll:SetPoint("TOPLEFT", 18, -122)
-    scroll:SetSize(LIST_W - 26, H - 140)
+    scroll:SetPoint("TOPLEFT", 18, -130)
+    scroll:SetSize(LIST_W - 26, H - 148)
     listChild = CreateFrame("Frame", nil, scroll)
     listChild:SetSize(LIST_W - 26, 1)
     scroll:SetScrollChild(listChild)
 
     local border = CreateFrame("Frame", nil, frame, "BackdropTemplate")
-    border:SetPoint("TOPLEFT", LIST_W + 26, -88)
+    border:SetPoint("TOPLEFT", LIST_W + 26, -112)
     border:SetSize(MAP_W + 8, MAP_H + 8)
     if border.SetBackdrop then
         border:SetBackdrop({ edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 12 })
@@ -463,14 +667,33 @@ local function Build()
     mapBox:SetPoint("TOPLEFT", border, "TOPLEFT", 4, -4)
     mapBox:SetSize(MAP_W, MAP_H)
     if mapBox.SetClipsChildren then mapBox:SetClipsChildren(true) end
+    mapBox:EnableMouse(true)
+    mapBox:SetScript("OnMouseUp", OnMapClick)
     local paper = mapBox:CreateTexture(nil, "BACKGROUND", nil, -8)
     paper:SetAllPoints()
     paper:SetColorTexture(0.12, 0.1, 0.07, 1)
+    baseTiles = ns.TexturePool(mapBox, "BACKGROUND", 0)
+    grayArt = ns.TexturePool(mapBox, "BORDER", 0)
+    colorArt = ns.TexturePool(mapBox, "BORDER", 1)
+    highlight = mapBox:CreateTexture(nil, "ARTWORK", nil, 1)
+    highlight:SetBlendMode("ADD")
+    highlight:SetAlpha(0.6)
+    highlight:Hide()
     hasLines = type(mapBox.CreateLine) == "function"
     playerDot = mapBox:CreateTexture(nil, "OVERLAY")
     playerDot:SetTexture("Interface\\Minimap\\MinimapArrow")
     playerDot:SetSize(24, 24)
     playerDot:Hide()
+
+    trail = {}
+    for i = 1, 3 do
+        local b = CreateFrame("Button", nil, frame)
+        b:SetHeight(18)
+        b.text = b:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        b.text:SetPoint("LEFT", 2, 0)
+        b:SetScript("OnClick", function(self) if self.go then self.go() end end)
+        trail[i] = b
+    end
 
     zoneTitle = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     zoneTitle:SetPoint("TOPLEFT", border, "BOTTOMLEFT", 4, -10)
@@ -483,7 +706,7 @@ local function Build()
     routeButton:SetSize(130, 26)
     routeButton:SetPoint("TOPRIGHT", border, "BOTTOMRIGHT", 0, -8)
     routeButton:SetScript("OnClick", function()
-        if ns.route and ns.route.zone == selected then ns.StopRoute() else ns.StartRoute(selected) end
+        if ns.route and ns.route.zone == view.zone then ns.StopRoute() else ns.StartRoute(view.zone) end
     end)
     skipButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
     skipButton:SetSize(130, 26)
@@ -497,6 +720,7 @@ local function Build()
         if elapsed < 0.1 then return end
         elapsed = 0
         pcall(DrawPlayer)
+        pcall(Hover)
     end)
     frame:SetScript("OnShow", function()
         ns.InvalidateProgress()
@@ -505,25 +729,26 @@ local function Build()
     ns.RestorePoint(frame, ns.db.window, "CENTER", "CENTER", 0, 0)
 end
 
--- Open on `zone`, or on the route's zone, the zone you are in, or the first
--- one with work left.
+-- Open on `zone`, or on the route's zone, the zone you are in, or your
+-- continent's map.
 function ns.ShowZone(zone)
     Build()
-    selected = zone or (ns.route and ns.route.zone) or ns.CurrentZone() or selected
-    if not selected then
-        for _, z in ipairs(ns.ZONES) do
-            local d, t = ns.ZoneCounts(z)
-            if d < t then selected = z break end
-        end
-    end
-    if selected then continent = selected.continent end
+    zone = zone or (ns.route and ns.route.zone) or ns.CurrentZone()
     frame:Show()
-    Refresh()
+    if zone then ShowZoneView(zone) else ShowContinentView(continent) end
 end
 
 function ns.ToggleWindow()
     if frame and frame:IsShown() then frame:Hide() else ns.ShowZone() end
 end
+
+-- For the tests: what the map shows, and a click on it.
+function ns.WindowView() return view end
+ns.WindowZoomOut = ZoomOut
+ns.WindowOpen = function(target)
+    if target.zone then ShowZoneView(target.zone) else ShowContinentView(target.continent) end
+end
+ns.WindowTarget = Target
 
 -- Through ns.Fire, which reports an error instead of hiding it.
 ns.On("progress", function() Refresh() end)
