@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- The window's map zooms with the mouse wheel, around the point under the
+  cursor, up to 4x. Drag a zoomed map to move around it. Scrolling out past
+  full size goes up a level (zone, continent, Azeroth), as the world map does.
+
 ## Compass Forever v1.0 (2026-10-09)
 
 The first release.

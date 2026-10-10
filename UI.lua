@@ -10,6 +10,9 @@
 --                the route as a line, and you. Click a marker to go there
 --                next. Right-click goes back to the continent.
 --
+-- The mouse wheel zooms any of them in and out around the cursor (out past
+-- full size goes up a level), and a zoomed map can be dragged around.
+--
 -- A trail above the map (Azeroth > Eastern Kingdoms > Elwynn Forest) can be
 -- clicked too. Map art is read from the client and drawn on our own
 -- textures; no Blizzard frame is touched.
@@ -33,6 +36,15 @@ local zoneRows = {}
 local continent = 0          -- the continent the list shows
 local view = { kind = "continent", map = CONTINENT_MAP[0] }
 local Refresh
+
+-- Everything on the map is drawn on `canvas`, MAP_W x MAP_H times `zoom`,
+-- inside the clipped mapBox. offX, offY: how far the canvas's top-left sits
+-- left of and above the box's.
+local canvas
+local zoom, offX, offY = 1, 0, 0
+local ZOOM_MAX, ZOOM_STEP = 4, 1.25
+local function CW() return MAP_W * zoom end
+local function CH() return MAP_H * zoom end
 
 local function ContinentOfMap(mapID)
     for c, m in pairs(CONTINENT_MAP) do
@@ -85,19 +97,26 @@ end
 -- Moving between maps
 -------------------------------------------------------------------------------
 
+local function ResetZoom()
+    zoom, offX, offY = 1, 0, 0
+end
+
 local function ShowZoneView(zone)
+    ResetZoom()
     view = { kind = "zone", map = zone.map, zone = zone }
     continent = zone.continent
     Refresh()
 end
 
 local function ShowContinentView(c)
+    ResetZoom()
     view = { kind = "continent", map = CONTINENT_MAP[c] }
     continent = c
     Refresh()
 end
 
 local function ShowWorldView()
+    ResetZoom()
     view = { kind = "world", map = WORLD }
     Refresh()
 end
@@ -202,7 +221,7 @@ local function DrawArt(mapID, zone)
     colorArt:Begin()
     grayArt:Begin()
     local lw, _, tw, th = ns.ArtLayer(mapID)
-    local scale = MAP_W / lw
+    local scale = CW() / lw
     local okT, files = ns.Ask(ns.API("C_Map", "GetMapArtLayerTextures"), mapID, 1)
     if okT and type(files) == "table" then
         local cols = math.ceil(lw / tw)
@@ -236,15 +255,23 @@ local function DrawArt(mapID, zone)
 end
 
 -- Where the cursor is on the map, as fractions; nil when off it.
-local function CursorOnMap()
+-- The cursor in the box, in pixels from its top-left; nil when off it.
+local function CursorInBox()
     local okC, cx, cy = pcall(GetCursorPosition)
     if not okC or not cx then return nil end
     local s = mapBox:GetEffectiveScale()
     local left, top = mapBox:GetLeft(), mapBox:GetTop()
     if not (s and left and top) then return nil end
-    local x, y = (cx / s - left) / MAP_W, (top - cy / s) / MAP_H
-    if x < 0 or x > 1 or y < 0 or y > 1 then return nil end
-    return x, y
+    local bx, by = cx / s - left, top - cy / s
+    if bx < 0 or bx > MAP_W or by < 0 or by > MAP_H then return nil end
+    return bx, by
+end
+
+-- The cursor as a fraction of the shown map, however far it is zoomed.
+local function CursorOnMap()
+    local bx, by = CursorInBox()
+    if not bx then return nil end
+    return (offX + bx) / CW(), (offY + by) / CH()
 end
 
 -- The map under a point of the shown map: a zone (on a continent) or a
@@ -293,9 +320,9 @@ local function Hover()
     if ok and ns.Num(file) and file > 0 and ns.Num(tx) and tx > 0 and ns.Num(ty) and ty > 0 then
         highlight:SetTexture(file)
         highlight:SetTexCoord(0, px, 0, py)
-        highlight:SetSize(tx * MAP_W, ty * MAP_H)
+        highlight:SetSize(tx * CW(), ty * CH())
         highlight:ClearAllPoints()
-        highlight:SetPoint("TOPLEFT", mapBox, "TOPLEFT", sx * MAP_W, -sy * MAP_H)
+        highlight:SetPoint("TOPLEFT", canvas, "TOPLEFT", sx * CW(), -sy * CH())
         highlight:Show()
     end
     if target.zone then
@@ -312,7 +339,67 @@ local function Hover()
     end
 end
 
+local function PlaceCanvas()
+    offX = math.max(0, math.min(CW() - MAP_W, offX))
+    offY = math.max(0, math.min(CH() - MAP_H, offY))
+    canvas:SetSize(CW(), CH())
+    canvas:ClearAllPoints()
+    canvas:SetPoint("TOPLEFT", mapBox, "TOPLEFT", -offX, offY)
+end
+
+local DrawMap
+
+-- The wheel: zoom around the point under the cursor, which stays put.
+-- Out past full size goes up a level, as the world map does.
+local function OnWheel(_, delta)
+    local old = zoom
+    if delta > 0 then
+        zoom = math.min(ZOOM_MAX, zoom * ZOOM_STEP)
+    elseif zoom <= 1.001 then
+        ZoomOut()
+        return
+    else
+        zoom = math.max(1, zoom / ZOOM_STEP)
+    end
+    if zoom == old then return end
+    local bx, by = CursorInBox()
+    bx, by = bx or MAP_W / 2, by or MAP_H / 2
+    local fx, fy = (offX + bx) / (MAP_W * old), (offY + by) / (MAP_H * old)
+    offX, offY = fx * CW() - bx, fy * CH() - by
+    PlaceCanvas()
+    DrawMap()
+end
+
+-- Dragging a zoomed map moves it; a press that hardly moves is a click.
+local drag
+local function DragUpdate()
+    if not drag then return end
+    local okC, cx, cy = pcall(GetCursorPosition)
+    if not okC or not cx then return end
+    local s = mapBox:GetEffectiveScale()
+    local dx, dy = (cx - drag.x) / s, (cy - drag.y) / s
+    if math.abs(dx) + math.abs(dy) > 4 then drag.moved = true end
+    if drag.moved then
+        offX, offY = drag.offX - dx, drag.offY + dy
+        PlaceCanvas()
+    end
+end
+
+local function OnMapDown(_, button)
+    if button ~= "LeftButton" or zoom <= 1.001 then return end
+    local okC, cx, cy = pcall(GetCursorPosition)
+    if not okC or not cx then return end
+    drag = { x = cx, y = cy, offX = offX, offY = offY }
+    mapBox:SetScript("OnUpdate", DragUpdate)
+end
+
 local function OnMapClick(_, button)
+    if drag then
+        local moved = drag.moved
+        drag = nil
+        mapBox:SetScript("OnUpdate", nil)
+        if moved then return end
+    end
     if button == "RightButton" then
         ZoomOut()
         return
@@ -328,7 +415,7 @@ end
 
 local function Pin(i)
     return Pool(pins, i, function()
-        local p = CreateFrame("Button", nil, mapBox)
+        local p = CreateFrame("Button", nil, canvas)
         p:SetFrameLevel(mapBox:GetFrameLevel() + 5)
         p:RegisterForClicks("LeftButtonUp", "RightButtonUp")
         p.dot = p:CreateTexture(nil, "ARTWORK")
@@ -363,7 +450,7 @@ end
 -- A count over each zone of a continent (or each continent of Azeroth).
 local function Badge(i)
     return Pool(badges, i, function()
-        local b = CreateFrame("Frame", nil, mapBox)
+        local b = CreateFrame("Frame", nil, canvas)
         b:SetFrameLevel(mapBox:GetFrameLevel() + 4)
         b:SetSize(80, 30)
         b:EnableMouse(false)
@@ -381,7 +468,7 @@ local function PlaceBadge(b, text, x, y)
     local w = (b.text:GetStringWidth() or 40) + 10
     b.bg:SetSize(w, (b.text:GetStringHeight() or 12) + 6)
     b:ClearAllPoints()
-    b:SetPoint("CENTER", mapBox, "TOPLEFT", x * MAP_W, -y * MAP_H)
+    b:SetPoint("CENTER", canvas, "TOPLEFT", x * CW(), -y * CH())
 end
 
 -- Where `mapID` sits on the shown map: its middle, as fractions.
@@ -393,15 +480,15 @@ end
 
 local function Line(i)
     return Pool(lines, i, function()
-        local l = mapBox:CreateLine(nil, "ARTWORK")
+        local l = canvas:CreateLine(nil, "ARTWORK")
         l:SetThickness(2)
         return l
     end)
 end
 
 local function Join(l, x1, y1, x2, y2, r, g, b, a)
-    l:SetStartPoint("TOPLEFT", mapBox, x1 * MAP_W, -y1 * MAP_H)
-    l:SetEndPoint("TOPLEFT", mapBox, x2 * MAP_W, -y2 * MAP_H)
+    l:SetStartPoint("TOPLEFT", canvas, x1 * CW(), -y1 * CH())
+    l:SetEndPoint("TOPLEFT", canvas, x2 * CW(), -y2 * CH())
     l:SetColorTexture(r, g, b, a)
 end
 
@@ -412,7 +499,7 @@ local function DrawPlayer()
     playerDot:SetShown(inside and true or false)
     if inside then
         playerDot:ClearAllPoints()
-        playerDot:SetPoint("CENTER", mapBox, "TOPLEFT", px * MAP_W, -py * MAP_H)
+        playerDot:SetPoint("CENTER", canvas, "TOPLEFT", px * CW(), -py * CH())
         local ok, facing = pcall(GetPlayerFacing)
         if ok and ns.Num(facing) and playerDot.SetRotation then pcall(playerDot.SetRotation, playerDot, facing) end
     end
@@ -445,7 +532,7 @@ local function DrawZone(zone)
         local size = done and 10 or (o and o.i == 1 and 22 or 16)
         p:SetSize(size, size)
         p:ClearAllPoints()
-        p:SetPoint("CENTER", mapBox, "TOPLEFT", x * MAP_W, -y * MAP_H)
+        p:SetPoint("CENTER", canvas, "TOPLEFT", x * CW(), -y * CH())
         if done then
             p.dot:SetVertexColor(0.3, 1, 0.3, 0.55)
             p.num:SetText("")
@@ -491,7 +578,8 @@ local function DrawWorld()
     end
 end
 
-local function DrawMap()
+DrawMap = function()
+    PlaceCanvas()
     for _, p in ipairs(pins) do p:Hide() end
     for _, b in ipairs(badges) do b:Hide() end
     for _, l in ipairs(lines) do l:Hide() end
@@ -523,7 +611,7 @@ local function RefreshTrail()
             b.text:SetText((last and "|cffffffff" or GOLD) .. part[1] .. "|r" .. (last and "" or GRAY .. "  >|r"))
             b:SetWidth((b.text:GetStringWidth() or 60) + 8)
             b:ClearAllPoints()
-            b:SetPoint("BOTTOMLEFT", mapBox, "TOPLEFT", x, 8)
+            b:SetPoint("BOTTOMLEFT", canvas, "TOPLEFT", x, 8)
             x = x + b:GetWidth() + 4
             b.go = not last and part[2] or nil
             b:Show()
@@ -541,14 +629,14 @@ local function RefreshInfo()
         local ad, at, zd, zt = ns.Totals()
         zoneTitle:SetText("Azeroth")
         zoneInfo:SetText(string.format("%d of %d areas, %d of %d zones explored.", ad, at, zd, zt))
-        nextInfo:SetText(GRAY .. "Click a continent to open it.|r")
+        nextInfo:SetText(GRAY .. "Click a continent to open it. Scroll to zoom.|r")
         return
     end
     if view.kind == "continent" then
         local ad, at, zd, zt = ns.Totals(continent)
         zoneTitle:SetText(CONTINENT_NAME[continent])
         zoneInfo:SetText(string.format("%d of %d areas, %d of %d zones explored.", ad, at, zd, zt))
-        nextInfo:SetText(GRAY .. "Click a zone to open it. Right-click to see Azeroth.|r")
+        nextInfo:SetText(GRAY .. "Click a zone to open it. Scroll to zoom; right-click to see Azeroth.|r")
         return
     end
     local zone = view.zone
@@ -565,7 +653,7 @@ local function RefreshInfo()
     end
     nextInfo:SetText(routed and (ns.NextStopText() or "") or
         (GRAY .. (d < t and "Start the route, or click a marker to head there first. " or "")
-            .. "Right-click the map to go back.|r"))
+            .. "Scroll to zoom; right-click to go back.|r"))
     routeButton:SetShown(d < t)
     routeButton:SetText(routed and "Stop route" or "Start route")
     skipButton:SetShown(routed and #ns.route.stops > 1)
@@ -668,19 +756,25 @@ local function Build()
     mapBox:SetSize(MAP_W, MAP_H)
     if mapBox.SetClipsChildren then mapBox:SetClipsChildren(true) end
     mapBox:EnableMouse(true)
+    mapBox:SetScript("OnMouseDown", OnMapDown)
     mapBox:SetScript("OnMouseUp", OnMapClick)
+    mapBox:EnableMouseWheel(true)
+    mapBox:SetScript("OnMouseWheel", OnWheel)
+    canvas = CreateFrame("Frame", nil, mapBox)
+    canvas:SetPoint("TOPLEFT")
+    canvas:SetSize(MAP_W, MAP_H)
     local paper = mapBox:CreateTexture(nil, "BACKGROUND", nil, -8)
     paper:SetAllPoints()
     paper:SetColorTexture(0.12, 0.1, 0.07, 1)
-    baseTiles = ns.TexturePool(mapBox, "BACKGROUND", 0)
-    grayArt = ns.TexturePool(mapBox, "BORDER", 0)
-    colorArt = ns.TexturePool(mapBox, "BORDER", 1)
-    highlight = mapBox:CreateTexture(nil, "ARTWORK", nil, 1)
+    baseTiles = ns.TexturePool(canvas, "BACKGROUND", 0)
+    grayArt = ns.TexturePool(canvas, "BORDER", 0)
+    colorArt = ns.TexturePool(canvas, "BORDER", 1)
+    highlight = canvas:CreateTexture(nil, "ARTWORK", nil, 1)
     highlight:SetBlendMode("ADD")
     highlight:SetAlpha(0.6)
     highlight:Hide()
-    hasLines = type(mapBox.CreateLine) == "function"
-    playerDot = mapBox:CreateTexture(nil, "OVERLAY")
+    hasLines = type(canvas.CreateLine) == "function"
+    playerDot = canvas:CreateTexture(nil, "OVERLAY")
     playerDot:SetTexture("Interface\\Minimap\\MinimapArrow")
     playerDot:SetSize(24, 24)
     playerDot:Hide()
@@ -744,6 +838,8 @@ end
 
 -- For the tests: what the map shows, and a click on it.
 function ns.WindowView() return view end
+function ns.WindowZoom() return zoom, offX, offY end
+ns.WindowWheel = OnWheel
 ns.WindowZoomOut = ZoomOut
 ns.WindowOpen = function(target)
     if target.zone then ShowZoneView(target.zone) else ShowContinentView(target.continent) end

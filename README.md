@@ -24,6 +24,8 @@ Type `/cf` (or `/compassforever`), or click the map icon on the minimap.
 - **The window** lists every zone with how much of it is left, and its map
   works like the world map. Right-click to back out from a zone to its
   continent and then to Azeroth; click a continent or a zone to open it.
+  Scroll the mouse wheel to zoom in and out, and drag a zoomed map to move
+  around it.
   Zones light up as you point at them and show how many areas they have left.
   A zone's own map shows what you have uncovered in color and the rest in
   gray, a marker on each area still to find, the route as a line, and you.

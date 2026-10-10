@@ -21,6 +21,8 @@ def check(name, cond, detail=""):
 HARNESS = r'''
 NOW = 100
 function GetTime() return NOW end
+CURSOR = { 300, 200 }
+function GetCursorPosition() return CURSOR[1], CURSOR[2] end
 SOUNDS = {}
 HAVE_FANFARE = false
 function PlaySoundFile(path, channel)
@@ -54,7 +56,12 @@ local function Widget(kind)
         elseif key == "Show" then return function(s) rawset(s, "_shown", true) end
         elseif key == "Hide" then return function(s) rawset(s, "_shown", false) end
         elseif key == "IsShown" then return function(s) return rawget(s, "_shown") == true end
-        elseif key == "GetWidth" or key == "GetHeight" then return function() return 1000 end
+        elseif key == "GetWidth" then return function(s) return rawget(s, "_w") or 1000 end
+        elseif key == "GetHeight" then return function(s) return rawget(s, "_h") or 1000 end
+        elseif key == "SetSize" then return function(s, w, h) rawset(s, "_w", w) rawset(s, "_h", h) end
+        elseif key == "GetLeft" then return function() return 0 end
+        elseif key == "GetTop" then return function() return 400 end
+        elseif key == "IsMouseOver" then return function() return true end
         elseif key == "GetEffectiveScale" then return function(s) return rawget(s, "_eff") or 1 end
         elseif key == "GetFrameLevel" then return function() return 1 end
         elseif key == "SetScale" then return function(s, v) rawset(s, "_scale", v) end
@@ -360,6 +367,31 @@ lv = [int(x) for x in levels.split(",") if x]
 check("markers and bar sit above the map's top-most pins", any(l > 2150 for l in lv), lv)
 check("gray art sits at the map's own explored-art level", 1990 in lv, lv)
 check("the world map draws its gray art", gray_count()[0] > 0)
+
+print("zooming the window's map")
+rt.execute("NS.ShowZone(ELWYNN) CURSOR = { 450, 300 }")   # box x 450, y 100
+z0 = rt.eval("(NS.WindowZoom())")
+check("a new map starts at full size", z0 == 1)
+rt.execute("NS.WindowWheel(nil, 1)")
+z1, ox, oy = rt.eval("NS.WindowZoom()")
+check("scrolling up zooms in", z1 > 1, z1)
+# The point under the cursor stays under it: (off + box) / size is unchanged.
+check("zooming keeps the point under the cursor in place",
+      abs((ox + 450) / (600 * z1) - 450 / 600) < 1e-9 and abs((oy + 100) / (400 * z1) - 100 / 400) < 1e-9, (ox, oy))
+for _ in range(20):
+    rt.execute("NS.WindowWheel(nil, 1)")
+check("zoom stops at 4x", rt.eval("(NS.WindowZoom())") == 4)
+check("no error drawing a zoomed map", not any("|cffff5555" in p for p in printed(rt)), printed(rt))
+for _ in range(20):
+    rt.execute("NS.WindowWheel(nil, -1)")
+check("scrolling down zooms back out, then goes up a level", rt.eval("NS.WindowView().kind") in ("continent", "world"))
+rt.execute("NS.ShowZone(ELWYNN) NS.WindowZoomOut()")
+check("the continent opens at full size", rt.eval("(NS.WindowZoom())") == 1)
+rt.execute("CURSOR = { 300, 200 } NS.WindowWheel(nil, 1) NS.WindowWheel(nil, 1)")
+target = rt.eval("NS.WindowTarget(0.45, 0.45).zone.name")
+check("zoomed in, the zone under the cursor is still found", target == "Westfall", target)
+rt.execute("NS.WindowWheel(nil, -1) NS.WindowWheel(nil, -1) NS.WindowWheel(nil, -1)")
+check("scrolling out past full size on a continent shows Azeroth", rt.eval("NS.WindowView().kind") == "world")
 
 print("go here next")
 rt.execute("for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = nil end PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.42, 0.65")
