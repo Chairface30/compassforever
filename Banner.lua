@@ -53,6 +53,16 @@ function ns.NextStopText()
     return "Next: |cffffd100" .. stop.node.name .. "|r"
 end
 
+-- A zone finished. Sounds\fanfare.ogg plays if there is one: a clip of the
+-- player's own choosing, kept out of the release (.gitignore). Without it
+-- the client says it will not play, and the game's level-up fanfare does.
+local FANFARE = "Interface\\AddOns\\" .. ns.addonName .. "\\Sounds\\fanfare.ogg"
+function ns.Fanfare()
+    local ok, willPlay = pcall(PlaySoundFile, FANFARE, "Master")
+    if ok and willPlay then return end
+    pcall(PlaySound, 888)
+end
+
 ns.On("uncovered", function(zone, found)
     local names = {}
     for _, node in ipairs(found) do names[#names + 1] = node.name end
@@ -60,7 +70,7 @@ ns.On("uncovered", function(zone, found)
     if not ns.route then
         ns.Banner(head, "|cff55dd55" .. zone.name .. " is fully explored!|r")
         ns.Print("|cff55dd55" .. zone.name .. " is fully explored.|r")
-        pcall(PlaySound, 888)   -- the level-up fanfare
+        ns.Fanfare()
         return
     end
     local left = #ns.route.stops

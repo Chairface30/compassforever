@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- A zone finished on a route plays Soundsanfare.ogg if you put one there,
+  or the game's level-up fanfare if not.
 - Renamed to Compass Forever. The command is /cf (or /compassforever); /legacy
   still works.
 - Exploration only: the challenge pages and tracker are gone (the game's own

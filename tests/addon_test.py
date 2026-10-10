@@ -21,6 +21,13 @@ def check(name, cond, detail=""):
 HARNESS = r'''
 NOW = 100
 function GetTime() return NOW end
+SOUNDS = {}
+HAVE_FANFARE = false
+function PlaySoundFile(path, channel)
+    table.insert(SOUNDS, path)
+    return HAVE_FANFARE and path:find("fanfare") ~= nil
+end
+function PlaySound(id) table.insert(SOUNDS, id) end
 SECRET = setmetatable({}, { __tostring = function() return "SECRET" end })
 function issecretvalue(v) return v == SECRET end
 PRINTED = {}
@@ -286,6 +293,16 @@ b, y = rt.eval("NS.StopVector(ZONE, { x = 0.5, y = 0.4 })")
 check("target due north: bearing 0, 100 yd", abs(b) < 1e-6 and abs(y - 100) < 1e-6, (b, y))
 b, y = rt.eval("NS.StopVector(ZONE, { x = 0.6, y = 0.5 })")
 check("target due east: bearing -pi/2", abs(b + math.pi / 2) < 1e-6, b)
+
+print("fanfare")
+rt.execute("SOUNDS = {} NS.Fanfare()")
+check("no clip: the game's fanfare plays", rt.eval("SOUNDS[#SOUNDS]") == 888)
+rt.execute("SOUNDS = {} HAVE_FANFARE = true NS.Fanfare()")
+check("with Sounds/fanfare.ogg: that plays, and only that",
+      rt.eval("#SOUNDS") == 1 and rt.eval("SOUNDS[1]") == r"Interface\AddOns\CompassForever\Sounds\fanfare.ogg")
+rt.execute("for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = nil end NS.InvalidateProgress() NS.StartRoute(ELWYNN)")
+rt.execute("SOUNDS = {} for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = true end FIRE('CRITERIA_UPDATE') FLUSH()")
+check("finishing a zone on a route plays it", rt.eval("SOUNDS[1]") is not None and "fanfare" in str(rt.eval("SOUNDS[1]")))
 
 print("go here next")
 rt.execute("for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = nil end PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.42, 0.65")
