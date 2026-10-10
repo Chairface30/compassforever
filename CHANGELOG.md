@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- A flight master you haven't met, in the zone you're exploring, joins the
+  route as a stop (in blue) when it costs at most 800 yards more walking, so
+  you pick up the flight point on the way. Learning it takes it off the
+  route. /cf flightpoints turns this off.
+- The route is drawn as you'd travel it: a flight straight from flight point
+  to flight point, and every walk (to the flight master, from the landing,
+  and between stops) along the walking path on the map. The arrow follows
+  the walking path to the flight master too.
 - Known flight points are read the way the world map reads them, from
   anywhere, so flights are suggested without opening a flight map first
   (before, no flight point was known until one had been opened).

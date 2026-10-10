@@ -16,6 +16,7 @@ local DEFAULTS = {
     mapPins = true,        -- markers and the route bar on the world map
     autoRoute = false,     -- start a zone's route on entering it
     banner = true,         -- big words for a new route, an uncovered area
+    learnFlights = true,   -- route past flight masters not yet learned, when close
     autoFly = false,       -- take the planned flight as soon as the flight map opens
     minimap = {},          -- LibDBIcon's own settings
 }

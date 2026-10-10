@@ -430,6 +430,9 @@ local function Pin(i)
             GameTooltip:AddLine(string.format("%.1f, %.1f", pt[1] * 100, pt[2] * 100), 0.7, 0.7, 0.7)
             if self.done then
                 GameTooltip:AddLine("Uncovered.", 0.3, 0.9, 0.3)
+            elseif self.node.fp then
+                GameTooltip:AddLine("A flight master you haven't met: talk to them to learn this flight point.", 0.4, 0.75, 1, true)
+                GameTooltip:AddLine(self.order == 1 and "Your next stop." or "Click to go here next.", 1, 0.82, 0)
             else
                 if self.node.rough then
                     GameTooltip:AddLine("Approximate spot: this area has no ground of its own.", 1, 0.5, 0.5, true)
@@ -540,7 +543,18 @@ local function DrawZone(zone)
         local pt = ns.NodePoints(node)[1]
         SetPin(Pin(i), zone, node, o and o.x or pt[1], o and o.y or pt[2], state[i] == true, o and o.i)
     end
-    return #zone.nodes
+    local used = #zone.nodes
+    if ns.route and ns.route.zone == zone then
+        for i, stop in ipairs(ns.route.stops) do
+            if stop.node.fp then
+                used = used + 1
+                local p = Pin(used)
+                SetPin(p, zone, stop.node, stop.x, stop.y, false, i)
+                if i ~= 1 then p.dot:SetVertexColor(0.4, 0.75, 1, 1) end
+            end
+        end
+    end
+    return used
 end
 
 -- On any other map, the route's stops, numbered, wherever they fall on it.

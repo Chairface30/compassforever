@@ -523,6 +523,21 @@ check("once the path is found, the arrow points along it, not straight", abs(pat
 check("and the distance is the walk, not the straight line",
       path_d > rt.eval("select(2, NS.StopVector({ w = TN.w, h = TN.h, map = TN.map }, STEER_STOP))") * 1.2, path_d)
 
+print("drawn legs follow the terrain")
+rt.execute("""NS.StopRoute()
+    for _, n in ipairs(TN.nodes) do DONE[n.criteria] = nil end NS.InvalidateProgress()
+    local p = NS.NodePoints(TN.nodes[1])[1]
+    PLAYER.map, PLAYER.x, PLAYER.y = TN.map, p[1], p[2]
+    NS.StartRoute(TN, { quiet = true })""")
+before = rt.eval("(function() local g = NS.RouteGeometry() for _, p in ipairs(g.parts) do if p.kind == 'route' then return #p.pts / 2 end end end)()")
+for _ in range(3000):
+    rt.execute("FRAME(0.05)")
+after = rt.eval("(function() local g = NS.RouteGeometry() for _, p in ipairs(g.parts) do if p.kind == 'route' then return #p.pts / 2 end end end)()")
+stops = rt.eval("#NS.route.stops")
+check(f"legs between stops start straight, then follow paths ({before} points, then {after}, for {stops} stops)",
+      before == stops and after > stops, (before, after, stops))
+rt.execute("NS.StopRoute()")
+
 print("flights")
 rt.execute("""
     DW = NS.ZoneByMap(1431)
@@ -573,6 +588,39 @@ rt.execute("""C_TaxiMap.GetTaxiNodesForMap = function(map)
     NS.ReadKnownFromMaps()""")
 check("a point the client calls undiscovered is forgotten", rt.eval("NS.KnownFlights()[10] == nil") and rt.eval("NS.KnownFlights()[11] == true"))
 rt.execute("C_TaxiMap.GetTaxiNodesForMap = nil")
+
+print("flight masters not yet learned")
+rt.execute("""NS.StopRoute()
+    for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = nil end NS.InvalidateProgress()
+    -- A flight point in the middle of Elwynn (0.40-0.50, 0.70-0.80 on the
+    -- continent), open to both factions, not learned.
+    NS.FLIGHT_NODES[9999] = { name = "Test Post, Elwynn", continent = 0, side = 3, x = 0.45, y = 0.75 }
+    NS.db.taxi = {}
+    NS.flightsRead = true
+    PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.45, 0.55
+    NS.StartRoute(ELWYNN)""")
+fp_in = rt.eval("""(function() for i, st in ipairs(NS.route.stops) do if st.node.fp == 9999 then return i end end end)()""")
+check("an unlearned flight master in the zone joins the route", fp_in is not None, fp_in)
+check("named for what it is", rt.eval(f"NS.route.stops[{fp_in or 1}].node.name") == "Flight master: Test Post")
+check("the areas are all still there too", rt.eval("""(function()
+    local on = {} for _, st in ipairs(NS.route.stops) do on[st.node] = true end
+    for _, n in ipairs(NS.ZoneRemaining(ELWYNN)) do if not on[n] then return false end end return true end)()""") is True)
+rt.execute("NS.flightsRead = false NS.StartRoute(ELWYNN, { quiet = true })")
+check("not before the client has said which points are known", rt.eval("""(function() for _, st in ipairs(NS.route.stops) do if st.node.fp then return true end end return false end)()""") is False)
+rt.execute("NS.flightsRead = true SlashCmdList.COMPASSFOREVER('flightpoints')")
+check("not with /cf flightpoints off", rt.eval("""(function() for _, st in ipairs(NS.route.stops) do if st.node.fp then return true end end return false end)()""") is False)
+rt.execute("SlashCmdList.COMPASSFOREVER('flightpoints')")
+check("back with it on", rt.eval("""(function() for _, st in ipairs(NS.route.stops) do if st.node.fp then return true end end return false end)()""") is True)
+# Learn it: the client now says it's known.
+rt.execute("""C_TaxiMap.GetTaxiNodesForMap = function(map)
+        if map ~= 1415 then return {} end
+        return { { nodeID = 9999, name = "Test Post, Elwynn", isUndiscovered = false } }
+    end
+    FIRE('TAXI_NODE_STATUS_CHANGED') FLUSH()""")
+check("learning it takes it off the route", rt.eval("""(function() for _, st in ipairs(NS.route.stops) do if st.node.fp == 9999 then return true end end return false end)()""") is False)
+check("and the banner says so", "flight point" in (rt.eval("(function() for _, f in ipairs(FRAMES) do local t = rawget(f, '_text') if type(t) == 'string' and t:find('^Learned') then return t end end end)()") or ""))
+rt.execute("""C_TaxiMap.GetTaxiNodesForMap = nil NS.FLIGHT_NODES[9999] = nil NS.flightsRead = false
+    NS.StopRoute() PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.42, 0.65""")
 
 print("at the flight master")
 rt.execute("""TAKEN = {}

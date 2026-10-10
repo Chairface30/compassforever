@@ -382,6 +382,11 @@ end
 --             from there;
 --   auto    = started on entering the zone; it ends when the player leaves;
 --   skipped = overlay ID -> order skipped: those stay at the end.
+-- A flight master the character hasn't discovered, in the zone being
+-- explored, joins the route as a stop when it costs at most this much more
+-- walking: learning it now saves a trip later.
+local FLIGHT_DETOUR = 800
+
 function ns.StartRoute(zone, opts)
     opts = opts or {}
     local skipped = opts.skipped or {}
@@ -393,17 +398,22 @@ function ns.StartRoute(zone, opts)
         if had or not opts.quiet then ns.Fire("route") end
         return nil
     end
-    local first, now, later = nil, {}, {}
+    local flights = ns.FlightStops and ns.FlightStops(zone) or {}
+    local first, now, later, extra = nil, {}, {}, {}
     for _, node in ipairs(remaining) do
         if node == opts.first then first = node
         elseif skipped[node.overlay] then later[#later + 1] = node
         else now[#now + 1] = node end
     end
+    for _, node in ipairs(flights) do
+        if node == opts.first then first = node
+        elseif not skipped[node.overlay] then extra[#extra + 1] = node end
+    end
     table.sort(later, function(a, b) return skipped[a.overlay] < skipped[b.overlay] end)
 
     local sx, sy = ns.PlayerOn(zone.map)
-    local stops, yards = {}, 0
-    if first then
+    local function Plan(list)
+        if not first then return ns.PlanRoute(zone, list, sx, sy) end
         -- The chosen spot first: its point nearest the player, then the rest
         -- planned on from there.
         local best, bestD
@@ -411,12 +421,18 @@ function ns.StartRoute(zone, opts)
             local d = sx and ((p[1] - sx) * zone.w) ^ 2 + ((p[2] - sy) * zone.h) ^ 2 or 0
             if not bestD or d < bestD then best, bestD = p, d end
         end
-        stops[1] = { node = first, x = best[1], y = best[2] }
-        local rest, len = ns.PlanRoute(zone, now, best[1], best[2])
+        local stops = { { node = first, x = best[1], y = best[2] } }
+        local rest, len = ns.PlanRoute(zone, list, best[1], best[2])
         for _, stop in ipairs(rest) do stops[#stops + 1] = stop end
-        yards = len + (sx and math.sqrt(bestD) or 0)
-    else
-        stops, yards = ns.PlanRoute(zone, now, sx, sy)
+        return stops, len + (sx and math.sqrt(bestD) or 0)
+    end
+    local stops, yards = Plan(now)
+    if #extra > 0 then
+        local with = {}
+        for _, node in ipairs(now) do with[#with + 1] = node end
+        for _, node in ipairs(extra) do with[#with + 1] = node end
+        local s2, y2 = Plan(with)
+        if y2 - yards <= FLIGHT_DETOUR * #extra then stops, yards = s2, y2 end
     end
     for _, node in ipairs(later) do
         local p = ns.NodePoints(node)[1]
@@ -425,7 +441,7 @@ function ns.StartRoute(zone, opts)
     ns.route = { zone = zone, stops = stops, yards = yards, skipped = skipped, auto = opts.auto or false }
     if not opts.quiet then
         ns.Print(string.format("%s: %d area%s left, about %s on foot.", zone.name,
-            #stops, #stops == 1 and "" or "s", ns.Yards(yards)))
+            #remaining, #remaining == 1 and "" or "s", ns.Yards(yards)))
     end
     ns.Fire("route")
     return ns.route
@@ -483,9 +499,12 @@ ns.On("progress", function()
     ns.StartRoute(r.zone, { quiet = true, skipped = r.skipped, auto = r.auto })
     local still = {}
     for _, stop in ipairs(ns.route and ns.route.stops or {}) do still[stop.node] = true end
+    -- A flight master's stop also drops out when it's no longer worth the
+    -- walk; only one now known was actually learned.
+    local known = ns.KnownFlights and ns.KnownFlights() or {}
     local found = {}
     for _, node in ipairs(before) do
-        if not still[node] then found[#found + 1] = node end
+        if not still[node] and (not node.fp or known[node.fp]) then found[#found + 1] = node end
     end
     if #found > 0 then ns.Fire("uncovered", r.zone, found) end
 end)

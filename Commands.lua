@@ -99,6 +99,7 @@ local function Help()
     print("  /cf skip - leave the current stop for the end of the route")
     print("  /cf stop - stop the route")
     print("  /cf autofly - take the planned flight as soon as the flight map opens, on or off")
+    print("  /cf flightpoints - route past flight masters you haven't met, when close, on or off")
     print("  /cf banner - the big on-screen messages, on or off")
     print("  /cf arrow <0.5-2> - size of the arrow")
     print("  /cf probe - what the client says; send this when something looks wrong")
@@ -136,6 +137,10 @@ SlashCmdList.COMPASSFOREVER = function(msg)
     elseif cmd == "auto" then
         ns.SetAutoRoute(not ns.db.autoRoute)
         ns.Print("automatic routes " .. (ns.db.autoRoute and "on" or "off") .. ".")
+    elseif cmd == "flightpoints" then
+        ns.db.learnFlights = not ns.db.learnFlights
+        ns.Print("routing past new flight masters " .. (ns.db.learnFlights and "on" or "off") .. ".")
+        if ns.route then ns.StartRoute(ns.route.zone, { quiet = true, skipped = ns.route.skipped, auto = ns.route.auto }) end
     elseif cmd == "autofly" then
         ns.db.autoFly = not ns.db.autoFly
         ns.Print("flying automatically " .. (ns.db.autoFly and "on" or "off") .. ".")

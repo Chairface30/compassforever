@@ -105,6 +105,13 @@ local function ReadTaxiMap()
 end
 ns.ReadTaxiMap = ReadTaxiMap
 
+local function Side()
+    local ok, faction = ns.Ask(_G.UnitFactionGroup, "player")
+    if faction == "Alliance" then return 1 end
+    if faction == "Horde" then return 2 end
+    return 3
+end
+
 -- Read the known points from the maps, as the world map does. Every point
 -- the client lists that isn't undiscovered is known; one it says is
 -- undiscovered is forgotten (it is the client's word, not a guess). Returns
@@ -112,6 +119,7 @@ ns.ReadTaxiMap = ReadTaxiMap
 local function ReadFromMaps()
     local forMap = ns.API("C_TaxiMap", "GetTaxiNodesForMap")
     if not forMap then return 0 end
+    ns.flightsRead = ns.flightsRead or false
     local known, said = Known(), 0
     local maps = { 1415, 1414, 1453, 1454, 1455, 1456, 1457, 1458 }
     for _, zone in ipairs(ns.ZONES) do maps[#maps + 1] = zone.map end
@@ -125,6 +133,7 @@ local function ReadFromMaps()
                 if id and not seen[id] then
                     seen[id] = true
                     said = said + 1
+                    ns.flightsRead = true
                     if info.isUndiscovered == true then
                         known[id] = nil
                     elseif info.isUndiscovered == false then
@@ -138,12 +147,39 @@ local function ReadFromMaps()
 end
 ns.ReadKnownFromMaps = ReadFromMaps
 
-local function Side()
-    local ok, faction = ns.Ask(_G.UnitFactionGroup, "player")
-    if faction == "Alliance" then return 1 end
-    if faction == "Horde" then return 2 end
-    return 3
+-- The flight masters of `zone` this character could learn and hasn't, as
+-- route stops (Route.lua decides whether they're worth the walk). Only once
+-- the client has said which points are known: until then every flight
+-- master would look undiscovered.
+local stopNodes = {}
+function ns.FlightStops(zone)
+    local out = {}
+    if not (ns.db.learnFlights and ns.flightsRead and ns.FLIGHT_NODES and ns.MapRect) then return out end
+    local c = ns.CONTINENT_YARDS and ns.CONTINENT_YARDS[zone.continent]
+    local r = c and ns.MapRect(zone.map, c.map)
+    if not r then return out end
+    local known, side = Known(), Side()
+    for id, node in pairs(ns.FLIGHT_NODES) do
+        if node.continent == zone.continent and not known[id] and node.side % (side * 2) >= side then
+            local x = (node.x - r.l) / (r.r - r.l)
+            local y = (node.y - r.t) / (r.b - r.t)
+            if x >= 0 and x <= 1 and y >= 0 and y <= 1 then
+                local stop = stopNodes[id]
+                if not stop then
+                    stop = {
+                        fp = id, overlay = "fp" .. id,
+                        name = "Flight master: " .. (node.name:match("^([^,]+)") or node.name),
+                        points = { math.floor(x * 10000 + 0.5), math.floor(y * 10000 + 0.5) },
+                    }
+                    stopNodes[id] = stop
+                end
+                out[#out + 1] = stop
+            end
+        end
+    end
+    return out
 end
+
 
 -------------------------------------------------------------------------------
 -- Where things are on the continent
@@ -422,12 +458,18 @@ taxi:SetScript("OnEvent", function(_, event)
     end
     if event == "TAXI_NODE_STATUS_CHANGED" then
         ReadFromMaps()
-        if ns.route then Reconsider(true) end
+        if ns.route then
+            Reconsider(true)
+            ns.ProgressChanged()
+        end
         return
     end
     ReadTaxiMap()
     ReadFromMaps()
-    if ns.route then Reconsider(true) end
+    if ns.route then
+        Reconsider(true)
+        ns.ProgressChanged()
+    end
     if not ns.travel then return end
     if ns.db.autoFly and ns.TakePlannedFlight() then return end
     ShowFlyButton()

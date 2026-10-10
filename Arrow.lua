@@ -62,6 +62,20 @@ end
 local function TravelVector()
     local t = ns.TravelTarget and ns.TravelTarget()
     if not t then return nil end
+    -- Along the walking path, when the flight master is on the map of the
+    -- zone the player is in.
+    local here = ns.CurrentZone()
+    if here and ns.Steer and ns.ContinentToZone then
+        local gx, gy = ns.ContinentToZone(here, t.x, t.y, t.map)
+        local zx, zy = ns.PlayerOn(here.map)
+        if gx and zx and zx >= 0 and zx <= 1 and zy >= 0 and zy <= 1 then
+            local ax, ay, left = ns.Steer(here, { x = gx, y = gy }, zx, zy)
+            if ax then
+                local bearing = Bearing(zx, zy, ax, ay, here.w, here.h)
+                return bearing, left
+            end
+        end
+    end
     local px, py = ns.PlayerOn(t.map)
     if not px then return nil end
     return Bearing(px, py, t.x, t.y, t.w, t.h)

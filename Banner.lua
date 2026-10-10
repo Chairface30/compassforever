@@ -67,9 +67,16 @@ function ns.Fanfare()
 end
 
 ns.On("uncovered", function(zone, found)
-    local names = {}
-    for _, node in ipairs(found) do names[#names + 1] = node.name end
-    local head = "Uncovered " .. table.concat(names, ", ")
+    local names, learned = {}, {}
+    for _, node in ipairs(found) do
+        if node.fp then
+            learned[#learned + 1] = node.name:gsub("^Flight master: ", "")
+        else
+            names[#names + 1] = node.name
+        end
+    end
+    local head = #names > 0 and ("Uncovered " .. table.concat(names, ", "))
+        or ("Learned the flight point at " .. table.concat(learned, ", "))
     if not ns.route then
         ns.Banner(head, "|cff55dd55" .. zone.name .. " is fully explored!|r")
         ns.Print("|cff55dd55" .. zone.name .. " is fully explored.|r")

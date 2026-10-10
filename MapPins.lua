@@ -57,7 +57,11 @@ local function Pin()
         p:SetScript("OnEnter", function(self)
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
             GameTooltip:AddLine(self.node.name, 1, 1, 1)
-            GameTooltip:AddLine("Not uncovered yet.", 1, 0.82, 0)
+            if self.node.fp then
+                GameTooltip:AddLine("A flight master you haven't met: talk to them to learn this flight point.", 0.4, 0.75, 1, true)
+            else
+                GameTooltip:AddLine("Not uncovered yet.", 1, 0.82, 0)
+            end
             if self.node.rough then
                 GameTooltip:AddLine("Approximate spot: this area has no ground of its own.", 1, 0.5, 0.5, true)
             end

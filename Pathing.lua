@@ -282,11 +282,14 @@ function ns.RequestPath(zone, fx, fy, tx, ty, key, done)
     for i = #jobs, 1, -1 do
         if jobs[i].key == key then table.remove(jobs, i) end
     end
-    jobs[#jobs + 1] = {
+    local job = {
         key = key,
         co = coroutine.create(function() return Search(g, fx, fy, tx, ty) end),
         done = done,
     }
+    -- The arrow's path goes first: the drawn legs between later stops can
+    -- wait.
+    if key == "steer" then table.insert(jobs, 1, job) else jobs[#jobs + 1] = job end
     driver:Show()
 end
 
@@ -390,4 +393,27 @@ end
 -- on it. nil until one is found.
 function ns.SteerPath()
     return steer.path
+end
+
+-------------------------------------------------------------------------------
+-- Paths between two fixed points (a landing and a stop, two stops)
+-------------------------------------------------------------------------------
+-- Found once, in the background, and kept; nil until found (draw it straight
+-- until then). "path" fires when one arrives.
+
+local between = {}
+
+function ns.PathBetween(zone, ax, ay, bx, by)
+    if not (zone.ach and ns.TERRAIN and ns.TERRAIN[zone.ach]) then return nil end
+    local key = string.format("%d:%.4f:%.4f:%.4f:%.4f", zone.ach, ax, ay, bx, by)
+    local p = between[key]
+    if p == nil then
+        between[key] = false
+        ns.RequestPath(zone, ax, ay, bx, by, "between:" .. key, function(path)
+            between[key] = path or "none"
+            ns.Fire("path")
+        end)
+        return nil
+    end
+    return type(p) == "table" and p or nil
 end
