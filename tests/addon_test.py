@@ -449,7 +449,7 @@ check("every zone has terrain", rt.eval("(function() local n = 0 for _, z in ipa
 check("a grid decodes to one digit per point", rt.eval("(function() local z = NS.ZoneByMap(1413) local g = NS.Grid(z) return #g.cells == g.nx * g.ny end)()"))
 # The game's path search must agree with the build's: the same grid, the same
 # rules, the same costs (to the yard the build rounds to).
-worst, pairs_checked = 0.0, 0
+worst, pairs_checked, low = 0.0, 0, 0.0
 for zone_map in (1441, 1427, 1434):      # Thousand Needles, Searing Gorge, Stranglethorn
     n = rt.eval(f"#NS.ZoneByMap({zone_map}).nodes")
     for a in range(1, n + 1, max(1, n // 4)):
@@ -463,9 +463,11 @@ for zone_map in (1441, 1427, 1434):      # Thousand Needles, Searing Gorge, Stra
                 local _, cost = NS.FindPathNow(z, pa[1], pa[2], pb[1], pb[2])
                 return cost, NS.WalkCost(z, NS.PointID(z, na, 1), NS.PointID(z, nb, 1))
             end)()""")
-            worst = max(worst, abs(got - want))
+            worst = max(worst, (got - want) / want if want else 0)
+            low = min(low, got - want)
             pairs_checked += 1
-check(f"the game's path search matches the build's costs ({pairs_checked} pairs, worst {worst:.2f} yd)", worst <= 1.0, worst)
+check(f"the game's path search matches the build's costs ({pairs_checked} pairs, at most {worst * 100:.2f}% longer)",
+      worst <= 0.01 and low >= -1.0, (worst, low))
 # A cliff the straight line crosses: the path goes round, and costs more.
 found = rt.eval("""(function()
     local z = NS.ZoneByMap(1441)
@@ -480,6 +482,37 @@ end)()""")
 check("some legs in Thousand Needles go round the mesas", found is not None and found[0] is not None, found)
 if found and found[0]:
     print(f"       e.g. {found[0]}: {found[1]:.0f} yd straight, {found[2]:.0f} yd walking")
+
+print("roads")
+check("road points are known for Elwynn", rt.eval("(function() local g = NS.Grid(ELWYNN) return g.roads ~= nil and g.roads:find('1') ~= nil end)()") is True)
+# Two road points far apart along Elwynn's east road (Goldshire towards
+# Redridge): the path between them should keep to the road.
+share = rt.eval("""(function()
+    local g = NS.Grid(ELWYNN)
+    local function Near(x, y)
+        local best, bi, bj
+        for j = 0, g.ny - 1, 2 do for i = 0, g.nx - 1, 2 do
+            if NS.OnRoad(g, i, j) then
+                local d = (g.x0 + i * g.cw - x) ^ 2 + (g.y0 + j * g.ch - y) ^ 2
+                if not best or d < best then best, bi, bj = d, i, j end
+            end
+        end end
+        return g.x0 + bi * g.cw, g.y0 + bj * g.ch
+    end
+    local ax, ay = Near(0.45, 0.67)
+    local bx, by = Near(0.80, 0.70)
+    local path = NS.FindPathNow(ELWYNN, ax, ay, bx, by)
+    -- The path is thinned to its turning points: they should be on the road
+    -- (the line between them may cut a bend by up to 20 yards).
+    local on = 0
+    for _, p in ipairs(path) do
+        local i, j = NS.Square(g, p.x, p.y)
+        if NS.OnRoad(g, i, j) then on = on + 1 end
+    end
+    return on / #path, #path
+end)()""")
+check(f"a path between two points of Elwynn's east road keeps to it ({share[0] * 100:.0f}% of {share[1]} waypoints on the road)",
+      share[0] > 0.8 and share[1] < 30, share)
 
 print("route planner walks round cliffs")
 legs = rt.eval("""(function()

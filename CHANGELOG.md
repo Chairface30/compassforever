@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Routes keep to the roads where they can. Roads are found from the ground's
+  own textures (every texture named as a road: cobblestone, brick, stone and
+  dirt roads, zone by zone); walking along one counts as 30% shorter, so a
+  route takes the road when it's at most about 40% longer. You don't move
+  faster on a road, but roads skirt cliffs, woods and camps.
+- Routes are drawn and followed as a few waypoints along the way rather than
+  every bend: a line within 20 yards of the path is close enough.
 - A flight master you haven't met, in the zone you're exploring, joins the
   route as a stop (in blue) when it costs at most 800 yards more walking, so
   you pick up the flight point on the way. Learning it takes it off the

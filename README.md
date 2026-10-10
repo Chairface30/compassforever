@@ -45,6 +45,12 @@ instead of pointing through it. Bridges and buildings aren't terrain, so a
 gorge with a bridge over it counts as hard going rather than impossible: the
 path will still cross where there's no other way.
 
+Routes keep to the roads where they can: a road is any ground painted with
+a road texture (cobblestone, brick, stone or dirt road, zone by zone), and a
+walk along one counts as 30% shorter, so the route takes the road when it's
+not much longer. You don't move faster on a road, but roads skirt cliffs,
+woods and camps. Paths are drawn as a few waypoints, not every bend.
+
 When the next stop is far away and a flight would save real time, the arrow
 takes you to the nearest useful flight master first and tells you where to
 fly; after you land the route carries on. Compass Forever learns which flight

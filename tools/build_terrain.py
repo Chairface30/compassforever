@@ -10,7 +10,10 @@ terrain's own height samples, one every 4.2 yards:
   - downhill steeper than DROP (75 degrees) is a fall, not a walk;
   - deep water (DEEP yards or more over the ground) is swum, whatever the
     ground under it does;
-  - lava and slime are never walked into.
+  - lava and slime are never walked into;
+  - a step along a road (both ends on ground a road texture covers) costs
+    ROAD (0.7) of the same step off it: roads skirt cliffs, woods and camps,
+    so a route takes one when it's at most about 40 per cent longer.
 
 A step that breaks a rule is not forbidden outright: it costs PENALTY times
 its length. Bridges and buildings are not terrain, so a gorge with a bridge
@@ -43,6 +46,8 @@ import numpy as np
 from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import dijkstra
 
+import roads
+
 TILE = 1600.0 / 3.0
 CHUNK = TILE / 16.0
 STEP = CHUNK / 8.0
@@ -51,6 +56,7 @@ CLIMB = math.tan(math.radians(50)) * STEP
 DROP = math.tan(math.radians(75)) * STEP
 DEEP = 1.5
 PENALTY = 25.0
+ROAD = 0.7                    # a step along a road costs this share of one off it
 LAVA = {3, 7, 19}
 SLIME = {4, 8, 20}
 CONTINENT_MAP = {0: "1415", 1: "1414"}
@@ -112,7 +118,10 @@ def read_tile(path):
     return chunks
 
 
-def load_continent(cache, mapID):
+def load_continent(cache, mapID, road_ids=frozenset()):
+    """{(gx, gy): [heights, water, deadly, road]} for every chunk; road is
+    how much of the ground at each of its 9x9 height samples is road
+    (averaged over the 8.3 yards round it), or None."""
     d = os.path.join(cache, f"map{mapID}")
     grid = {}
     for name in os.listdir(d):
@@ -120,7 +129,18 @@ def load_continent(cache, mapID):
             continue
         tx, ty = (int(v) for v in name[:-4].split("_"))
         for (ix, iy), c in read_tile(os.path.join(d, name)).items():
-            grid[(tx * 16 + ix, ty * 16 + iy)] = c
+            grid[(tx * 16 + ix, ty * 16 + iy)] = c + [None]
+        tex = os.path.join(d, f"{tx}_{ty}_tex0.tex")
+        if road_ids and os.path.exists(tex):
+            for (ix, iy), layers in roads.read_tex(tex).items():
+                c = grid.get((tx * 16 + ix, ty * 16 + iy))
+                if c is None or not any(fid in road_ids for fid, _ in layers):
+                    continue
+                cover = roads.road_cover(layers, road_ids)
+                pad = np.pad(cover, 4, mode="edge")
+                # Each height sample sits on every 8th coverage spot.
+                c[3] = np.array([[pad[r * 8:r * 8 + 9, q * 8:q * 8 + 9].mean() for q in range(9)]
+                                 for r in range(9)])
     return grid
 
 
@@ -142,13 +162,16 @@ def zone_heights(cont, bounds):
     nx, ny = gx1 - gx0 + 1, gy1 - gy0 + 1
     H = np.full((ny * 8 + 1, nx * 8 + 1), np.nan)
     bad = np.zeros(H.shape, bool)
+    road = np.zeros(H.shape)
     for gy in range(gy0, gy1 + 1):
         for gx in range(gx0, gx1 + 1):
             c = cont.get((gx, gy))
             if c is None:
                 continue
-            heights, water, deadly = c
+            heights, water, deadly, cover = c
             r, q = (gy - gy0) * 8, (gx - gx0) * 8
+            if cover is not None:
+                road[r:r + 9, q:q + 9] = np.maximum(road[r:r + 9, q:q + 9], cover)
             block = heights.copy()
             if water is not None:
                 deep = water - heights >= DEEP
@@ -157,7 +180,7 @@ def zone_heights(cont, bounds):
             if deadly:
                 bad[r:r + 9, q:q + 9] = True
     bad |= np.isnan(H)
-    return gx0, gy0, H, bad
+    return gx0, gy0, H, bad, road[::2, ::2] >= 0.5
 
 
 def ok(rise):
@@ -206,7 +229,7 @@ def rle(s):
     return "".join(out)
 
 
-def graph(east, west, south, north):
+def graph(east, west, south, north, onroad=None):
     """Directed graph over the points, costs in yards (a step that breaks a
     rule PENALTY times its length). A diagonal is a step east or west and a
     step north or south; it keeps to the rules if either order does."""
@@ -215,9 +238,15 @@ def graph(east, west, south, north):
     rows, cols, vals = [], [], []
     rule = {(1, 0): east, (-1, 0): west, (0, 1): south, (0, -1): north}
 
+    flat = onroad.ravel() if onroad is not None else None
+
     def add(src, dst, good, length):
-        rows.append(src.ravel()); cols.append(dst.ravel())
-        vals.append(np.where(good.ravel(), length, length * PENALTY))
+        src, dst = src.ravel(), dst.ravel()
+        rows.append(src); cols.append(dst)
+        cost = np.where(good.ravel(), length, length * PENALTY)
+        if flat is not None:
+            cost = np.where(flat[src] & flat[dst], cost * ROAD, cost)
+        vals.append(cost)
 
     for (di, dj), out in rule.items():
         rs = slice(max(0, -dj), R - max(0, dj))
@@ -280,6 +309,9 @@ def main():
 
     zones = read_zones(addon)
     conts = {}
+    names = roads.load_names(cache)
+    road_ids = frozenset(fid for fid, name in names.items() if roads.is_road(name))
+    print(f"{len(road_ids)} road textures", flush=True)
     out = [
         "-- Generated by tools/build_terrain.py from the client's own terrain. Do",
         "-- not edit by hand.",
@@ -289,7 +321,8 @@ def main():
         "-- cw, ch: the spacing in fractions; nx, ny: points across and down.",
         "-- cells: one hex digit per point, row by row (1 east out, 2 east in, 4",
         "-- south out, 8 south in: a step you can walk), runs of four or more",
-        "-- written %<digit><count>.",
+        "-- written %<digit><count>. roads: 1 for a point on a road, 0 not, coded",
+        "-- the same way; a step between two road points costs 0.7 of one off it.",
         "-- dist: walking cost in yards between every two standing points of the",
         "-- zone (in Data/Exploration.lua order, every point of every node), from",
         "-- each to each, three base-36 digits per number.",
@@ -301,10 +334,10 @@ def main():
         c = z["continent"]
         if c not in conts:
             print(f"reading continent {c}...", flush=True)
-            conts[c] = load_continent(cache, c)
+            conts[c] = load_continent(cache, c, road_ids)
         minX, minY, maxX, maxY = bounds(z["map"])
         w, h = maxY - minY, maxX - minX
-        gx0, gy0, H, bad = zone_heights(conts[c], (minX, minY, maxX, maxY))
+        gx0, gy0, H, bad, onroad = zone_heights(conts[c], (minX, minY, maxX, maxY))
         east, west, south, north = node_rules(H, bad)
         ny, nx = east.shape
         digits = digits_of(east, west, south, north)
@@ -320,7 +353,7 @@ def main():
             i = min(nx - 1, max(0, int(round((fx - x0) / cw))))
             j = min(ny - 1, max(0, int(round((fy - y0) / ch))))
             cells.append(j * nx + i)
-        g = graph(east, west, south, north)
+        g = graph(east, west, south, north, onroad)
         uniq = sorted(set(cells))
         d = dijkstra(g, directed=True, indices=uniq)
         row = {cell: k for k, cell in enumerate(uniq)}
@@ -334,9 +367,11 @@ def main():
         out.append(f"    [{z['ach']}] = {{ x0 = {x0:.7f}, y0 = {y0:.7f}, cw = {cw:.7f}, ch = {ch:.7f}, "
                    f"nx = {nx}, ny = {ny}, yd = {NODE:.4f},")
         out.append(f"        cells = \"{rle(digits)}\",")
+        out.append(f"        roads = \"{rle(''.join('1' if v else '0' for v in onroad.ravel()))}\",")
         out.append(f"        dist = \"{''.join(dist)}\" }},")
         blocked = digits.count("0")
-        print(f"  {z['name']:22} {nx}x{ny} points, {blocked} closed, {len(pts)} standing points", flush=True)
+        print(f"  {z['name']:22} {nx}x{ny} points, {blocked} closed, {int(onroad.sum())} on roads, "
+              f"{len(pts)} standing points", flush=True)
     out.append("}")
     with open(os.path.join(addon, "Data", "Terrain.lua"), "w", encoding="utf-8", newline="\n") as f:
         f.write("\n".join(out) + "\n")

@@ -64,16 +64,17 @@ def chunks(data):
 
 
 def wdt_tiles(path):
-    """(tileX, tileY, rootADTFileDataID) for every tile the WDT says exists."""
+    """(tileX, tileY, root ADT file ID, tex0 ADT file ID) for every tile the
+    WDT says exists."""
     data = open(path, "rb").read()
     out = []
     for magic, payload in chunks(data):
         if magic == "MAID":
             for i in range(64 * 64):
-                root = struct.unpack_from("<I", payload, i * 32)[0]
+                root, _, _, tex0 = struct.unpack_from("<4I", payload, i * 32)
                 if root:
                     # The MAID grid is row-major by Y: entry i is tile (i % 64, i // 64).
-                    out.append((i % 64, i // 64, root))
+                    out.append((i % 64, i // 64, root, tex0))
     return out
 
 
@@ -91,6 +92,9 @@ def main():
     # The Classic Era build still lists the old map art the achievements use.
     get("https://wago.tools/db2/UiMapXMapArt/csv?build=1.15.9.70003",
         os.path.join(args.cache, "db2", "UiMapXMapArt_era.csv"))
+    # Every terrain texture's name, to tell roads from grass.
+    get(f"https://wago.tools/api/files?search=tileset/&version={build}",
+        os.path.join(args.cache, "tilesets.json"))
     print("tables ok")
 
     jobs = []
@@ -100,9 +104,13 @@ def main():
         wdt = get(f"https://wago.tools/api/casc/{fdid}?version={build}", os.path.join(d, "map.wdt"))
         tiles = wdt_tiles(wdt)
         print(f"map {mapID}: {len(tiles)} tiles")
-        for tx, ty, root in tiles:
+        for tx, ty, root, tex0 in tiles:
             jobs.append((f"https://wago.tools/api/casc/{root}?version={build}",
                          os.path.join(d, f"{tx}_{ty}.adt")))
+            # The ground's textures: which are roads (build_terrain.py).
+            if tex0:
+                jobs.append((f"https://wago.tools/api/casc/{tex0}?version={build}",
+                             os.path.join(d, f"{tx}_{ty}_tex0.tex")))
 
     done = 0
     with cf.ThreadPoolExecutor(max_workers=6) as pool:
