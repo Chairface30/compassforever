@@ -28,6 +28,11 @@ Type `/cf` (or `/compassforever`), or click the map icon on the minimap.
 The route is the shortest walk from where you stand: exact for up to 11 areas,
 and very close beyond that.
 
+## The fanfare
+
+Finishing a zone on a route plays `Sounds\fanfare.ogg`, the Final Fantasy VII
+victory fanfare. Replace that file with any Ogg clip of your own to change it.
+
 ## Where the spots come from
 
 From the game's own files, not from guesses. Each "Explore <zone>" achievement

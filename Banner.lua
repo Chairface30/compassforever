@@ -53,9 +53,10 @@ function ns.NextStopText()
     return "Next: |cffffd100" .. stop.node.name .. "|r"
 end
 
--- A zone finished. Sounds\fanfare.ogg plays if there is one: a clip of the
--- player's own choosing, kept out of the release (.gitignore). Without it
--- the client says it will not play, and the game's level-up fanfare does.
+-- A zone finished: Sounds\fanfare.ogg, the Final Fantasy VII victory
+-- fanfare. Anyone can put their own clip there instead. If the file is
+-- missing the client says it will not play, and the game's level-up
+-- fanfare plays.
 local FANFARE = "Interface\\AddOns\\" .. ns.addonName .. "\\Sounds\\fanfare.ogg"
 function ns.Fanfare()
     local ok, willPlay = pcall(PlaySoundFile, FANFARE, "Master")
