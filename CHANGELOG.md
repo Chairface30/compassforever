@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## Compass Forever v1.1 (2026-10-10)
 
 - The walking path works from anywhere on the continent, not just inside
   the route's zone: every zone's terrain is stitched into one map of the
