@@ -1,9 +1,7 @@
 -- Chair Legacy: Progress.lua
--- What is done and what is left, read from the client.
+-- Which parts of each zone map are uncovered, read from the client.
 --
--- The Legacy challenges are achievements: the game's own Legacy window reads
--- them with GetAchievementInfo and GetAchievementCriteriaInfo, and so does
--- this. Each "Explore <zone>" achievement has one criterion per part of the
+-- Each "Explore <zone>" achievement has one criterion per part of the
 -- zone's map; when a criterion cannot be read, the map's own list of uncovered
 -- art (C_MapExplorationInfo) is asked instead.
 --
@@ -66,57 +64,6 @@ ns.Criteria = Criteria
 function ns.HasAchievementAPI()
     return type(_G.GetAchievementInfo) == "function"
         and type(_G.GetAchievementCriteriaInfo) == "function"
-end
-
--------------------------------------------------------------------------------
--- Legacy challenges
--------------------------------------------------------------------------------
-
--- Hardcore realms have their own set of challenges.
-local function Hardcore()
-    local fn = ns.API("C_GameRules", "IsHardcoreActive")
-    local ok, hc = ns.Ask(fn)
-    return ok and hc == true
-end
-
-function ns.ChallengeList()
-    return Hardcore() and ns.CHALLENGES_HARDCORE or ns.CHALLENGES
-end
-
--- A challenge as it stands: { def, done (true/false/nil = unknown), steps }.
--- Each step: { name, done, qty, req }.
-function ns.Challenge(def)
-    local info = AchInfo(def.id)
-    local crit = Criteria(def.id)
-    local steps = {}
-    if crit then
-        for i, c in ipairs(crit) do
-            steps[i] = { name = c.name or def.steps[i] or "?", done = c.done, qty = c.qty, req = c.req }
-        end
-    else
-        for i, name in ipairs(def.steps) do steps[i] = { name = name } end
-    end
-    return {
-        def = def,
-        name = (info and info.name) or def.name,
-        text = (info and info.text) or def.text,
-        done = info and info.completed or nil,
-        steps = steps,
-    }
-end
-
--- How many challenges are done, out of how many, and how many are unknown.
-function ns.ChallengeCounts(category)
-    local done, total, unknown = 0, 0, 0
-    for _, def in ipairs(ns.ChallengeList()) do
-        if not category or def.category == category then
-            total = total + 1
-            local info = AchInfo(def.id)
-            if not info then unknown = unknown + 1
-            elseif info.completed then done = done + 1 end
-        end
-    end
-    return done, total, unknown
 end
 
 -------------------------------------------------------------------------------
@@ -206,4 +153,31 @@ function ns.ZoneByAch(id)
         if zone.ach == id then return zone end
     end
     return nil
+end
+
+-- The zone the player is in: their map, or the zone above it (a city, a
+-- subzone map). nil in an instance or anywhere without a zone map to explore.
+function ns.CurrentZone()
+    local here = ns.PlayerMap()
+    for _ = 1, 5 do
+        if not here then return nil end
+        local zone = ns.ZoneByMap(here)
+        if zone then return zone end
+        local ok, info = ns.Ask(ns.API("C_Map", "GetMapInfo"), here)
+        here = ok and type(info) == "table" and ns.Num(info.parentMapID) or nil
+    end
+    return nil
+end
+
+-- Areas and zones uncovered, over every zone or one continent.
+function ns.Totals(continent)
+    local areas, areasDone, zones, zonesDone = 0, 0, 0, 0
+    for _, zone in ipairs(ns.ZONES) do
+        if not continent or zone.continent == continent then
+            local d, t = ns.ZoneCounts(zone)
+            areas, areasDone, zones = areas + t, areasDone + d, zones + 1
+            if d == t then zonesDone = zonesDone + 1 end
+        end
+    end
+    return areasDone, areas, zonesDone, zones
 end

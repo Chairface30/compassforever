@@ -17,9 +17,11 @@ local CLOSE_YARDS = 12
 local frame, arrowTex, distText, nameText, stepText
 local elapsed = 0
 
-local function Yards(yards)
-    if yards >= 1000 then return string.format("%.1fk yd", yards / 1000) end
-    return string.format("%d yd", math.floor(yards + 0.5))
+-- "northwest" for a bearing (radians counter-clockwise from north).
+local COMPASS = { "north", "northwest", "west", "southwest", "south", "southeast", "east", "northeast" }
+function ns.Compass(bearing)
+    local i = math.floor((bearing % TWO_PI) / (math.pi / 4) + 0.5) % 8
+    return COMPASS[i + 1]
 end
 
 -- Bearing (radians counter-clockwise from north, as GetPlayerFacing) and
@@ -94,7 +96,7 @@ local function Update()
     local relative = bearing - facing
     Point(relative)
     arrowTex:SetVertexColor(Color(relative))
-    distText:SetText(Yards(yards))
+    distText:SetText(ns.Yards(yards))
 end
 
 local function Build()

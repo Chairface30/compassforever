@@ -4,18 +4,7 @@
 local _, ns = ...
 
 local function ZoneFromText(text)
-    if not text or text == "" then
-        local here = ns.PlayerMap()
-        -- A city or a subzone map: walk up to its zone.
-        for _ = 1, 5 do
-            if not here then break end
-            local zone = ns.ZoneByMap(here)
-            if zone then return zone end
-            local ok, info = ns.Ask(ns.API("C_Map", "GetMapInfo"), here)
-            here = ok and type(info) == "table" and ns.Num(info.parentMapID) or nil
-        end
-        return nil
-    end
+    if not text or text == "" then return ns.CurrentZone() end
     text = text:lower()
     for _, zone in ipairs(ns.ZONES) do
         if zone.name:lower() == text then return zone end
@@ -42,8 +31,9 @@ local function Probe()
         print(string.format("  %s%s = %s", pair[1] and (pair[1] .. ".") or "", pair[2],
             ns.API(pair[1], pair[2]) and "|cff55ff55yes|r" or "|cffff5555missing|r"))
     end
-    local done, total, unknown = ns.ChallengeCounts()
-    print(string.format("  challenges: %d of %d done, %d unreadable", done, total, unknown))
+    local ad, at, zd, zt = ns.Totals()
+    print(string.format("  explored: %d of %d areas, %d of %d zones; auto-route %s", ad, at, zd, zt,
+        ns.db.autoRoute and "on" or "off"))
 
     local zone = ZoneFromText()
     print("  player map = " .. tostring(ns.PlayerMap()) .. ", zone = " .. tostring(zone and zone.name))
@@ -90,11 +80,12 @@ end
 local function Help()
     ns.Print("commands:")
     print("  /legacy - open or close the window")
-    print("  /legacy route [zone] - walk the shortest route through the zone's uncovered areas (default: this zone)")
+    print("  /legacy route [zone] - walk the shortest route through the zone's covered areas (default: this zone)")
+    print("  /legacy auto - route automatically on entering a zone, on or off")
     print("  /legacy next - say the next stop in chat")
     print("  /legacy skip - leave the current stop for the end of the route")
     print("  /legacy stop - stop the route")
-    print("  /legacy tracker - show or hide the tracker")
+    print("  /legacy banner - the big on-screen messages, on or off")
     print("  /legacy arrow <0.5-2> - size of the arrow")
     print("  /legacy probe - what the client says; send this when something looks wrong")
 end
@@ -115,18 +106,24 @@ SlashCmdList.CHAIRLEGACY = function(msg)
         end
         ns.InvalidateProgress()
         ns.StartRoute(zone)
+        local text = ns.NextStopText()
+        if text then ns.Print(text .. ".") end
     elseif cmd == "next" then
         local stop, i = ns.CurrentStop()
         if not stop then ns.Print("No route.") return end
         local _, yards = ns.StopVector(ns.route.zone, stop)
         ns.Print(string.format("stop %d of %d: %s at %.1f, %.1f%s", i, #ns.route.stops, stop.node.name,
-            stop.x * 100, stop.y * 100, type(yards) == "number" and string.format(" (%d yd)", yards) or ""))
+            stop.x * 100, stop.y * 100, type(yards) == "number" and (" (" .. ns.Yards(yards) .. ")") or ""))
     elseif cmd == "skip" then
         ns.SkipStop()
     elseif cmd == "stop" then
         ns.StopRoute()
-    elseif cmd == "tracker" then
-        ns.SetTrackerShown(not ns.db.trackerShown)
+    elseif cmd == "auto" then
+        ns.SetAutoRoute(not ns.db.autoRoute)
+        ns.Print("automatic routes " .. (ns.db.autoRoute and "on" or "off") .. ".")
+    elseif cmd == "banner" then
+        ns.db.banner = not ns.db.banner
+        ns.Print("on-screen messages " .. (ns.db.banner and "on" or "off") .. ".")
     elseif cmd == "arrow" then
         local n = tonumber(rest)
         if n then

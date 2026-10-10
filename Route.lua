@@ -374,34 +374,70 @@ end
 -- The active route
 -------------------------------------------------------------------------------
 
--- (Re)plan the route through `zone` from where the player is now. Stops the
--- player skipped (by overlay ID) stay at the end, in the order skipped.
-function ns.StartRoute(zone, quiet, skipped)
-    skipped = skipped or {}
+-- (Re)plan the route through `zone` from where the player is now.
+-- opts:
+--   quiet   = no chat line;
+--   first   = a node to visit first (picked on a map), the rest planned on
+--             from there;
+--   auto    = started on entering the zone; it ends when the player leaves;
+--   skipped = overlay ID -> order skipped: those stay at the end.
+function ns.StartRoute(zone, opts)
+    opts = opts or {}
+    local skipped = opts.skipped or {}
     local remaining = ns.ZoneRemaining(zone)
     if #remaining == 0 then
+        local had = ns.route ~= nil
         ns.route = nil
-        if not quiet then ns.Print(zone.name .. ": every area is already uncovered.") end
-        ns.Fire("route")
-        return
+        if not opts.quiet then ns.Print(zone.name .. " is already fully explored.") end
+        if had or not opts.quiet then ns.Fire("route") end
+        return nil
     end
-    local now, later = {}, {}
+    local first, now, later = nil, {}, {}
     for _, node in ipairs(remaining) do
-        if skipped[node.overlay] then later[#later + 1] = node else now[#now + 1] = node end
+        if node == opts.first then first = node
+        elseif skipped[node.overlay] then later[#later + 1] = node
+        else now[#now + 1] = node end
     end
     table.sort(later, function(a, b) return skipped[a.overlay] < skipped[b.overlay] end)
+
     local sx, sy = ns.PlayerOn(zone.map)
-    local stops, yards = ns.PlanRoute(zone, now, sx, sy)
+    local stops, yards = {}, 0
+    if first then
+        -- The chosen spot first: its point nearest the player, then the rest
+        -- planned on from there.
+        local best, bestD
+        for _, p in ipairs(ns.NodePoints(first)) do
+            local d = sx and ((p[1] - sx) * zone.w) ^ 2 + ((p[2] - sy) * zone.h) ^ 2 or 0
+            if not bestD or d < bestD then best, bestD = p, d end
+        end
+        stops[1] = { node = first, x = best[1], y = best[2] }
+        local rest, len = ns.PlanRoute(zone, now, best[1], best[2])
+        for _, stop in ipairs(rest) do stops[#stops + 1] = stop end
+        yards = len + (sx and math.sqrt(bestD) or 0)
+    else
+        stops, yards = ns.PlanRoute(zone, now, sx, sy)
+    end
     for _, node in ipairs(later) do
         local p = ns.NodePoints(node)[1]
         stops[#stops + 1] = { node = node, x = p[1], y = p[2] }
     end
-    ns.route = { zone = zone, stops = stops, yards = yards, skipped = skipped }
-    if not quiet then
-        ns.Print(string.format("%s: %d area%s left, about %d yards on foot.", zone.name,
-            #stops, #stops == 1 and "" or "s", math.floor(yards + 0.5)))
+    ns.route = { zone = zone, stops = stops, yards = yards, skipped = skipped, auto = opts.auto or false }
+    if not opts.quiet then
+        ns.Print(string.format("%s: %d area%s left, about %s on foot.", zone.name,
+            #stops, #stops == 1 and "" or "s", ns.Yards(yards)))
     end
     ns.Fire("route")
+    return ns.route
+end
+
+-- Head for `node` next, keeping the rest of the route (or starting one).
+function ns.RouteVia(zone, node)
+    local r = ns.route
+    local opts = { first = node }
+    if r and r.zone == zone then opts.skipped, opts.auto = r.skipped, r.auto end
+    opts.skipped = opts.skipped or {}
+    opts.skipped[node.overlay] = nil
+    ns.StartRoute(zone, opts)
 end
 
 function ns.StopRoute()
@@ -427,21 +463,28 @@ function ns.SkipStop()
     r.skipped[stop.node.overlay] = skipCount
     table.remove(r.stops, 1)
     r.stops[#r.stops + 1] = stop
-    ns.Print("Skipped " .. stop.node.name .. "; it is now the last stop.")
     ns.Fire("route")
+end
+
+function ns.Yards(yards)
+    if yards >= 1000 then return string.format("%.1fk yd", yards / 1000) end
+    return string.format("%d yd", math.floor(yards + 0.5))
 end
 
 -- After any progress: replan from here, so a stop uncovered by walking
 -- through it on the way somewhere else drops out and the rest re-orders.
+-- "uncovered" tells the banner what was found and what is next.
 ns.On("progress", function()
     local r = ns.route
     if not r then return end
-    local before = #r.stops
-    ns.StartRoute(r.zone, true, r.skipped)
-    if not ns.route then
-        ns.Print("|cff55ff55" .. r.zone.name .. " is fully explored.|r")
-    elseif #ns.route.stops < before then
-        local stop = ns.CurrentStop()
-        if stop then ns.Print("Next: " .. stop.node.name .. ".") end
+    local before = {}
+    for _, stop in ipairs(r.stops) do before[#before + 1] = stop.node end
+    ns.StartRoute(r.zone, { quiet = true, skipped = r.skipped, auto = r.auto })
+    local still = {}
+    for _, stop in ipairs(ns.route and ns.route.stops or {}) do still[stop.node] = true end
+    local found = {}
+    for _, node in ipairs(before) do
+        if not still[node] then found[#found + 1] = node end
     end
+    if #found > 0 then ns.Fire("uncovered", r.zone, found) end
 end)

@@ -32,7 +32,7 @@ SlashCmdList = {}
 function hooksecurefunc() end
 GameTooltip = setmetatable({}, { __index = function() return function() end end })
 
-FRAMES = {}
+FRAMES, LINES = {}, {}
 local function Widget(kind)
     local w = { _events = {}, _scripts = {}, _kind = kind }
     return setmetatable(w, { __index = function(self, key)
@@ -49,6 +49,8 @@ local function Widget(kind)
         elseif key == "IsShown" then return function(s) return rawget(s, "_shown") == true end
         elseif key == "GetWidth" or key == "GetHeight" then return function() return 1000 end
         elseif key == "GetEffectiveScale" then return function() return 1 end
+        elseif key == "GetFrameLevel" then return function() return 1 end
+        elseif key == "CreateLine" then return function() local r = Widget("line") table.insert(LINES, r) return r end
         elseif key == "GetPoint" then return function() return "CENTER", nil, "CENTER", 0, 0 end
         end
         return function() end
@@ -83,6 +85,8 @@ C_Map = {
         return { x = PLAYER.x, y = PLAYER.y }
     end,
     GetMapInfo = function(map) return { mapID = map, name = "Map " .. map, parentMapID = 0 } end,
+    GetMapArtLayers = function() return { { layerWidth = 1002, layerHeight = 668, tileWidth = 256, tileHeight = 256 } } end,
+    GetMapArtLayerTextures = function() local t = {} for i = 1, 12 do t[i] = 1000 + i end return t end,
 }
 
 -- Achievements: DONE[criteriaID] = true marks a criterion done.
@@ -110,7 +114,10 @@ end
 EXPLORED = {}
 C_MapExplorationInfo = { GetExploredMapTextures = function(map)
     local out = {}
-    for _, o in ipairs(EXPLORED[map] or {}) do out[#out + 1] = { offsetX = o[1], offsetY = o[2] } end
+    for _, o in ipairs(EXPLORED[map] or {}) do
+        out[#out + 1] = { offsetX = o[1], offsetY = o[2], textureWidth = 300, textureHeight = 200,
+            numTexturesWide = 2, numTexturesTall = 1, fileDataIDs = { 2001, 2002 } }
+    end
     return out
 end }
 
@@ -120,9 +127,25 @@ function LDB:NewDataObject(name, obj) return obj end
 function DBICON:Register(name, obj, db) self.registered[name] = obj end
 function LibStub(name) return name == "LibDataBroker-1.1" and LDB or name == "LibDBIcon-1.0" and DBICON or nil end
 WorldMapFrame = CreateFrame("Frame")
-WorldMapFrame.ScrollContainer = { Child = CreateFrame("Frame") }
+WorldMapFrame.ScrollContainer = CreateFrame("Frame")
+WorldMapFrame.ScrollContainer.Child = CreateFrame("Frame")
 SHOWN_MAP = 1429
 WorldMapFrame.GetMapID = function() return SHOWN_MAP end
+
+-- Every text a font string was given.
+function TEXTS()
+    local out = {}
+    for _, f in ipairs(FRAMES) do local t = rawget(f, "_text") if type(t) == "string" then out[#out + 1] = t end end
+    return table.concat(out, "\n")
+end
+-- The banner's title font string.
+function BANNER_TITLE()
+    for _, f in ipairs(FRAMES) do
+        local t = rawget(f, "_text")
+        if type(t) == "string" and (t:find("^Uncovered") or t:find("to uncover$")) then return f end
+    end
+    return {}
+end
 '''
 
 TOC = [l.strip() for l in io.open("ChairLegacy.toc", encoding="utf-8")
@@ -137,15 +160,9 @@ def boot():
         src = io.open(path, encoding="utf-8").read()
         fn = rt.eval("function(src, name) local f, err = loadstring(src, name) if not f then error(err) end return f end")(src, path)
         fn("ChairLegacy", rt.globals().NS)
-    # The stand-in achievements: every challenge and every zone, criteria
-    # from the built-in data.
+    # The stand-in achievements: every zone, criteria from the built-in data.
     rt.execute('''
         ACH_BY_ID = {}
-        for _, def in ipairs(NS.CHALLENGES) do
-            local crit = {}
-            for i, s in ipairs(def.steps) do crit[i] = { name = s, id = def.id * 100 + i, asset = 0 } end
-            ACH_BY_ID[def.id] = { name = def.name, text = def.text, crit = crit }
-        end
         for _, z in ipairs(NS.ZONES) do
             local crit = {}
             for i, n in ipairs(z.nodes) do crit[i] = { name = n.name, id = n.criteria, asset = n.overlay } end
@@ -176,7 +193,6 @@ zones = rt.eval("#NS.ZONES")
 nodes = rt.eval("(function() local n = 0 for _, z in ipairs(NS.ZONES) do n = n + #z.nodes end return n end)()")
 check("43 zones", zones == 43, zones)
 check("549 map areas", nodes == 549, nodes)
-check("65 challenges, 65 hardcore", rt.eval("#NS.CHALLENGES") == 65 and rt.eval("#NS.CHALLENGES_HARDCORE") == 65)
 check("every point on its zone's map", rt.eval('''(function()
     for _, z in ipairs(NS.ZONES) do for _, n in ipairs(z.nodes) do
         if #n.points < 2 or #n.points % 2 ~= 0 then return false end
@@ -186,10 +202,6 @@ check("only Undercity is approximate", rt.eval('''(function()
     local r = {} for _, z in ipairs(NS.ZONES) do for _, n in ipairs(z.nodes) do
         if n.rough then r[#r + 1] = n.name end end end
     return table.concat(r, ",") end)()''') == "Undercity")
-check("every challenge in a category", rt.eval('''(function()
-    local ok = {} for _, c in ipairs(NS.CHALLENGE_CATEGORIES) do ok[c.id] = true end
-    for _, d in ipairs(NS.CHALLENGES) do if not ok[d.category] then return false end end
-    return true end)()'''))
 # Known spots, checked against the game's own map: Goldshire, Razor Hill,
 # Far Watch Post, Kormek's Hut.
 for zone, area, x, y in (("Elwynn Forest", "Goldshire", 42.5, 65.5), ("Durotar", "Razor Hill", 52.5, 42.5),
@@ -253,7 +265,7 @@ first = rt.eval("NS.CurrentStop().node.criteria")
 rt.execute(f"DONE[{first}] = true FIRE('CRITERIA_UPDATE') FLUSH()")
 check("uncovering a stop replans without it", rt.eval("#NS.route.stops") == n0 - 1
       and rt.eval(f"NS.CurrentStop().node.criteria ~= {first}"))
-check("says the next stop", any(p.find("Next:") >= 0 for p in printed(rt)))
+check("the banner says what was uncovered and where next", "Uncovered" in (rt.eval("rawget(BANNER_TITLE(), '_text')") or ""))
 skipped = rt.eval("NS.CurrentStop().node.overlay")
 rt.execute("SlashCmdList.CHAIRLEGACY('skip')")
 check("skip moves the stop to the end", rt.eval("NS.route.stops[#NS.route.stops].node.overlay") == skipped)
@@ -272,18 +284,45 @@ check("target due north: bearing 0, 100 yd", abs(b) < 1e-6 and abs(y - 100) < 1e
 b, y = rt.eval("NS.StopVector(ZONE, { x = 0.6, y = 0.5 })")
 check("target due east: bearing -pi/2", abs(b + math.pi / 2) < 1e-6, b)
 
-print("window, tracker, pins, probe")
-rt.execute("NS.ToggleWindow()")
-for page in ["'overview'", "'explore'", "15568", "15586", "15593", "15594", "15595", "15596"]:
-    rt.execute(f"PRINTED = {{}} NS.SelectPage({page})")
-    check(f"page {page} draws", rt.eval('''(function() for _, f in ipairs(FRAMES) do
-        local t = rawget(f, "_text") if type(t) == "string" and t:find("Could not draw") then return false end
-    end return true end)()'''))
-rt.execute("NS.SetTracked(62031, true) NS.SetTracked(776, true)")
-text = rt.eval("(function() for _, f in ipairs(FRAMES) do local t = rawget(f, '_text') if type(t) == 'string' and t:find('Spelunker') then return t end end end)()")
-check("tracker lists a tracked challenge's steps", text and "Wailing Caverns" in text, text)
-rt.execute("SHOWN_MAP = 1436 SlashCmdList.CHAIRLEGACY('route westfall')")
-check("route draws on the map without an error", not any("|cffff5555" in p for p in printed(rt)))
+print("go here next")
+rt.execute("for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = nil end PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.42, 0.65")
+rt.execute("FIRE('CRITERIA_UPDATE') FLUSH() PICK = ELWYNN.nodes[7] NS.RouteVia(ELWYNN, PICK)")
+check("a picked spot becomes the first stop", rt.eval("NS.CurrentStop().node == PICK"))
+check("the rest of the zone follows it", rt.eval("#NS.route.stops") == len(rt.eval("ELWYNN.nodes")))
+rt.execute("PICK2 = NS.route.stops[5].node NS.RouteVia(ELWYNN, PICK2)")
+check("picking another moves it to the front", rt.eval("NS.CurrentStop().node == PICK2")
+      and rt.eval("#NS.route.stops") == len(rt.eval("ELWYNN.nodes")))
+rt.execute("NS.StopRoute()")
+
+print("automatic routes")
+rt.execute("FIRE('ZONE_CHANGED_NEW_AREA') FLUSH()")
+check("off by default: entering a zone starts nothing", rt.eval("NS.route == nil"))
+rt.execute("SlashCmdList.CHAIRLEGACY('auto') FLUSH()")
+check("turning it on in a zone with work starts its route", rt.eval("NS.route and NS.route.zone == ELWYNN and NS.route.auto"))
+check("and the banner says where to run", "to uncover" in (rt.eval("rawget(BANNER_TITLE(), '_text')") or ""))
+rt.execute("PLAYER.map, PLAYER.x, PLAYER.y = 1436, 0.5, 0.5 FIRE('ZONE_CHANGED_NEW_AREA') FLUSH()")
+check("entering the next zone switches to its route", rt.eval("NS.route and NS.route.zone.name") == "Westfall")
+rt.execute("PLAYER.map = 9999 FIRE('ZONE_CHANGED_NEW_AREA') FLUSH()")
+check("leaving for a place with no map ends the automatic route", rt.eval("NS.route == nil"))
+rt.execute("PLAYER.map = 1429 SlashCmdList.CHAIRLEGACY('route westfall') FIRE('ZONE_CHANGED_NEW_AREA') FLUSH()")
+check("a route the player started is kept on entering another zone", rt.eval("NS.route.zone.name") == "Westfall")
+rt.execute("NS.StopRoute() SlashCmdList.CHAIRLEGACY('auto')")
+check("auto can be turned off again", rt.eval("NS.db.autoRoute") is False)
+
+print("window and world map")
+rt.execute("PRINTED = {} NS.ShowZone(ELWYNN)")
+check("window opens on a zone without an error", not any("|cffff5555" in p for p in printed(rt)), printed(rt))
+texts = rt.eval("TEXTS()")
+check("zone list shows what is left", " left" in texts and "Elwynn Forest" in texts)
+check("overall bar counts areas and zones", "Explorer:" in texts)
+rt.execute("PRINTED = {} NS.StartRoute(ELWYNN)")
+check("route lines drawn on the window's map", rt.eval("#LINES") >= len(rt.eval("ELWYNN.nodes")) - 1, rt.eval("#LINES"))
+check("the window shows the next stop", "Head " in rt.eval("TEXTS()"))
+rt.execute("local n = ELWYNN.nodes[1] EXPLORED[1429] = { { n.ox, n.oy } } NS.InvalidateProgress() NS.RefreshWindow()")
+check("uncovered map art is drawn without an error", not any("|cffff5555" in p for p in printed(rt)), printed(rt))
+rt.execute("PRINTED = {} SHOWN_MAP = 1436 WorldMapFrame._scripts.OnShow()")
+check("world map bar offers the zone's route", "Westfall: |cffffd100" in rt.eval("TEXTS()"))
+check("no error drawing the world map", not any("|cffff5555" in p for p in printed(rt)), printed(rt))
 rt.execute("PRINTED = {} SlashCmdList.CHAIRLEGACY('probe')")
 out = "\n".join(printed(rt))
 check("probe reports the criteria match", "match the built-in areas" in out, out)

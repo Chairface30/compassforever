@@ -9,8 +9,14 @@ local ICON = "Interface\\Icons\\INV_Misc_Map_01"
 
 local function Tooltip(tip)
     tip:AddLine(ns.title, 0.4, 0.8, 1)
-    local done, total = ns.ChallengeCounts()
-    tip:AddLine("Legacy challenges: " .. done .. "/" .. total, 1, 1, 1)
+    local ad, at, zd, zt = ns.Totals()
+    tip:AddLine(string.format("Explored: %d/%d areas, %d/%d zones", ad, at, zd, zt), 1, 1, 1)
+    local zone = ns.CurrentZone()
+    if zone then
+        local d, t = ns.ZoneCounts(zone)
+        tip:AddLine(string.format("%s: %d/%d", zone.name, d, t), 0.8, 0.8, 0.8)
+    end
+    tip:AddLine("Automatic routes: " .. (ns.db.autoRoute and "on" or "off"), 0.8, 0.8, 0.8)
     local stop, i = ns.CurrentStop()
     if stop then
         tip:AddLine(string.format("Route: %s, stop %d of %d", ns.route.zone.name, i, #ns.route.stops), 1, 0.82, 0)

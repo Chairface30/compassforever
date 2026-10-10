@@ -1,6 +1,6 @@
 ## Interface: 16001
 ## Title: Chair Legacy
-## Notes: Every Legacy challenge with its steps, and the shortest walk through each zone's map areas with an arrow to every spot. Type /legacy.
+## Notes: Uncover every zone map for the Explorer Legacy challenge: the shortest route through each zone, an arrow to every spot, and markers on the world map. Type /legacy.
 ## Author: Chairface Chippendale
 ## Version: 0.1
 ## SavedVariables: ChairLegacyDB
@@ -12,12 +12,12 @@ Libs\LibDataBroker-1.1\LibDataBroker-1.1.lua
 Libs\LibDBIcon-1.0\LibDBIcon-1.0.lua
 
 Core.lua
-Data\Challenges.lua
 Data\Exploration.lua
 Progress.lua
 Route.lua
 Arrow.lua
-Tracker.lua
+Banner.lua
+Auto.lua
 MapPins.lua
 UI.lua
 Minimap.lua

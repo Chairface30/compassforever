@@ -10,13 +10,12 @@ ns.addonName = addonName
 ns.title = "Chair Legacy"
 
 local DEFAULTS = {
-    tracked = {},          -- achievement ID -> true: shown in the tracker
     window = {},           -- the main window's spot
-    tracker = {},          -- the tracker's spot
     arrow = {},            -- the arrow's spot
     arrowScale = 1,
-    mapPins = true,        -- remaining areas drawn on the world map
-    trackerShown = true,
+    mapPins = true,        -- markers and the route bar on the world map
+    autoRoute = false,     -- start a zone's route on entering it
+    banner = true,         -- big words for a new route, an uncovered area
     minimap = {},          -- LibDBIcon's own settings
 }
 
@@ -101,8 +100,10 @@ end
 -------------------------------------------------------------------------------
 -- Messages between files
 -------------------------------------------------------------------------------
--- "progress": something a challenge or a map area depends on changed.
--- "route":    the route or its current step changed.
+-- "progress":  something a map area depends on changed.
+-- "route":     the route or its current step changed.
+-- "uncovered": (zone, nodes) areas the route was heading for are uncovered.
+-- "settings":  a setting changed.
 
 local listeners = {}
 
@@ -138,11 +139,7 @@ end
 -- Boot
 -------------------------------------------------------------------------------
 
-local PROGRESS_EVENTS = {
-    "CRITERIA_UPDATE", "ACHIEVEMENT_EARNED", "MAP_EXPLORATION_UPDATED",
-    "PLAYER_LEVEL_UP", "SKILL_LINES_CHANGED", "TRADE_SKILL_UPDATE",
-    "QUEST_TURNED_IN", "PLAYER_PVP_RANK_CHANGED", "UPDATE_FACTION",
-}
+local PROGRESS_EVENTS = { "CRITERIA_UPDATE", "ACHIEVEMENT_EARNED", "MAP_EXPLORATION_UPDATED" }
 
 local boot = CreateFrame("Frame")
 boot:RegisterEvent("ADDON_LOADED")
