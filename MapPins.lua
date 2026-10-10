@@ -59,9 +59,15 @@ local function Pin()
     return p
 end
 
+-- A frame's anchor offsets are counted in its own scaled units, and the
+-- markers are scaled to stay one size as the map zooms: the offsets are
+-- divided by that scale, or every marker drifts down and right of its spot
+-- (further the further it is from the corner).
 local function Place(p, x, y)
+    local okS, s = pcall(p.GetScale, p)
+    s = (okS and ns.Num(s) and s > 0) and s or 1
     p:ClearAllPoints()
-    p:SetPoint("CENTER", overlay, "TOPLEFT", x * overlay:GetWidth(), -y * overlay:GetHeight())
+    p:SetPoint("CENTER", overlay, "TOPLEFT", x * overlay:GetWidth() / s, -y * overlay:GetHeight() / s)
 end
 
 local function RefreshBar(zone)

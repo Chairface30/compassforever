@@ -48,8 +48,11 @@ local function Widget(kind)
         elseif key == "Hide" then return function(s) rawset(s, "_shown", false) end
         elseif key == "IsShown" then return function(s) return rawget(s, "_shown") == true end
         elseif key == "GetWidth" or key == "GetHeight" then return function() return 1000 end
-        elseif key == "GetEffectiveScale" then return function() return 1 end
+        elseif key == "GetEffectiveScale" then return function(s) return rawget(s, "_eff") or 1 end
         elseif key == "GetFrameLevel" then return function() return 1 end
+        elseif key == "SetScale" then return function(s, v) rawset(s, "_scale", v) end
+        elseif key == "GetScale" then return function(s) return rawget(s, "_scale") or 1 end
+        elseif key == "SetPoint" then return function(s, ...) rawset(s, "_point", { ... }) end
         elseif key == "CreateLine" then return function() local r = Widget("line") table.insert(LINES, r) return r end
         elseif key == "GetPoint" then return function() return "CENTER", nil, "CENTER", 0, 0 end
         end
@@ -323,6 +326,24 @@ check("uncovered map art is drawn without an error", not any("|cffff5555" in p f
 rt.execute("PRINTED = {} SHOWN_MAP = 1436 WorldMapFrame._scripts.OnShow()")
 check("world map bar offers the zone's route", "Westfall: |cffffd100" in rt.eval("TEXTS()"))
 check("no error drawing the world map", not any("|cffff5555" in p for p in printed(rt)), printed(rt))
+# Zoomed in: the canvas is drawn at a third of UIParent's scale, so markers
+# are scaled up 3x to stay one size; their spots must not move with it.
+rt.execute("""PRINTED = {}
+    for _, f in ipairs(FRAMES) do if f ~= UIParent then rawset(f, "_eff", 1 / 3) end end
+    NS.StartRoute(NS.ZoneByMap(1436)) WorldMapFrame._scripts.OnShow()""")
+off = rt.eval("""(function()
+    local worst = 0
+    for _, stop in ipairs(NS.route.stops) do
+        for _, f in ipairs(FRAMES) do
+            local pt, sc = rawget(f, "_point"), rawget(f, "_scale")
+            if f.node == stop.node and pt and sc and f:IsShown() then
+                local x, y = pt[4] * sc / 1000, -pt[5] * sc / 1000
+                worst = math.max(worst, math.abs(x - stop.x), math.abs(y - stop.y))
+            end
+        end
+    end
+    return worst end)()""")
+check("world map markers sit on their spots when zoomed", off < 1e-6, off)
 rt.execute("PRINTED = {} SlashCmdList.CHAIRLEGACY('probe')")
 out = "\n".join(printed(rt))
 check("probe reports the criteria match", "match the built-in areas" in out, out)

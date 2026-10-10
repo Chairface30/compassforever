@@ -12,6 +12,8 @@
 - Route me automatically when I enter a zone: starts the route and says which
   way to run. Each uncovered area is announced with the next stop.
 - Routes are exact for up to 11 areas.
+- Fixed: markers on the world map drifted down and right of their spots,
+  further the more the map was zoomed.
 
 ## First version
 
