@@ -6,7 +6,10 @@
 --   - a bar across the top of the map saying how many are left, with a
 --     button to start or stop the route and one to open the zone in the
 --     Compass Forever window;
---   - the areas still covered drawn in gray, so the whole zone shows.
+--   - the areas still covered drawn in gray, so the whole zone shows;
+--   - while a route runs, on whatever map is open (the route's zone, the
+--     zone next door, the continent): the route's lines and its numbered
+--     stops, carried across zone lines (RouteDraw.lua).
 --
 -- Everything sits on frames of our own laid over the map. The map is only
 -- read (which map it shows, how big its canvas is, the frame levels its own
@@ -17,6 +20,8 @@
 local _, ns = ...
 
 local overlay, barFrame, grayFrame, grayPool
+local lines = {}
+local DrawLines
 local pins, used = {}, 0
 local PIN = 16
 
@@ -26,11 +31,15 @@ local function Canvas()
     return map, sc, sc and sc.Child
 end
 
-local function ShownZone()
+local function ShownMap()
     local map = Canvas()
     if not map then return nil end
     local ok, mapID = pcall(map.GetMapID, map)
-    mapID = ok and ns.Num(mapID)
+    return ok and ns.Num(mapID) or nil
+end
+
+local function ShownZone()
+    local mapID = ShownMap()
     return mapID and ns.ZoneByMap(mapID)
 end
 
@@ -91,6 +100,21 @@ local function RefreshBar(zone)
     bar:Show()
 end
 
+-- The route's lines on the shown map, kept one width on screen as it zooms.
+DrawLines = function(mapID, inv)
+    for _, l in ipairs(lines) do l:Hide() end
+    if type(overlay.CreateLine) ~= "function" then return end
+    ns.DrawRouteOn(overlay, mapID, overlay:GetWidth(), overlay:GetHeight(), function(i)
+        local l = lines[i]
+        if not l then
+            l = overlay:CreateLine(nil, "ARTWORK")
+            lines[i] = l
+        end
+        l:Show()
+        return l
+    end, 3 * (inv or 1))
+end
+
 -- The map's own pin frame levels: its uncovered-area art, and the highest
 -- level any of its pins use. Read only; fallbacks if the map has none.
 local function Levels(map, child)
@@ -114,27 +138,37 @@ local function Refresh()
     grayFrame:SetFrameLevel(explore)
     overlay:SetFrameLevel(math.min(top + 100, 9000))
     barFrame:SetFrameLevel(math.min(top + 200, 9100))
-    local zone = ns.db and ns.db.mapPins and ShownZone() or nil
+    for _, l in ipairs(lines) do l:Hide() end
+    local on = ns.db and ns.db.mapPins
+    local zone = on and ShownZone() or nil
     RefreshBar(zone)
-    if not zone then return end
-    local lw = ns.ArtLayer(zone.map)
-    ns.DrawCoveredGray(grayPool, zone, (child:GetWidth() or 0) / lw)
+    if not on then return end
+    if zone then
+        local lw = ns.ArtLayer(zone.map)
+        ns.DrawCoveredGray(grayPool, zone, (child:GetWidth() or 0) / lw)
+    end
     -- The canvas grows as the map zooms; the markers stay one size on screen.
     local okS, scale = pcall(overlay.GetEffectiveScale, overlay)
     local inv = (okS and ns.Num(scale) and scale > 0) and (UIParent:GetEffectiveScale() / scale) or 1
 
-    if ns.route and ns.route.zone == zone then
-        for i, stop in ipairs(ns.route.stops) do
-            local p = Pin()
-            p:SetScale(inv)
-            p.zone, p.node, p.first = zone, stop.node, i == 1
-            p.num:SetText(i)
-            p:SetSize(i == 1 and 22 or PIN, i == 1 and 22 or PIN)
-            p.dot:SetVertexColor(i == 1 and 0.3 or 1, 1, i == 1 and 0.35 or 0.3)
-            Place(p, stop.x, stop.y)
+    if ns.route then
+        local mapID = ShownMap()
+        if mapID then
+            for _, stop in ipairs(ns.RouteStopsOn(mapID)) do
+                local p = Pin()
+                p:SetScale(inv)
+                p.zone, p.node, p.first = ns.route.zone, stop.node, stop.i == 1
+                p.num:SetText(stop.i)
+                p:SetSize(stop.i == 1 and 22 or PIN, stop.i == 1 and 22 or PIN)
+                p.dot:SetVertexColor(stop.i == 1 and 0.3 or 1, 1, stop.i == 1 and 0.35 or 0.3)
+                Place(p, stop.x, stop.y)
+            end
+            DrawLines(mapID, inv)
         end
         return
     end
+    if not zone then return end
+
     for _, node in ipairs(ns.ZoneRemaining(zone)) do
         local p = Pin()
         p:SetScale(inv)
@@ -200,6 +234,18 @@ local function Setup()
         pcall(hooksecurefunc, map, "OnMapChanged", SafeRefresh)
     end
     map:HookScript("OnShow", SafeRefresh)
+    local tick = 0
+    o:SetScript("OnUpdate", function(_, dt)
+        tick = tick + (ns.Num(dt) or 0)
+        if tick < 0.2 then return end
+        tick = 0
+        if not (ns.route and ns.db and ns.db.mapPins) then return end
+        local mapID = ShownMap()
+        if not mapID then return end
+        local okS, scale = pcall(o.GetEffectiveScale, o)
+        local inv = (okS and ns.Num(scale) and scale > 0) and (UIParent:GetEffectiveScale() / scale) or 1
+        pcall(DrawLines, mapID, inv)
+    end)
     child:HookScript("OnSizeChanged", SafeRefresh)
 end
 

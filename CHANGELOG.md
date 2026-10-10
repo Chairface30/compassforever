@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- The route line carries on across zone lines. Wherever you are and whatever
+  map is open (the route's zone, the zone next door, the continent, Azeroth),
+  the world map and the window draw the route from you: the walking path to
+  the next stop, any flight (in blue), and the legs between stops, with the
+  route's numbered stops.
 - Routes go round what can't be walked. The terrain of every zone is mapped
   every 8 yards: slopes too steep to climb (over 50 degrees), sheer drops,
   lava and slime are avoided, deep water is swum. The route's order uses real

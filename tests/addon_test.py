@@ -161,8 +161,26 @@ C_Map.GetMapInfoAtPosition = function(map, x, y)
     if map == 1415 or map == 1414 then return { mapID = 1436 } end
     if map == 947 then return { mapID = 1414 } end
 end
-C_Map.GetMapRectOnMap = function() return 0.4, 0.5, 0.4, 0.5 end
+RECTS = {
+    ["1429:1415"] = { 0.40, 0.50, 0.70, 0.80 },   -- Elwynn on Eastern Kingdoms
+    ["1436:1415"] = { 0.30, 0.40, 0.72, 0.82 },   -- Westfall, just west of it
+    ["1415:947"] = { 0.50, 1.00, 0.00, 1.00 },
+}
+C_Map.GetMapRectOnMap = function(map, on)
+    local r = RECTS[map .. ":" .. on]
+    if r then return r[1], r[2], r[3], r[4] end
+    return 0.4, 0.5, 0.4, 0.5
+end
+local ownPos = C_Map.GetPlayerMapPosition
+C_Map.GetPlayerMapPosition = function(map)
+    if map == PLAYER.map then return ownPos(map) end
+    local r = RECTS[PLAYER.map .. ":" .. map]
+    if r then return { x = r[1] + PLAYER.x * (r[2] - r[1]), y = r[3] + PLAYER.y * (r[4] - r[3]) } end
+end
 C_Map.GetMapHighlightInfoAtPosition = function() return 5555, nil, 1, 1, 0.1, 0.1, 0.4, 0.4 end
+
+-- Mark every line hidden, so a check counts only what is drawn after.
+function HIDE_LINES() for _, l in ipairs(LINES) do rawset(l, "_shown", false) end end
 
 -- One frame of every OnUpdate script.
 function FRAME(dt)
@@ -537,14 +555,48 @@ rt.execute("NS.PlayerOn = function(map) if map == 1415 then return 0.4900, 0.760
 check("close by: walk", rt.eval("NS.travel == nil"))
 rt.execute("NS.PlayerOn, NS.Translate = REAL_PLAYERON, REAL_TRANSLATE NS.travel = nil")
 
+print("the route line crosses zone lines")
+rt.execute("""NS.StopRoute()
+    for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = nil end NS.InvalidateProgress()
+    PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.10, 0.50
+    NS.StartRoute(ELWYNN)
+    PLAYER.map, PLAYER.x, PLAYER.y = 1436, 0.80, 0.40      -- now in Westfall
+    GEO = NS.RouteGeometry()""")
+check("the route is laid out on the continent", rt.eval("GEO and GEO.cont") == 1415)
+walk = rt.eval("""(function() for _, p in ipairs(GEO.parts) do if p.kind == "walk" then return p.pts end end end)()""")
+check("its first leg starts where the player is, in Westfall",
+      walk is not None and abs(walk[1] - (0.30 + 0.80 * 0.10)) < 1e-9 and abs(walk[2] - (0.72 + 0.40 * 0.10)) < 1e-9, walk)
+ends_x = rt.eval("""(function()
+    local conv = NS.ContinentToMap(GEO.cont, 1436)
+    for _, p in ipairs(GEO.parts) do if p.kind == "walk" then
+        local x1 = conv(p.pts[1], p.pts[2]) local x2 = conv(p.pts[#p.pts - 1], p.pts[#p.pts]) return x1, x2 end end
+end)()""")
+check("on Westfall's map it starts inside and runs off the east edge into Elwynn",
+      0 <= ends_x[0] <= 1 and ends_x[1] > 1, ends_x)
+rt.execute("HIDE_LINES() NS.ShowZone(NS.ZoneByMap(1436))")
+check("the window draws the route on Westfall's map", rt.eval("""(function() local n = 0
+    for _, l in ipairs(LINES) do if rawget(l, "_shown") then n = n + 1 end end return n end)()""") > 0)
+check("and Elwynn's numbered stops with it", rt.eval("""(function()
+    for _, f in ipairs(FRAMES) do if f.node and f.zone == ELWYNN and rawget(f, "_shown") and f.order == 1 then return true end end
+end)()""") is True)
+rt.execute("HIDE_LINES() NS.WindowZoomOut()")
+check("on the continent too", rt.eval("""(function() local n = 0
+    for _, l in ipairs(LINES) do if rawget(l, "_shown") then n = n + 1 end end return n end)()""") > 0)
+rt.execute("HIDE_LINES() PRINTED = {} SHOWN_MAP = 1436 WorldMapFrame._scripts.OnShow()")
+check("the world map draws it on Westfall as well", rt.eval("""(function() local n = 0
+    for _, l in ipairs(LINES) do if rawget(l, "_shown") then n = n + 1 end end return n end)()""") > 0)
+check("with no error", not any("|cffff5555" in p for p in printed(rt)), printed(rt))
+rt.execute("NS.StopRoute() PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.42, 0.65")
+
 print("window and world map")
 rt.execute("PRINTED = {} NS.ShowZone(ELWYNN)")
 check("window opens on a zone without an error", not any("|cffff5555" in p for p in printed(rt)), printed(rt))
 texts = rt.eval("TEXTS()")
 check("zone list shows what is left", " left" in texts and "Elwynn Forest" in texts)
 check("overall bar counts areas and zones", "Explorer:" in texts)
-rt.execute("PRINTED = {} NS.StartRoute(ELWYNN)")
-check("route lines drawn on the window's map", rt.eval("#LINES") >= len(rt.eval("ELWYNN.nodes")) - 1, rt.eval("#LINES"))
+rt.execute("HIDE_LINES() PRINTED = {} NS.StartRoute(ELWYNN)")
+shown = rt.eval("(function() local n = 0 for _, l in ipairs(LINES) do if rawget(l, '_shown') then n = n + 1 end end return n end)()")
+check("route lines drawn on the window's map", shown >= len(rt.eval("ELWYNN.nodes")) - 1, shown)
 check("the window shows the next stop", "Head " in rt.eval("TEXTS()"))
 rt.execute("local n = ELWYNN.nodes[1] EXPLORED[1429] = { { n.ox, n.oy } } NS.InvalidateProgress() NS.RefreshWindow()")
 check("uncovered map art is drawn without an error", not any("|cffff5555" in p for p in printed(rt)), printed(rt))

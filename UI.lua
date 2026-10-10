@@ -203,7 +203,7 @@ end
 -------------------------------------------------------------------------------
 
 local baseTiles, colorArt, grayArt
-local pins, badges, lines, legLines = {}, {}, {}, {}
+local pins, badges, lines = {}, {}, {}
 local playerDot, highlight
 local hasLines
 
@@ -441,7 +441,7 @@ local function Pin(i)
         p:SetScript("OnLeave", function() GameTooltip:Hide() end)
         p:SetScript("OnClick", function(self, button)
             if button == "RightButton" then ZoomOut()
-            elseif not self.done then ns.RouteVia(view.zone, self.node) end
+            elseif not self.done then ns.RouteVia(self.zone or view.zone, self.node) end
         end)
         return p
     end)
@@ -486,23 +486,16 @@ local function Line(i)
     end)
 end
 
-local function Join(l, x1, y1, x2, y2, r, g, b, a)
-    l:SetStartPoint("TOPLEFT", canvas, x1 * CW(), -y1 * CH())
-    l:SetEndPoint("TOPLEFT", canvas, x2 * CW(), -y2 * CH())
-    l:SetColorTexture(r, g, b, a)
+-- The route's lines on whatever map is shown: the walking path to the next
+-- stop, any flight, and the legs between stops, carried across zone lines
+-- (RouteDraw.lua). Redrawn every tick, as the player moves.
+local function DrawRouteLines()
+    for _, l in ipairs(lines) do l:Hide() end
+    if not hasLines then return end
+    ns.DrawRouteOn(canvas, view.map, CW(), CH(), Line, 2.5)
 end
 
-local function LegLine(i)
-    return Pool(legLines, i, function()
-        local l = canvas:CreateLine(nil, "ARTWORK", nil, 2)
-        l:SetThickness(3)
-        return l
-    end)
-end
-
--- The player on the shown map, and the leg from them to the first stop:
--- the walking path around cliffs once it is found, a straight line until
--- then.
+-- The player on the shown map, and the route's lines from them.
 local function DrawPlayer()
     local px, py = ns.PlayerOn(view.map)
     local inside = px and px >= 0 and px <= 1 and py >= 0 and py <= 1
@@ -513,69 +506,49 @@ local function DrawPlayer()
         local ok, facing = pcall(GetPlayerFacing)
         if ok and ns.Num(facing) and playerDot.SetRotation then pcall(playerDot.SetRotation, playerDot, facing) end
     end
-    for _, l in ipairs(legLines) do l:Hide() end
-    local first = lines[1]
-    local stop = ns.CurrentStop()
-    if not (hasLines and first and view.kind == "zone" and ns.route and ns.route.zone == view.zone and stop) then
-        return
-    end
-    first:Hide()
-    if not inside then return end
-    local path, k, cx, cy
-    if ns.Steer then
-        local ax
-        ax, _, _, path, k, cx, cy = ns.Steer(view.zone, stop, px, py)
-    end
-    if not path then
-        first:Show()
-        Join(first, px, py, stop.x, stop.y, 0.3, 1, 0.35, 0.9)
-        return
-    end
-    local n = 1
-    Join(LegLine(n), px, py, cx, cy, 0.3, 1, 0.35, 0.9)
-    local ax, ay = cx, cy
-    for i = k + 1, #path do
-        n = n + 1
-        Join(LegLine(n), ax, ay, path[i].x, path[i].y, 0.3, 1, 0.35, 0.9)
-        ax, ay = path[i].x, path[i].y
+    DrawRouteLines()
+end
+
+-- One pin: an area of the shown zone, or a stop of a route elsewhere.
+local function SetPin(p, zone, node, x, y, done, order)
+    p.zone, p.node, p.done, p.order = zone, node, done, order
+    local size = done and 10 or (order == 1 and 22 or 16)
+    p:SetSize(size, size)
+    p:ClearAllPoints()
+    p:SetPoint("CENTER", canvas, "TOPLEFT", x * CW(), -y * CH())
+    if done then
+        p.dot:SetVertexColor(0.3, 1, 0.3, 0.55)
+        p.num:SetText("")
+    elseif order == 1 then
+        p.dot:SetVertexColor(0.3, 1, 0.35, 1)
+        p.num:SetText(GREEN .. "1|r")
+    else
+        p.dot:SetVertexColor(1, node.rough and 0.5 or 0.9, node.rough and 0.4 or 0.3, 1)
+        p.num:SetText(order or "")
     end
 end
 
+-- The shown zone's areas. Returns how many pins it used.
 local function DrawZone(zone)
     local state = ns.ZoneState(zone).state
     local order = {}
-    local routed = ns.route and ns.route.zone == zone
-    if routed then
+    if ns.route and ns.route.zone == zone then
         for i, stop in ipairs(ns.route.stops) do order[stop.node] = { i = i, x = stop.x, y = stop.y } end
     end
     for i, node in ipairs(zone.nodes) do
-        local p = Pin(i)
-        local done = state[i] == true
         local o = order[node]
         local pt = ns.NodePoints(node)[1]
-        local x, y = o and o.x or pt[1], o and o.y or pt[2]
-        p.node, p.done, p.order = node, done, o and o.i
-        local size = done and 10 or (o and o.i == 1 and 22 or 16)
-        p:SetSize(size, size)
-        p:ClearAllPoints()
-        p:SetPoint("CENTER", canvas, "TOPLEFT", x * CW(), -y * CH())
-        if done then
-            p.dot:SetVertexColor(0.3, 1, 0.3, 0.55)
-            p.num:SetText("")
-        elseif o and o.i == 1 then
-            p.dot:SetVertexColor(0.3, 1, 0.35, 1)
-            p.num:SetText(GREEN .. "1|r")
-        else
-            p.dot:SetVertexColor(1, node.rough and 0.5 or 0.9, node.rough and 0.4 or 0.3, 1)
-            p.num:SetText(o and o.i or "")
-        end
+        SetPin(Pin(i), zone, node, o and o.x or pt[1], o and o.y or pt[2], state[i] == true, o and o.i)
     end
-    if routed and hasLines then
-        local stops = ns.route.stops
-        for i = 2, #stops do
-            Join(Line(i), stops[i - 1].x, stops[i - 1].y, stops[i].x, stops[i].y, 1, 0.82, 0.1, 0.75)
-        end
-        Line(1)
+    return #zone.nodes
+end
+
+-- On any other map, the route's stops, numbered, wherever they fall on it.
+local function DrawRouteStops(used)
+    if not ns.route or (view.kind == "zone" and view.zone == ns.route.zone) then return end
+    for _, s in ipairs(ns.RouteStopsOn(view.map)) do
+        used = used + 1
+        SetPin(Pin(used), ns.route.zone, s.node, s.x, s.y, false, s.i)
     end
 end
 
@@ -612,9 +585,11 @@ DrawMap = function()
     highlight:Hide()
     hovered = nil
     pcall(DrawArt, view.map, view.zone)
-    if view.kind == "zone" then DrawZone(view.zone)
+    local used = 0
+    if view.kind == "zone" then used = DrawZone(view.zone)
     elseif view.kind == "continent" then DrawContinent(continent)
     else DrawWorld() end
+    DrawRouteStops(used)
     DrawPlayer()
 end
 
