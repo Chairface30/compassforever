@@ -14,6 +14,7 @@ local DEFAULTS = {
     arrow = {},            -- the arrow's spot
     arrowScale = 1,
     mapPins = true,        -- markers and the route bar on the world map
+    worldMapGray = true,   -- covered areas drawn in gray on the world map
     minimapRoute = true,   -- the route drawn on the minimap too
     replaceWorldMap = false, -- the world map key opens this window instead
     mapOnly = false,       -- the window shows its map and nothing else

@@ -1027,10 +1027,14 @@ local OPTIONS = {
       set = function(on) ns.db.autoFly = on ns.Fire("settings") end },
     { section = "Display" },
     { label = "World map markers", desc = "Areas left and the route on the world map.",
-      tip = "Areas still to uncover, numbered in route order, drawn in gray where still covered, "
-          .. "plus a bar to start the route.",
+      tip = "Areas still to uncover, numbered in route order, plus a bar to start the route.",
       get = function() return ns.db.mapPins end,
       set = function(on) ns.db.mapPins = on ns.Fire("settings") end },
+    { label = "Covered areas on the world map", desc = "Areas still to uncover, drawn in gray.",
+      tip = "The game's world map shows a zone's covered areas in gray, as this window does, "
+          .. "so the whole zone shows and what's left stands out.",
+      get = function() return ns.db.worldMapGray ~= false end,
+      set = function(on) ns.db.worldMapGray = on ns.Fire("settings") end },
     { label = "Open instead of the world map", desc = "The world map key opens this window.",
       tip = "Your world map key (M unless you changed it) opens Compass Forever instead. "
           .. "The world map still opens from the minimap, the quest log and its other buttons.",

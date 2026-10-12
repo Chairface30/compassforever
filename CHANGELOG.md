@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Options, Display: Covered areas on the world map (on). The game's world
+  map shows a zone's still-covered areas in gray, as the window does, now
+  apart from the world map markers, so it can be on with the markers off.
 - The window can be resized: drag the grip in its bottom right corner. It
   keeps its shape as it grows or shrinks, and remembers its size.
 - Options, Display: Open instead of the world map. Your world map key (M

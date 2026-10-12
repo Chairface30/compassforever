@@ -6,7 +6,8 @@
 --   - a bar across the top of the map saying how many are left, with a
 --     button to start or stop the route and one to open the zone in the
 --     Compass Forever window;
---   - the areas still covered drawn in gray, so the whole zone shows;
+--   - the areas still covered drawn in gray, so the whole zone shows (its
+--     own option, worldMapGray, apart from the markers);
 --   - while a route runs, on whatever map is open (the route's zone, the
 --     zone next door, the continent): the route's lines and its numbered
 --     stops, carried across zone lines (RouteDraw.lua).
@@ -143,14 +144,15 @@ local function Refresh()
     overlay:SetFrameLevel(math.min(top + 100, 9000))
     barFrame:SetFrameLevel(math.min(top + 200, 9100))
     for _, l in ipairs(lines) do l:Hide() end
+    local shown = ShownZone()
+    if shown and ns.db and ns.db.worldMapGray ~= false then
+        local lw = ns.ArtLayer(shown.map)
+        ns.DrawCoveredGray(grayPool, shown, (child:GetWidth() or 0) / lw)
+    end
     local on = ns.db and ns.db.mapPins
-    local zone = on and ShownZone() or nil
+    local zone = on and shown or nil
     RefreshBar(zone)
     if not on then return end
-    if zone then
-        local lw = ns.ArtLayer(zone.map)
-        ns.DrawCoveredGray(grayPool, zone, (child:GetWidth() or 0) / lw)
-    end
     -- The canvas grows as the map zooms; the markers stay one size on screen.
     local okS, scale = pcall(overlay.GetEffectiveScale, overlay)
     local inv = (okS and ns.Num(scale) and scale > 0) and (UIParent:GetEffectiveScale() / scale) or 1
