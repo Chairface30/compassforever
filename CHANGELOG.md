@@ -11,8 +11,8 @@
   back up. Opening the window or pressing Me in a city shows that city,
   with you and any route drawn on it. So it can stand in for the world map.
 - A new fanfare for a finished zone (48 seconds). While it plays, a Stop
-  music button near the top of the screen stops it. Options, Display:
-  Fanfare turns it off.
+  music button near the top of the screen stops it; drag it anywhere and
+  it stays there. Options, Display: Fanfare turns it off.
 - The minimap button is now a compass arrow that turns as you do: green,
   pointing at the route's next stop while a route runs; gold, pointing at
   the nearest area still covered in your zone otherwise; upright when
