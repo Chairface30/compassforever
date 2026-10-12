@@ -392,15 +392,43 @@ end
 -- walking: learning it now saves a trip later.
 local FLIGHT_DETOUR = 800
 
+-- One area only, from a click on its marker: the walk there and nothing
+-- after, uncovered or not. It ends on reaching the spot (or uncovering it).
+local function Covered(zone, node)
+    for _, n in ipairs(ns.ZoneRemaining(zone)) do
+        if n == node then return true end
+    end
+    return false
+end
+
+local function SingleRoute(zone, node, quiet, wasCovered)
+    local sx, sy = ns.PlayerOn(zone.map)
+    local best, bestD
+    for _, p in ipairs(ns.NodePoints(node)) do
+        local d = sx and ((p[1] - sx) * zone.w) ^ 2 + ((p[2] - sy) * zone.h) ^ 2 or 0
+        if not bestD or d < bestD then best, bestD = p, d end
+    end
+    local yards = sx and math.sqrt(bestD) or 0
+    ns.route = { zone = zone, stops = { { node = node, x = best[1], y = best[2], single = true } },
+                 yards = yards, skipped = {}, auto = false, single = node }
+    -- covered when picked: uncovering it is what ends the route
+    if wasCovered == nil then wasCovered = Covered(zone, node) end
+    ns.route.wasCovered = wasCovered
+    if not quiet then
+        ns.Print(string.format("Heading to %s, about %s on foot.", node.name, ns.Yards(yards)))
+    end
+    ns.Fire("route")
+    return ns.route
+end
+
 function ns.StartRoute(zone, opts)
     opts = opts or {}
+    -- a replan keeps a one-area route as it is (from where you are now)
+    local r = ns.route
+    if opts.quiet and r and r.single and r.zone == zone then return SingleRoute(zone, r.single, true, r.wasCovered) end
     local skipped = opts.skipped or {}
     local remaining = ns.ZoneRemaining(zone)
-    -- An area picked to go to: one still covered heads the route; one
-    -- already uncovered is a visit, kept first through replans until reached.
-    local pick = opts.first
-    if pick == nil and opts.quiet and ns.route and ns.route.zone == zone then pick = ns.route.visit end
-    if #remaining == 0 and not pick then
+    if #remaining == 0 then
         local had = ns.route ~= nil
         ns.route = nil
         if not opts.quiet then ns.Print(zone.name .. " is already fully explored.") end
@@ -410,16 +438,14 @@ function ns.StartRoute(zone, opts)
     local flights = ns.FlightStops and ns.FlightStops(zone) or {}
     local first, now, later, extra = nil, {}, {}, {}
     for _, node in ipairs(remaining) do
-        if node == pick then first = node
+        if node == opts.first then first = node
         elseif skipped[node.overlay] then later[#later + 1] = node
         else now[#now + 1] = node end
     end
     for _, node in ipairs(flights) do
-        if node == pick then first = node
+        if node == opts.first then first = node
         elseif not skipped[node.overlay] then extra[#extra + 1] = node end
     end
-    local visit = nil
-    if pick and not first then first, visit = pick, pick end
     table.sort(later, function(a, b) return skipped[a.overlay] < skipped[b.overlay] end)
 
     local sx, sy = ns.PlayerOn(zone.map)
@@ -432,7 +458,7 @@ function ns.StartRoute(zone, opts)
             local d = sx and ((p[1] - sx) * zone.w) ^ 2 + ((p[2] - sy) * zone.h) ^ 2 or 0
             if not bestD or d < bestD then best, bestD = p, d end
         end
-        local stops = { { node = first, x = best[1], y = best[2], visit = visit and true or nil } }
+        local stops = { { node = first, x = best[1], y = best[2] } }
         local rest, len = ns.PlanRoute(zone, list, best[1], best[2])
         for _, stop in ipairs(rest) do stops[#stops + 1] = stop end
         return stops, len + (sx and math.sqrt(bestD) or 0)
@@ -449,12 +475,8 @@ function ns.StartRoute(zone, opts)
         local p = ns.NodePoints(node)[1]
         stops[#stops + 1] = { node = node, x = p[1], y = p[2] }
     end
-    ns.route = { zone = zone, stops = stops, yards = yards, skipped = skipped, auto = opts.auto or false,
-                 visit = visit }
-    if not opts.quiet and visit then
-        ns.Print(string.format("Heading to %s (already uncovered), about %s on foot.", visit.name,
-            ns.Yards(yards)))
-    elseif not opts.quiet then
+    ns.route = { zone = zone, stops = stops, yards = yards, skipped = skipped, auto = opts.auto or false }
+    if not opts.quiet then
         ns.Print(string.format("%s: %d area%s left, about %s on foot.", zone.name,
             #remaining, #remaining == 1 and "" or "s", ns.Yards(yards)))
     end
@@ -462,14 +484,16 @@ function ns.StartRoute(zone, opts)
     return ns.route
 end
 
--- Head for `node` next, keeping the rest of the route (or starting one).
+-- A click on an area's marker: a route to that one area alone. Start route
+-- gives the whole zone's.
 function ns.RouteVia(zone, node)
+    SingleRoute(zone, node, false)
+end
+
+-- A zone's full route is running (not a one-area route).
+function ns.ZoneRouted(zone)
     local r = ns.route
-    local opts = { first = node }
-    if r and r.zone == zone then opts.skipped, opts.auto = r.skipped, r.auto end
-    opts.skipped = opts.skipped or {}
-    opts.skipped[node.overlay] = nil
-    ns.StartRoute(zone, opts)
+    return r and r.zone == zone and not r.single and true or false
 end
 
 function ns.StopRoute()
@@ -477,15 +501,11 @@ function ns.StopRoute()
     ns.Fire("route")
 end
 
--- At an area visited though already uncovered: it leaves the route, and the
--- route ends if nothing else is left.
-function ns.VisitReached()
+-- At the spot of a one-area route: the route is done.
+function ns.SingleReached()
     local r = ns.route
-    local stop = r and r.stops[1]
-    if not (stop and stop.visit) then return end
-    r.visit = nil
-    table.remove(r.stops, 1)
-    if #r.stops == 0 then ns.route = nil end
+    if not (r and r.single) then return end
+    ns.route = nil
     ns.Fire("route")
 end
 
@@ -521,6 +541,18 @@ end
 ns.On("progress", function()
     local r = ns.route
     if not r then return end
+    if r.single then
+        -- a one-area route ends when its area is uncovered
+        local node = r.single
+        if r.wasCovered and not Covered(r.zone, node) and not node.fp then
+            ns.route = nil
+            ns.Fire("route")
+            ns.Fire("uncovered", r.zone, { node })
+        else
+            SingleRoute(r.zone, node, true, r.wasCovered)
+        end
+        return
+    end
     local before = {}
     for _, stop in ipairs(r.stops) do before[#before + 1] = stop.node end
     ns.StartRoute(r.zone, { quiet = true, skipped = r.skipped, auto = r.auto })

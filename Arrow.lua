@@ -160,9 +160,9 @@ local function Update()
         return
     end
     arrowTex:Show()
-    if yards <= CLOSE_YARDS and stop.visit then
-        -- an area already uncovered, gone to by choice: reached
-        ns.VisitReached()
+    if yards <= CLOSE_YARDS and stop.single then
+        -- a one-area route: reached
+        ns.SingleReached()
         return
     end
     if yards <= CLOSE_YARDS then

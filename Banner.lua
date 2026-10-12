@@ -142,6 +142,12 @@ ns.On("uncovered", function(zone, found)
     local head = #names > 0 and ("Uncovered " .. table.concat(names, ", "))
         or ("Learned the flight point at " .. table.concat(learned, ", "))
     if not ns.route then
+        local d, t = ns.ZoneCounts(zone)
+        if d < t then
+            -- a one-area route done, the zone not yet
+            ns.Banner(head, string.format("%d left in %s.", t - d, zone.name))
+            return
+        end
         ns.Banner(head, "|cff55dd55" .. zone.name .. " is fully explored!|r")
         ns.Print("|cff55dd55" .. zone.name .. " is fully explored.|r")
         ns.Fanfare()

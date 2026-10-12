@@ -1164,7 +1164,7 @@ local function RefreshInfo()
     local zone = view.zone
     local d, t = ns.ZoneCounts(zone)
     zoneTitle:SetText(ZoneName(zone))
-    local routed = ns.route and ns.route.zone == zone
+    local routed = ns.ZoneRouted(zone)
     if d == t then
         zoneInfo:SetText(GREEN .. "Fully explored. All " .. t .. " areas uncovered.|r")
     elseif routed then
@@ -1533,7 +1533,7 @@ local function Build()
     routeButton:SetSize(BUTTON_W, 26)
     routeButton:SetPoint("TOPRIGHT", border, "BOTTOMRIGHT", -4, -10)
     routeButton:SetScript("OnClick", function()
-        if ns.route and ns.route.zone == view.zone then ns.StopRoute() else ns.StartRoute(view.zone) end
+        if ns.ZoneRouted(view.zone) then ns.StopRoute() else ns.StartRoute(view.zone) end
     end)
     skipButton = CreateFrame("Button", nil, frame.belowMap, "UIPanelButtonTemplate")
     skipButton:SetSize(BUTTON_W, 26)
