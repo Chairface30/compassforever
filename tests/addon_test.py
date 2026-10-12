@@ -21,6 +21,7 @@ def check(name, cond, detail=""):
 HARNESS = r'''
 NOW = 100
 function GetTime() return NOW end
+function debugprofilestop() return os.clock() * 1000 end
 CURSOR = { 300, 200 }
 function GetCursorPosition() return CURSOR[1], CURSOR[2] end
 IN_COMBAT = false
@@ -484,9 +485,10 @@ check("auto can be turned off again", rt.eval("NS.db.autoRoute") is False)
 print("terrain")
 check("every zone has terrain", rt.eval("(function() local n = 0 for _, z in ipairs(NS.ZONES) do if NS.TERRAIN[z.ach] then n = n + 1 end end return n end)()") == 43)
 check("a grid decodes to one digit per point", rt.eval("(function() local z = NS.ZoneByMap(1413) local g = NS.Grid(z) return #g.cells == g.nx * g.ny end)()"))
-# The game's path search must agree with the build's: the same grid, the same
-# rules, the same costs (to the yard the build rounds to).
-worst, pairs_checked, low = 0.0, 0, 0.0
+# The game's paths go over the waypoint graph (Data/Graph.lua): close to the
+# best the terrain allows (the build's costs, kept to the zone's own grid),
+# never far worse; cheaper is fine (it may cut through the next zone).
+worst, pairs_checked, low, total = 0.0, 0, 0.0, 0.0
 for zone_map in (1441, 1427, 1434):      # Thousand Needles, Searing Gorge, Stranglethorn
     n = rt.eval(f"#NS.ZoneByMap({zone_map}).nodes")
     for a in range(1, n + 1, max(1, n // 4)):
@@ -502,9 +504,11 @@ for zone_map in (1441, 1427, 1434):      # Thousand Needles, Searing Gorge, Stra
             end)()""")
             worst = max(worst, (got - want) / want if want else 0)
             low = min(low, got - want)
+            total += (got - want) / want if want else 0
             pairs_checked += 1
-check(f"the game's path search matches the build's costs ({pairs_checked} pairs, at most {worst * 100:.2f}% longer)",
-      worst <= 0.01 and low >= -1.0, (worst, low))
+mean = total / pairs_checked
+check(f"graph paths stay close to the terrain's best ({pairs_checked} pairs, {mean * 100:.1f}% longer on average, "
+      f"at most {worst * 100:.1f}%)", mean <= 0.08 and worst <= 0.25, (mean, worst, low))
 # A cliff the straight line crosses: the path goes round, and costs more.
 found = rt.eval("""(function()
     local z = NS.ZoneByMap(1441)
@@ -1146,6 +1150,26 @@ both = rt.eval("""(function()
     return (a and 1 or 0) + (b and 1 or 0) + (a2 and 1 or 0) .. ":" .. NS.PathJobs()
 end)()""")
 check(f"two targets don't throw away each other's path ({both})", both == "3:0", both)
+
+print("planning over the graph")
+order = rt.eval("""(function()
+    local z = NS.ZoneByMap(1412)
+    NS.PlanCostsNow(z)
+    local a, b = z.nodes[1], z.nodes[2]
+    local pa, pb = NS.NodePoints(a)[1], NS.NodePoints(b)[1]
+    local c1 = NS.PlanCost(z, pa[1], pa[2], pb[1], pb[2])
+    -- a wall between them: the planner's cost goes up too
+    NS.db.walls = { [z.ach] = { { (pa[1] + pb[1]) / 2 - 0.2 * (pb[2] - pa[2]), (pa[2] + pb[2]) / 2 + 0.2 * (pb[1] - pa[1]),
+                                  (pa[1] + pb[1]) / 2 + 0.2 * (pb[2] - pa[2]), (pa[2] + pb[2]) / 2 - 0.2 * (pb[1] - pa[1]) } } }
+    NS.WallsChanged()
+    NS.PlanCostsNow(z)
+    local c2 = NS.PlanCost(z, pa[1], pa[2], pb[1], pb[2])
+    NS.db.walls = nil NS.WallsChanged()
+    return string.format("%.0f,%.0f", c1 or -1, c2 or -1)
+end)()""")
+c1, c2 = map(float, order.split(","))
+check(f"the planner's costs come from the graph ({c1:.0f} yd)", c1 > 0)
+check(f"and a wall in the way raises them ({c1:.0f} -> {c2:.0f} yd)", c2 > c1 + 20, order)
 
 print("per character")
 rt.execute("""ALT_ONLY = true EXPLORED[1429] = {}

@@ -14,6 +14,7 @@ Libs\LibDBIcon-1.0\LibDBIcon-1.0.lua
 Core.lua
 Data\Exploration.lua
 Data\Terrain.lua
+Data\Graph.lua
 Data\Flights.lua
 Data\Walls.lua
 Data\Roads.lua

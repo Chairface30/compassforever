@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Walking paths are found over a waypoint graph (Data/Graph.lua, built
+  ahead of time from the terrain by tools/build_graph.py: a waypoint every
+  200 yards, along roads, at every area's spots, flight masters and docks,
+  with the walking links between them) instead of searching the terrain's
+  millions of points in the game. A path takes about a millisecond; the
+  searching never takes more than 2 ms of a frame. Walls, zone lines and
+  roads drawn by hand are laid over the graph in the game, so they work as
+  before and still need no rebuild.
+- The route planner orders stops by the same graph costs, walls and roads
+  included, once a zone's are worked out (in the background).
 - Kills, loot and quest steps no longer replan and redraw everything: a
   progress refresh goes on only when what's uncovered (here or on the
   route) or the flight points known really changed. The world map's

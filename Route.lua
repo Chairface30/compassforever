@@ -125,6 +125,11 @@ function ns.PlanRoute(zone, nodes, sx, sy)
         return math.sqrt(dx * dx + dy * dy)
     end
     local function D(a, b)
+        -- over the waypoint graph, walls and roads included, once worked out
+        if a.node and b.node and ns.PlanCost then
+            local c = ns.PlanCost(zone, a.x, a.y, b.x, b.y)
+            if c then return c end
+        end
         if a.id and b.id then
             local ab, ba = ns.WalkCost(zone, a.id, b.id), ns.WalkCost(zone, b.id, a.id)
             if ab and ba then return (ab + ba) / 2 end
@@ -138,9 +143,10 @@ function ns.PlanRoute(zone, nodes, sx, sy)
     for i, node in ipairs(nodes) do
         pts[i] = {}
         for k, p in ipairs(Points(node)) do
-            -- a moved spot has no walking costs worked out: straight lines
+            -- a moved spot has no terrain costs worked out (the graph's cover it)
             local moved = ns.MovedSpot and ns.MovedSpot(node)
-            pts[i][k] = { x = p[1], y = p[2], id = not moved and ns.PointID and ns.PointID(zone, node, k) or nil }
+            pts[i][k] = { x = p[1], y = p[2], node = true,
+                          id = not moved and ns.PointID and ns.PointID(zone, node, k) or nil }
         end
     end
 
