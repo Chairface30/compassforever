@@ -1034,6 +1034,35 @@ rt.execute("PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.42, 0.65 NOW = NOW + 2")
 check("on the stop's continent there's no crossing", rt.eval("NS.Crossing(ELWYNN, NS.CurrentStop()) == nil"))
 rt.execute("NS.StopRoute() UnitFactionGroup = nil")
 
+print("zone lines")
+zl = rt.eval("""(function()
+    local z = NS.ZoneByMap(1412)
+    local ax, ay = NS.ZoneToContinentPoint(z, 0.45, 0.45)
+    local bx, by = NS.ZoneToContinentPoint(z, 0.55, 0.45)
+    local _, c0 = NS.FindContinentPathNow(z.continent, ax, ay, bx, by, z)
+    NS.db.zonelines = { [z.ach] = { { 0.5, 0.35, 0.5, 0.55 } } }
+    NS.WallsChanged()
+    local _, cl = NS.FindContinentPathNow(z.continent, ax, ay, bx, by, z)
+    local _, cx = NS.FindContinentPathNow(z.continent, ax, ay, bx, by, nil)
+    local _, cz = NS.FindPathNow(z, 0.45, 0.45, 0.55, 0.45)
+    local _, cz0
+    NS.db.zonelines = nil NS.WallsChanged()
+    _, cz0 = NS.FindPathNow(z, 0.45, 0.45, 0.55, 0.45)
+    return string.format("%.0f,%.0f,%.0f,%.0f,%.0f", c0, cl, cx, cz, cz0)
+end)()""")
+c0, cl, cx, cz, cz0 = map(float, zl.split(","))
+check(f"a path inside the zone goes round a zone line ({c0:.0f} -> {cl:.0f} yd)", cl > c0 + 20, zl)
+check(f"one from another zone crosses it ({cx:.0f} yd)", abs(cx - c0) < 1, zl)
+check(f"the zone's own paths go round it too ({cz0:.0f} -> {cz:.0f})", cz > cz0 + 20, zl)
+rt.execute("""NS.db.zonelines = { [ELWYNN.ach] = { { 0.1, 0.2, 0.3, 0.4 } } }
+    ZSHARE = NS.ExportEdits() NS.db.zonelines = nil
+    NS.ImportEdits(NS.ParseEdits(ZSHARE), "add")""")
+check("zone lines are shared too", rt.eval("NS.db.zonelines and #NS.db.zonelines[ELWYNN.ach] == 1"))
+rt.execute("NS.db.zonelines = nil NS.WallsChanged()")
+rt.execute("NS.ShowZone(ELWYNN) NS.SetEditing(true) NS.WindowWallMode(true, 'zonelines') NS.WindowWallClick('LeftButton', 0.3, 0.3) NS.WindowWallClick('LeftButton', 0.4, 0.3) NS.WindowWallClick('RightButton', 0.4, 0.3)")
+check("drawn with Zone line ticked, it's a zone line", rt.eval("NS.db.zonelines and #NS.db.zonelines[ELWYNN.ach] == 1 and not (NS.db.walls and NS.db.walls[ELWYNN.ach])"))
+rt.execute("NS.WindowWallMode(false) NS.db.zonelines = nil NS.WallsChanged()")
+
 print("per character")
 rt.execute("""ALT_ONLY = true EXPLORED[1429] = {}
     for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = true end NS.InvalidateProgress()""")

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Zone lines: in Walls mode tick Zone line (on the map) to draw purple
+  lines that work as walls only for paths that stay in the zone (stop to
+  stop, or from you while you're in it); a path coming from another zone
+  crosses them. Shared and built in like walls.
 - A stop on the other continent: the arrow, the lines and the flight
   planner take you to the nearest zeppelin (Horde) or boat (Alliance;
   Ratchet to Booty Bay for everyone) across, flying to it when that's

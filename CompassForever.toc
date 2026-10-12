@@ -17,6 +17,7 @@ Data\Terrain.lua
 Data\Flights.lua
 Data\Walls.lua
 Data\Roads.lua
+Data\ZoneLines.lua
 Data\Spots.lua
 Progress.lua
 Route.lua

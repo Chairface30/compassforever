@@ -764,6 +764,7 @@ end
 
 local WALL_COLOR = { 1, 0.25, 0.2, 0.95 }
 local ROAD_COLOR = { 0.6, 1, 0.05, 1 }       -- bright lime green
+local ZONE_LINE_COLOR = { 0.8, 0.45, 1, 1 }  -- purple
 
 -- Only the player's own lines are drawn and edited; shipped ones (Data/)
 -- still steer paths but stay out of sight.
@@ -805,8 +806,8 @@ local function DrawWalls()
         Draw(pts, r, g, b, a)
     end
     -- the kind being edited in full, the rest faintly, so they can be seen
-    for _, kind in ipairs({ "roads", "walls" }) do
-        local c = kind == "roads" and ROAD_COLOR or WALL_COLOR
+    for _, kind in ipairs({ "roads", "walls", "zonelines" }) do
+        local c = kind == "roads" and ROAD_COLOR or kind == "zonelines" and ZONE_LINE_COLOR or WALL_COLOR
         local alpha = (wallMode and editKind == kind) and c[4] or 0.45
         for _, wall in ipairs(Lines(zone, kind)) do
             if wall.circle then
@@ -895,7 +896,7 @@ WallClick = function(button, x, y)
             table.insert(walls, drawing)
             ns.WallsChanged()
             ns.Print(string.format("%s added (%d in %s). Left-click to start the next one.",
-                editKind == "roads" and "Road" or "Wall", #walls, zone.name))
+                editKind == "roads" and "Road" or editKind == "zonelines" and "Zone line" or "Wall", #walls, zone.name))
         end
         drawing = nil
     else
@@ -914,7 +915,10 @@ local function SetWallMode(on, kind)
     editKind = kind or "walls"
     drawing, circleCenter = nil, nil
     if wallButton then
-        wallButton:SetText((wallMode and editKind == "walls") and "|cffff5544Walls|r" or "Walls")
+        local walling = wallMode and (editKind == "walls" or editKind == "zonelines")
+        wallButton:SetText(walling and "|cffff5544Walls|r" or "Walls")
+        frame.zoneLineCheck:SetShown(walling and true or false)
+        frame.zoneLineCheck:SetChecked(editKind == "zonelines")
     end
     if frame and frame.roadButton then
         frame.roadButton:SetText((wallMode and editKind == "roads") and "|cff99ff0dRoads|r" or "Roads")
@@ -1438,12 +1442,14 @@ local function Build()
     wallButton:SetSize(48, 22)
     wallButton:SetPoint("RIGHT", meButton, "LEFT", -4, 0)
     wallButton:SetText("Walls")
-    wallButton:SetScript("OnClick", function() SetWallMode(not (wallMode and editKind == "walls"), "walls") end)
+    wallButton:SetScript("OnClick", function()
+        SetWallMode(not (wallMode and (editKind == "walls" or editKind == "zonelines")), "walls")
+    end)
     Tip(wallButton, "Draw walls",
         "On a zone's map: left-click to add corners of a wall, right-click to finish it. "
         .. "Shift-click a circle's middle, then Shift-click its edge. "
         .. "Right-click a wall or circle to remove it. Routes never cross a wall or enter a circle. "
-        .. "Click Walls again when done.")
+        .. "Tick Zone line (on the map) to draw zone lines instead. Click Walls again when done.")
     frame.roadButton = CreateFrame("Button", nil, strip, "UIPanelButtonTemplate")
     frame.roadButton:SetSize(48, 22)
     frame.roadButton:SetPoint("RIGHT", wallButton, "LEFT", -4, 0)
@@ -1527,6 +1533,28 @@ local function Build()
     Tip(done, "Done mapping",
         "Tick when this zone's walls, roads and spots are all laid out: it gets a * in the list, "
         .. "ready to be built into the addon. Zones already built in show in purple.")
+
+    -- On the map's other corner, in Walls mode: draw zone lines instead,
+    -- walls only for paths that stay in the zone.
+    frame.zoneLineCheck = CreateFrame("CheckButton", nil, frame, "UICheckButtonTemplate")
+    frame.zoneLineCheck:SetSize(24, 24)
+    frame.zoneLineCheck:SetPoint("TOPRIGHT", border, "TOPRIGHT", -84, -6)
+    frame.zoneLineCheck:SetFrameLevel(mapBox:GetFrameLevel() + 20)
+    local zlBg = frame.zoneLineCheck:CreateTexture(nil, "BACKGROUND")
+    zlBg:SetPoint("TOPLEFT", -2, 2)
+    zlBg:SetSize(104, 28)
+    zlBg:SetColorTexture(0, 0, 0, 0.55)
+    local zlText = frame.zoneLineCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    zlText:SetPoint("LEFT", frame.zoneLineCheck, "RIGHT", 2, 0)
+    zlText:SetText("|cffcc73ffZone line|r")
+    frame.zoneLineCheck:SetScript("OnClick", function(self)
+        SetWallMode(true, self:GetChecked() and "zonelines" or "walls")
+    end)
+    frame.zoneLineCheck:Hide()
+    Tip(frame.zoneLineCheck, "Zone line",
+        "Draws zone lines (purple) instead of walls: the waypoints inside this zone never cross one, "
+        .. "but a path coming from or going to another zone may. Use them along the zone's edge "
+        .. "where the route must stay in.")
 
     -- On the map's other corner, in Spots mode: the area you stand in gets
     -- its spot where you are.

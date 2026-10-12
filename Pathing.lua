@@ -384,6 +384,7 @@ end
 -- for the step from (i, j) to (i + 1, j), "i:j:y" for (i, j) to (i, j + 1).
 
 local wallSteps, wallLines = {}, {}
+local zoneLineSteps = {}      -- per zone: its zone lines' { cut, segs }
 local roadPoints = {}
 
 -- Roads drawn by hand on a zone's map (the window's road mode, or shipped
@@ -414,9 +415,21 @@ function ns.ZoneWalls(zone)
     return Both(ns.WALLS and ns.WALLS[zone.ach], ns.OwnLines(zone, "walls"))
 end
 
+function ns.ZoneLines(zone)
+    return Both(ns.ZONELINES and ns.ZONELINES[zone.ach], ns.OwnLines(zone, "zonelines"))
+end
+
+-- The zone whose zone lines a path from the player to a point of `zone`
+-- keeps to: that zone while the player is in it, else none.
+function ns.LocalZone(zone)
+    if zone and ns.CurrentZone and ns.CurrentZone() == zone then return zone end
+    return nil
+end
+
 -- Forget the cut steps and every path found, after a wall changes.
 function ns.WallsChanged()
     wallSteps, wallLines, roadPoints = {}, {}, {}
+    zoneLineSteps = {}
     if ns.ForgetPaths then ns.ForgetPaths() end
     ns.Fire("path")
 end
@@ -438,6 +451,60 @@ local function GridUnits(cont, x, y)
     return (32 * TILE - wy) / NODE, (32 * TILE - wx) / NODE
 end
 
+-- One wall's steps cut (into `cut`) and its lines on the continent map
+-- (into `segs`).
+local function AddWall(cont, zone, wall, cut, segs)
+    local circle = wall.circle
+    if circle then
+        -- every step to or from a point inside is cut
+        local cx, cy = ns.ZoneToContinentPoint(zone, circle[1], circle[2])
+        if cx then
+            local gi, gj = GridUnits(cont, cx, cy)
+            local rg = circle[3] / NODE
+            for i = math.floor(gi - rg), math.ceil(gi + rg) do
+                for j = math.floor(gj - rg), math.ceil(gj + rg) do
+                    if (i - gi) ^ 2 + (j - gj) ^ 2 <= rg * rg then
+                        cut[i .. ":" .. j .. ":x"] = true
+                        cut[(i - 1) .. ":" .. j .. ":x"] = true
+                        cut[i .. ":" .. j .. ":y"] = true
+                        cut[i .. ":" .. (j - 1) .. ":y"] = true
+                    end
+                end
+            end
+            segs[#segs + 1] = { circle = true, cx, cy, circle[3] / cont.w, circle[3] / cont.h }
+        end
+    else
+        local pts = {}
+        local fr = {}
+        for k = 1, #wall - 1, 2 do
+            local cx, cy = ns.ZoneToContinentPoint(zone, wall[k], wall[k + 1])
+            if cx then
+                local gi, gj = GridUnits(cont, cx, cy)
+                pts[#pts + 1], pts[#pts + 2] = gi, gj
+                fr[#fr + 1], fr[#fr + 2] = cx, cy
+            end
+        end
+        for k = 1, #fr - 3, 2 do
+            segs[#segs + 1] = { fr[k], fr[k + 1], fr[k + 2], fr[k + 3] }
+        end
+        for k = 1, #pts - 3, 2 do
+            local ax, ay, bx, by = pts[k], pts[k + 1], pts[k + 2], pts[k + 3]
+            -- every step near the line, tested against it
+            local len = math.sqrt((bx - ax) ^ 2 + (by - ay) ^ 2)
+            local n = math.max(1, math.ceil(len * 2))
+            for s = 0, n do
+                local x, y = ax + (bx - ax) * s / n, ay + (by - ay) * s / n
+                for i = math.floor(x) - 1, math.floor(x) + 1 do
+                    for j = math.floor(y) - 1, math.floor(y) + 1 do
+                        if Crosses(i, j, i + 1, j, ax, ay, bx, by) then cut[i .. ":" .. j .. ":x"] = true end
+                        if Crosses(i, j, i, j + 1, ax, ay, bx, by) then cut[i .. ":" .. j .. ":y"] = true end
+                    end
+                end
+            end
+        end
+    end
+end
+
 local function WallSteps(c)
     local cut = wallSteps[c]
     if cut then return cut end
@@ -449,60 +516,25 @@ local function WallSteps(c)
     if not (cont and cont.maxX and ns.ZoneToContinentPoint) then return cut end
     for _, zone in ipairs(ns.ZONES) do
         if zone.continent == c then
-            for _, wall in ipairs(ns.ZoneWalls(zone)) do
-              local circle = wall.circle
-              if circle then
-                -- every step to or from a point inside is cut
-                local cx, cy = ns.ZoneToContinentPoint(zone, circle[1], circle[2])
-                if cx then
-                    local gi, gj = GridUnits(cont, cx, cy)
-                    local rg = circle[3] / NODE
-                    for i = math.floor(gi - rg), math.ceil(gi + rg) do
-                        for j = math.floor(gj - rg), math.ceil(gj + rg) do
-                            if (i - gi) ^ 2 + (j - gj) ^ 2 <= rg * rg then
-                                cut[i .. ":" .. j .. ":x"] = true
-                                cut[(i - 1) .. ":" .. j .. ":x"] = true
-                                cut[i .. ":" .. j .. ":y"] = true
-                                cut[i .. ":" .. (j - 1) .. ":y"] = true
-                            end
-                        end
-                    end
-                    segs[#segs + 1] = { circle = true, cx, cy, circle[3] / cont.w, circle[3] / cont.h }
-                end
-              else
-                local pts = {}
-                local fr = {}
-                for k = 1, #wall - 1, 2 do
-                    local cx, cy = ns.ZoneToContinentPoint(zone, wall[k], wall[k + 1])
-                    if cx then
-                        local gi, gj = GridUnits(cont, cx, cy)
-                        pts[#pts + 1], pts[#pts + 2] = gi, gj
-                        fr[#fr + 1], fr[#fr + 2] = cx, cy
-                    end
-                end
-                for k = 1, #fr - 3, 2 do
-                    segs[#segs + 1] = { fr[k], fr[k + 1], fr[k + 2], fr[k + 3] }
-                end
-                for k = 1, #pts - 3, 2 do
-                    local ax, ay, bx, by = pts[k], pts[k + 1], pts[k + 2], pts[k + 3]
-                    -- every step near the line, tested against it
-                    local len = math.sqrt((bx - ax) ^ 2 + (by - ay) ^ 2)
-                    local n = math.max(1, math.ceil(len * 2))
-                    for s = 0, n do
-                        local x, y = ax + (bx - ax) * s / n, ay + (by - ay) * s / n
-                        for i = math.floor(x) - 1, math.floor(x) + 1 do
-                            for j = math.floor(y) - 1, math.floor(y) + 1 do
-                                if Crosses(i, j, i + 1, j, ax, ay, bx, by) then cut[i .. ":" .. j .. ":x"] = true end
-                                if Crosses(i, j, i, j + 1, ax, ay, bx, by) then cut[i .. ":" .. j .. ":y"] = true end
-                            end
-                        end
-                    end
-                end
-              end
-            end
+            for _, wall in ipairs(ns.ZoneWalls(zone)) do AddWall(cont, zone, wall, cut, segs) end
         end
     end
     return cut
+end
+
+-- A zone's zone lines: walls only for paths that stay in the zone (stop to
+-- stop, or from you while you're in it); a path from another zone crosses
+-- them. { cut, segs } as WallSteps, per zone.
+local function ZoneLineSteps(zone)
+    local z = zoneLineSteps[zone.ach]
+    if z then return z end
+    z = { cut = {}, segs = {} }
+    zoneLineSteps[zone.ach] = z
+    local cont = ns.CONTINENT_YARDS and ns.CONTINENT_YARDS[zone.continent]
+    if cont and cont.maxX and ns.ZoneToContinentPoint then
+        for _, line in ipairs(ns.ZoneLines(zone)) do AddWall(cont, zone, line, z.cut, z.segs) end
+    end
+    return z
 end
 
 -- The continent grid points under the drawn roads ("i:j"), a few yards
@@ -579,7 +611,10 @@ end
 local function WalledZoneSpace(zone, g)
     local sp = ZoneSpace(g)
     local own = {}
-    for _, wall in ipairs(ns.ZoneWalls(zone)) do
+    local all = {}
+    for _, wall in ipairs(ns.ZoneWalls(zone)) do all[#all + 1] = wall end
+    for _, wall in ipairs(ns.ZoneLines(zone)) do all[#all + 1] = wall end
+    for _, wall in ipairs(all) do
         local c = wall.circle
         if c then
             own[#own + 1] = { circle = true, c[1], c[2], c[3] / zone.w, c[3] / zone.h }
@@ -594,15 +629,16 @@ local function WalledZoneSpace(zone, g)
         sp.DrawnRoad = function(_, i, j) return road[(i + g.gx) .. ":" .. (j + g.gy)] end
     end
     local cut = WallSteps(zone.continent)
+    local zcut = ZoneLineSteps(zone).cut
     local can = sp.Can
     sp.Can = function(self, i, j, di, dj)
-        if Walled(cut, i + g.gx, j + g.gy, di, dj) then return nil end
+        if Walled(cut, i + g.gx, j + g.gy, di, dj) or Walled(zcut, i + g.gx, j + g.gy, di, dj) then return nil end
         return can(self, i, j, di, dj)
     end
     return sp
 end
 
-function ns.ContinentSpace(c)
+function ns.ContinentSpace(c, localZone)
     local cont = ns.CONTINENT_YARDS and ns.CONTINENT_YARDS[c]
     if not (cont and cont.maxX) then return nil end
     local grids = ContinentGrids(c)
@@ -629,6 +665,17 @@ function ns.ContinentSpace(c)
     for _, g in ipairs(grids) do if g.roads then hasRoads = true end end
     local cut = WallSteps(c)
     local segs = wallLines[c] or {}
+    local zcut
+    if localZone then
+        local z = ZoneLineSteps(localZone)
+        if next(z.cut) then zcut = z.cut end
+        if #z.segs > 0 then
+            local both = {}
+            for _, w in ipairs(segs) do both[#both + 1] = w end
+            for _, w in ipairs(z.segs) do both[#both + 1] = w end
+            segs = both
+        end
+    end
     local road = RoadPoints(c)
     return {
         yd = NODE, xs = cont.w, ys = cont.h, hasRoads = hasRoads, cont = cont,
@@ -648,6 +695,7 @@ function ns.ContinentSpace(c)
         end,
         Can = function(_, i, j, di, dj)
             if Walled(cut, i, j, di, dj) then return nil end
+            if zcut and Walled(zcut, i, j, di, dj) then return nil end
             local g = Find(i, j, i + di, j + dj)
             if g then return Can(g, i - g.gx, j - g.gy, di, dj) end
             if Any(i, j) or Any(i + di, j + dj) then return UNKNOWN end
@@ -732,8 +780,8 @@ end
 function ns.PathJobs() return #jobs end
 
 -- For the tests: a continent search run to the end at once.
-function ns.FindContinentPathNow(c, fx, fy, tx, ty)
-    local sp = ns.ContinentSpace(c)
+function ns.FindContinentPathNow(c, fx, fy, tx, ty, localZone)
+    local sp = ns.ContinentSpace(c, localZone)
     if not sp then return nil end
     local co = coroutine.create(function() return Search(sp, fx, fy, tx, ty) end)
     while true do
@@ -799,11 +847,11 @@ end
 -- along the path; nil while there is no path yet (the arrow then points
 -- straight). `c` is the continent (0 or 1); `stop`, px and py are on its
 -- map.
-function ns.Steer(c, stop, px, py)
-    local sp = ns.ContinentSpace(c)
+function ns.Steer(c, stop, px, py, localZone)
+    local sp = ns.ContinentSpace(c, localZone)
     if not sp then return nil end
     local cont = sp.cont
-    local key = string.format("%d:%.5f:%.5f", c, stop.x, stop.y)
+    local key = string.format("%d:%.5f:%.5f:%d", c, stop.x, stop.y, localZone and localZone.ach or 0)
     local now = Now()
     if steer.key ~= key then
         steer.key, steer.path, steer.asked = key, nil, nil
@@ -864,10 +912,10 @@ function ns.ForgetPaths()
     steer.key, steer.path, steer.asked = nil, nil, nil
 end
 
-function ns.PathBetween(c, ax, ay, bx, by)
-    local sp = ns.ContinentSpace(c)
+function ns.PathBetween(c, ax, ay, bx, by, localZone)
+    local sp = ns.ContinentSpace(c, localZone)
     if not sp then return nil end
-    local key = string.format("%d:%.5f:%.5f:%.5f:%.5f", c, ax, ay, bx, by)
+    local key = string.format("%d:%.5f:%.5f:%.5f:%.5f:%d", c, ax, ay, bx, by, localZone and localZone.ach or 0)
     local p = between[key]
     if p == nil then
         between[key] = false

@@ -84,7 +84,7 @@ function ns.LoadSettings()
     local db = CompassForeverDB
     -- whoever already drew or moved something keeps the tools showing
     if db.editing == nil then
-        for _, key in ipairs({ "walls", "roads", "spots", "finished" }) do
+        for _, key in ipairs({ "walls", "roads", "zonelines", "spots", "finished" }) do
             if type(db[key]) == "table" and next(db[key]) then db.editing = true end
         end
     end

@@ -3,7 +3,8 @@ addon's data, for the zones named.
 
   python tools/bake_edits.py <CompassForever.lua saved variables> <zone ach> [...]
 
-Walls and roads go to Data/Walls.lua and Data/Roads.lua, spots (each area's
+Walls, roads and zone lines go to Data/Walls.lua, Data/Roads.lua and
+Data/ZoneLines.lua, spots (each area's
 moved spot, by criteria) to Data/Spots.lua. A zone already there is
 replaced. In the game the saved copies of what was baked are dropped at
 login (Spots.lua), so they don't show as the player's own.
@@ -77,7 +78,8 @@ def main():
     zones = to_py(ex.eval("NS.ZONES"))
     criteria_of = {z["ach"]: {n["criteria"] for n in z["nodes"]} for z in zones}
 
-    for kind, var, fname in (("walls", "WALLS", "Walls.lua"), ("roads", "ROADS", "Roads.lua")):
+    for kind, var, fname in (("walls", "WALLS", "Walls.lua"), ("roads", "ROADS", "Roads.lua"),
+                             ("zonelines", "ZONELINES", "ZoneLines.lua")):
         path = os.path.join(ADDON, "Data", fname)
         blocks = read_existing(path, var)
         mine = db.get(kind) or {}

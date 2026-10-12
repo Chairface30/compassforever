@@ -4,7 +4,7 @@
 -- friend any way they like, and read back in on their side.
 --
 -- The text: "CF1:" zones ":" checksum, with zones split by "|", each
--- ach/walls/roads/spots. Walls and roads split by "_", their numbers by ".";
+-- ach/walls/roads/spots/zone lines (the last left off when there are none). Walls and roads split by "_", their numbers by ".";
 -- a circle starts with "o" (middle x, y and its radius in yards). Spots are
 -- criteria.x.y, split by "_". Fractions are whole ten-thousandths; every
 -- number is in base 36.
@@ -75,11 +75,12 @@ function ns.OwnEditCounts(zone)
     local db = ns.db
     local w = db.walls and db.walls[zone.ach]
     local r = db.roads and db.roads[zone.ach]
+    local z = db.zonelines and db.zonelines[zone.ach]
     local s = 0
     for _, node in ipairs(zone.nodes) do
         if node.criteria and db.spots and db.spots[node.criteria] then s = s + 1 end
     end
-    return w and #w or 0, r and #r or 0, s
+    return w and #w or 0, r and #r or 0, s, z and #z or 0
 end
 
 -- The share text for the zones given (all with edits of the player's own
@@ -88,8 +89,8 @@ function ns.ExportEdits(zones)
     local db = ns.db
     local parts = {}
     for _, zone in ipairs(zones or ns.ZONES) do
-        local w, r, s = ns.OwnEditCounts(zone)
-        if w + r + s > 0 then
+        local w, r, s, z = ns.OwnEditCounts(zone)
+        if w + r + s + z > 0 then
             local spots = {}
             for _, node in ipairs(zone.nodes) do
                 local xy = node.criteria and db.spots and db.spots[node.criteria]
@@ -97,6 +98,7 @@ function ns.ExportEdits(zones)
             end
             parts[#parts + 1] = B36(zone.ach) .. "/" .. LinesText(db.walls and db.walls[zone.ach])
                 .. "/" .. LinesText(db.roads and db.roads[zone.ach]) .. "/" .. table.concat(spots, "_")
+                .. (z > 0 and ("/" .. LinesText(db.zonelines[zone.ach])) or "")
         end
     end
     if #parts == 0 then return nil, 0 end
@@ -148,9 +150,9 @@ function ns.ParseEdits(text)
     for _, part in ipairs(Split(body, "|")) do
         local f = Split(part, "/")
         local zone = ns.ZoneByAch(Num36(f[1]) or -1)
-        if not zone or #f ~= 4 then return nil, "The text names a zone this version doesn't know." end
-        local walls, roads = ReadLines(f[2]), ReadLines(f[3])
-        if not (walls and roads) then return nil, "A wall or road in " .. zone.name .. " can't be read." end
+        if not zone or (#f ~= 4 and #f ~= 5) then return nil, "The text names a zone this version doesn't know." end
+        local walls, roads, zonelines = ReadLines(f[2]), ReadLines(f[3]), ReadLines(f[5] or "")
+        if not (walls and roads and zonelines) then return nil, "A line in " .. zone.name .. " can't be read." end
         local crits = {}
         for _, node in ipairs(zone.nodes) do if node.criteria then crits[node.criteria] = true end end
         local spots, n = {}, 0
@@ -161,7 +163,7 @@ function ns.ParseEdits(text)
             spots[c] = { x / 10000, y / 10000 }
             n = n + 1
         end
-        out[#out + 1] = { zone = zone, walls = walls, roads = roads, spots = spots, spotCount = n }
+        out[#out + 1] = { zone = zone, walls = walls, roads = roads, zonelines = zonelines, spots = spots, spotCount = n }
     end
     return out
 end
@@ -184,9 +186,10 @@ end
 function ns.ImportEdits(list, mode)
     local db = ns.db
     db.walls, db.roads, db.spots = db.walls or {}, db.roads or {}, db.spots or {}
+    db.zonelines = db.zonelines or {}
     for _, z in ipairs(list) do
         local ach = z.zone.ach
-        for _, kind in ipairs({ "walls", "roads" }) do
+        for _, kind in ipairs({ "walls", "roads", "zonelines" }) do
             local mine = mode == "replace" and {} or (db[kind][ach] or {})
             for _, line in ipairs(z[kind]) do
                 local dup = false
@@ -215,9 +218,11 @@ end
 function ns.DescribeEdits(list)
     local out = {}
     for _, z in ipairs(list) do
-        out[#out + 1] = string.format("%s: %d wall%s, %d road%s, %d spot%s", z.zone.name,
+        local zl = #(z.zonelines or {})
+        out[#out + 1] = string.format("%s: %d wall%s, %d road%s, %d spot%s%s", z.zone.name,
             #z.walls, #z.walls == 1 and "" or "s", #z.roads, #z.roads == 1 and "" or "s",
-            z.spotCount, z.spotCount == 1 and "" or "s")
+            z.spotCount, z.spotCount == 1 and "" or "s",
+            zl > 0 and string.format(", %d zone line%s", zl, zl == 1 and "" or "s") or "")
     end
     return table.concat(out, "\n")
 end

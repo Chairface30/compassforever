@@ -46,7 +46,7 @@ function ns.StopVector(zone, stop)
         local sx, sy = ns.ZoneToContinentPoint(zone, stop.x, stop.y)
         if cx and sx then
             if ns.Steer then
-                local ax, ay, left = ns.Steer(zone.continent, { x = sx, y = sy }, cx, cy)
+                local ax, ay, left = ns.Steer(zone.continent, { x = sx, y = sy }, cx, cy, ns.LocalZone(zone))
                 if ax then return Bearing(cx, cy, ax, ay, cont.w, cont.h), left end
             end
             return Bearing(cx, cy, sx, sy, cont.w, cont.h)
@@ -73,7 +73,8 @@ local function TravelVector()
     if not px then return nil end
     -- Along the walking path on the continent.
     if ns.Steer and ns.travel and ns.travel.zone then
-        local ax, ay, left = ns.Steer(ns.travel.zone.continent, { x = t.x, y = t.y }, px, py)
+        local ax, ay, left = ns.Steer(ns.travel.zone.continent, { x = t.x, y = t.y }, px, py,
+            ns.LocalZone(ns.travel.zone))
         if ax then return Bearing(px, py, ax, ay, t.w, t.h), left end
     end
     return Bearing(px, py, t.x, t.y, t.w, t.h)

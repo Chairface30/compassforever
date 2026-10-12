@@ -24,6 +24,7 @@ end
 function ns.ZoneHandMapped(zone)
     if ns.WALLS and ns.WALLS[zone.ach] and #ns.WALLS[zone.ach] > 0 then return true end
     if ns.ROADS and ns.ROADS[zone.ach] and #ns.ROADS[zone.ach] > 0 then return true end
+    if ns.ZONELINES and ns.ZONELINES[zone.ach] and #ns.ZONELINES[zone.ach] > 0 then return true end
     for _, node in ipairs(zone.nodes) do
         if node.criteria and ns.SPOTS and ns.SPOTS[node.criteria] then return true end
     end
@@ -57,7 +58,7 @@ end
 
 local function DropShipped()
     local db = ns.db
-    for kind, shippedAll in pairs({ walls = ns.WALLS or {}, roads = ns.ROADS or {} }) do
+    for kind, shippedAll in pairs({ walls = ns.WALLS or {}, roads = ns.ROADS or {}, zonelines = ns.ZONELINES or {} }) do
         local mineAll = db[kind]
         if mineAll then
             for ach, mine in pairs(mineAll) do
@@ -82,7 +83,8 @@ local function DropShipped()
     end
     for _, zone in ipairs(ns.ZONES) do
         if ns.ZoneMarkedDone(zone) and ns.ZoneHandMapped(zone)
-                and not ns.OwnLines(zone, "walls") and not ns.OwnLines(zone, "roads") then
+                and not ns.OwnLines(zone, "walls") and not ns.OwnLines(zone, "roads")
+                and not ns.OwnLines(zone, "zonelines") then
             local own = false
             for _, node in ipairs(zone.nodes) do
                 if node.criteria and db.spots and db.spots[node.criteria] then own = true end
