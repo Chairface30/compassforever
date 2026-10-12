@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Options, Display: Open instead of the world map. Your world map key (M
+  unless rebound) opens Compass Forever; the world map still opens from the
+  minimap, the quest log and its other buttons. Off by default.
+- A Map only button in the window's header hides the zone list and
+  everything under the map, shrinking the window to its map; Full view
+  brings them back. The window remembers which.
 - Walls: the Walls button over the window's map turns on wall drawing for
   the zone shown. Left-click adds corners, right-click finishes a wall,
   right-click on a wall removes it. Walking paths, the arrow and the drawn

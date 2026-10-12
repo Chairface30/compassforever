@@ -41,6 +41,7 @@ local CONTINENT_MAP = { [0] = 1415, [1] = 1414 }
 local CONTINENT_NAME = { [0] = "Eastern Kingdoms", [1] = "Kalimdor" }
 
 local frame, mapBox, scroll, listChild
+local leftSide, belowMap, mapBorder, mapOnlyButton
 local overallBar, contButtons, trail, strip, zoomIn, zoomOut
 local optionsButton, options, optionBoxes
 local zoneTitle, zoneInfo, nextInfo, hint, routeButton, skipButton
@@ -975,6 +976,11 @@ local OPTIONS = {
           .. "plus a bar to start the route.",
       get = function() return ns.db.mapPins end,
       set = function(on) ns.db.mapPins = on ns.Fire("settings") end },
+    { label = "Open instead of the world map", desc = "The world map key opens this window.",
+      tip = "Your world map key (M unless you changed it) opens Compass Forever instead. "
+          .. "The world map still opens from the minimap, the quest log and its other buttons.",
+      get = function() return ns.db.replaceWorldMap end,
+      set = function(on) ns.db.replaceWorldMap = on ns.ApplyMapKey() end },
     { label = "Route on the minimap", desc = "The route's lines and stops around you.",
       tip = "The same lines as the world map, drawn on the minimap at its zoom, with a dot on each stop in reach.",
       get = function() return ns.db.minimapRoute ~= false end,
@@ -1061,8 +1067,13 @@ local function Build()
     optionsButton:SetPoint("TOPRIGHT", -40, -16)
     optionsButton:SetText("Options")
     optionsButton:SetScript("OnClick", function() options:SetShown(not options:IsShown()) end)
+    mapOnlyButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    mapOnlyButton:SetSize(84, 22)
+    mapOnlyButton:SetPoint("RIGHT", optionsButton, "LEFT", -6, 0)
+    mapOnlyButton:SetScript("OnClick", function() ns.SetMapOnly(not ns.db.mapOnly) end)
+    Tip(mapOnlyButton, "Map only", "Hide the zone list and everything under the map, or bring them back.")
     overallBar = Bar(frame, 300, 16)
-    overallBar:SetPoint("RIGHT", optionsButton, "LEFT", -16, 0)
+    overallBar:SetPoint("RIGHT", mapOnlyButton, "LEFT", -16, 0)
     local rule = frame:CreateTexture(nil, "ARTWORK")
     rule:SetColorTexture(0.8, 0.65, 0.3, 0.35)
     rule:SetPoint("TOPLEFT", PAD, -46)
@@ -1070,9 +1081,11 @@ local function Build()
     rule:SetHeight(1)
 
     -- The left side: a tab for each continent over its zones.
+    leftSide = CreateFrame("Frame", nil, frame)
+    leftSide:SetAllPoints()
     contButtons = {}
     for i, c in ipairs({ 0, 1 }) do
-        local b = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+        local b = CreateFrame("Button", nil, leftSide, "UIPanelButtonTemplate")
         b:SetSize(LIST_W / 2 - 2, 22)
         b:SetPoint("TOPLEFT", PAD + (i - 1) * (LIST_W / 2 + 2), -54)
         b:SetText(CONTINENT_NAME[c])
@@ -1083,7 +1096,7 @@ local function Build()
         end)
         contButtons[i] = b
     end
-    local listInset = Inset(frame)
+    local listInset = Inset(leftSide)
     listInset:SetPoint("TOPLEFT", PAD, TOP)
     listInset:SetPoint("BOTTOMLEFT", PAD, PAD)
     listInset:SetWidth(LIST_W)
@@ -1141,6 +1154,7 @@ local function Build()
         .. "Right-click a wall to remove it. Routes never cross a wall. Click Walls again when done.")
 
     local border = CreateFrame("Frame", nil, frame, "BackdropTemplate")
+    mapBorder = border
     border:SetPoint("TOPLEFT", MAP_X, TOP)
     border:SetSize(MAP_W + 8, MAP_H + 8)
     if border.SetBackdrop then
@@ -1177,22 +1191,24 @@ local function Build()
 
     -- Under the map: what it shows on the left, the route buttons on the
     -- right, and how to work it along the bottom.
-    zoneTitle = Label(frame, "GameFontNormalLarge", TEXT_W)
+    belowMap = CreateFrame("Frame", nil, frame)
+    belowMap:SetAllPoints()
+    zoneTitle = Label(belowMap, "GameFontNormalLarge", TEXT_W)
     zoneTitle:SetPoint("TOPLEFT", border, "BOTTOMLEFT", 4, -10)
-    zoneInfo = Para(frame, "GameFontHighlight", TEXT_W, 2)
+    zoneInfo = Para(belowMap, "GameFontHighlight", TEXT_W, 2)
     zoneInfo:SetPoint("TOPLEFT", zoneTitle, "BOTTOMLEFT", 0, -6)
-    nextInfo = Para(frame, "GameFontHighlight", TEXT_W, 2)
+    nextInfo = Para(belowMap, "GameFontHighlight", TEXT_W, 2)
     nextInfo:SetPoint("TOPLEFT", zoneInfo, "BOTTOMLEFT", 0, -4)
-    hint = Label(frame, "GameFontDisableSmall", MAP_W)
+    hint = Label(belowMap, "GameFontDisableSmall", MAP_W)
     hint:SetPoint("BOTTOMLEFT", MAP_X + 4, PAD + 2)
 
-    routeButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    routeButton = CreateFrame("Button", nil, belowMap, "UIPanelButtonTemplate")
     routeButton:SetSize(BUTTON_W, 26)
     routeButton:SetPoint("TOPRIGHT", border, "BOTTOMRIGHT", -4, -10)
     routeButton:SetScript("OnClick", function()
         if ns.route and ns.route.zone == view.zone then ns.StopRoute() else ns.StartRoute(view.zone) end
     end)
-    skipButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    skipButton = CreateFrame("Button", nil, belowMap, "UIPanelButtonTemplate")
     skipButton:SetSize(BUTTON_W, 26)
     skipButton:SetPoint("TOPRIGHT", routeButton, "BOTTOMRIGHT", 0, -6)
     skipButton:SetText("Skip this stop")
@@ -1200,6 +1216,7 @@ local function Build()
     Tip(skipButton, "Skip this stop", "Leaves it for the end of the route.")
 
     BuildOptions()
+    ns.SetMapOnly(ns.db.mapOnly)
 
     local elapsed = 0
     frame:SetScript("OnUpdate", function(_, dt)
@@ -1216,6 +1233,54 @@ local function Build()
     frame:SetScript("OnHide", function() options:Hide() end)
     ns.RestorePoint(frame, ns.db.window, "CENTER", "CENTER", 0, 0)
 end
+
+-- Map only: the window shrinks to its header and map; the zone list and
+-- everything under the map are hidden and the map moves left.
+function ns.SetMapOnly(on)
+    ns.db.mapOnly = on and true or false
+    if not frame then return end
+    local only = ns.db.mapOnly
+    leftSide:SetShown(not only)
+    belowMap:SetShown(not only)
+    local x = only and PAD or MAP_X
+    mapBorder:ClearAllPoints()
+    mapBorder:SetPoint("TOPLEFT", x, TOP)
+    strip:ClearAllPoints()
+    strip:SetPoint("TOPLEFT", x + 4, -54)
+    if only then
+        frame:SetSize(MAP_W + 8 + 2 * PAD, -TOP + MAP_H + 8 + PAD)
+    else
+        frame:SetSize(W, H)
+    end
+    overallBar:SetWidth(only and 150 or 300)
+    mapOnlyButton:SetText(only and "Full view" or "Map only")
+end
+
+-- The world map key (M unless rebound) opens this window instead, when
+-- set: an override binding on each key bound to the world map, out of
+-- combat only (bindings can't change in combat).
+local mapKey = CreateFrame("Button", "CompassForeverMapKey", UIParent)
+mapKey:SetScript("OnClick", function() ns.ToggleWindow() end)
+local keyPending
+function ns.ApplyMapKey()
+    if InCombatLockdown() then
+        keyPending = true
+        return
+    end
+    keyPending = nil
+    ClearOverrideBindings(mapKey)
+    if ns.db and ns.db.replaceWorldMap then
+        for _, key in ipairs({ GetBindingKey("TOGGLEWORLDMAP") }) do
+            SetOverrideBindingClick(mapKey, true, key, "CompassForeverMapKey")
+        end
+    end
+end
+mapKey:RegisterEvent("UPDATE_BINDINGS")
+mapKey:RegisterEvent("PLAYER_REGEN_ENABLED")
+mapKey:SetScript("OnEvent", function(_, event)
+    if event == "UPDATE_BINDINGS" or keyPending then ns.ApplyMapKey() end
+end)
+ns.On("login", function() ns.ApplyMapKey() end)
 
 -- Open on `zone`, or on the route's zone, the zone you are in, or your
 -- continent's map.

@@ -23,6 +23,12 @@ NOW = 100
 function GetTime() return NOW end
 CURSOR = { 300, 200 }
 function GetCursorPosition() return CURSOR[1], CURSOR[2] end
+IN_COMBAT = false
+function InCombatLockdown() return IN_COMBAT end
+OVERRIDES = {}
+function GetBindingKey(action) if action == "TOGGLEWORLDMAP" then return "M" end end
+function ClearOverrideBindings(owner) for k, v in pairs(OVERRIDES) do if v.owner == owner then OVERRIDES[k] = nil end end end
+function SetOverrideBindingClick(owner, prio, key, button) OVERRIDES[key] = { owner = owner, button = button } end
 SOUNDS = {}
 HAVE_FANFARE = false
 function PlaySoundFile(path, channel)
@@ -768,6 +774,14 @@ walled = rt.eval("""(function()
 end)()""")
 check(f"a wall sends the path round it ({walled[0]:.0f} yd, then {walled[1]:.0f} yd)", walled[1] > walled[0] + 100 and not walled[2], walled)
 check("and taking it away brings the old path back", abs(walled[3] - walled[0]) < 1, walled)
+
+print("replacing the world map")
+rt.execute("NS.db.replaceWorldMap = true NS.ApplyMapKey()")
+check("the world map key opens the window", rt.eval("OVERRIDES.M and OVERRIDES.M.button") == "CompassForeverMapKey")
+rt.execute("IN_COMBAT = true NS.db.replaceWorldMap = false NS.ApplyMapKey()")
+check("not changed in combat", rt.eval("OVERRIDES.M ~= nil"))
+rt.execute("IN_COMBAT = false NS.ApplyMapKey()")
+check("and given back after", rt.eval("OVERRIDES.M == nil"))
 
 print("window and world map")
 rt.execute("PRINTED = {} NS.ShowZone(ELWYNN)")
