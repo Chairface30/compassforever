@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- The continent and Azeroth maps in the window carry no labels now, only
+  "I'm here!" on the zone you're in.
 - Zone lines: in Walls mode tick Zone line (on the map) to draw purple
   lines that work as walls only for paths that stay in the zone (stop to
   stop, or from you while you're in it); a path coming from another zone
@@ -35,7 +37,6 @@
 - Dead: as a ghost, the arrow, the minimap button and the route lines
   (window, world map, minimap) lead back to your corpse along the walking
   path, in white. Once you're alive the route carries on.
-- The continent map no longer puts a Done badge on fully explored zones.
 - A Done mapping this zone tick box on a zone's map: ticked, the zone gets a
   gold * in the list, ready to be built in. Zones already mapped by hand
   (built in) show their names in purple.

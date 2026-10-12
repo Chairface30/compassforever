@@ -1052,29 +1052,14 @@ local function DrawRouteStops(used)
     end
 end
 
-local function DrawContinent(c)
-    local n = 0
-    for _, zone in ipairs(ns.ZONES) do
-        if zone.continent == c then
-            local x, y = MiddleOn(zone.map)
-            local d, t = ns.ZoneCounts(zone)
-            -- a fully explored zone gets no badge: its map is left clear
-            if x and d < t then
-                n = n + 1
-                PlaceBadge(Badge(n), GOLD .. (t - d) .. " left|r", x, y)
-            end
-        end
-    end
-end
-
-local function DrawWorld()
-    for c, mapID in pairs(CONTINENT_MAP) do
-        local x, y = MiddleOn(mapID)
-        if x then
-            local ad, at, zd, zt = ns.Totals(c)
-            PlaceBadge(Badge(c + 1), string.format("%s\n%s%d / %d zones|r", CONTINENT_NAME[c],
-                zd == zt and GREEN or GOLD, zd, zt), x, y)
-        end
+-- Continents and Azeroth carry no labels but one: "I'm here!" on the zone
+-- you're in, when it's on the shown map.
+local function DrawHere()
+    local zone = ns.CurrentZone()
+    if not zone then return end
+    local x, y = MiddleOn(zone.map)
+    if x and x >= 0 and x <= 1 and y >= 0 and y <= 1 then
+        PlaceBadge(Badge(1), GOLD .. "I'm here!|r", x, y)
     end
 end
 
@@ -1088,8 +1073,7 @@ DrawMap = function()
     pcall(DrawArt, view.map, view.zone)
     local used = 0
     if view.kind == "zone" then used = DrawZone(view.zone)
-    elseif view.kind == "continent" then DrawContinent(continent)
-    elseif view.kind == "world" then DrawWorld() end
+    elseif view.kind == "continent" or view.kind == "world" then DrawHere() end
     DrawRouteStops(used)
     DrawPlayer()
     -- in wall mode the markers stay in sight but let clicks through to the

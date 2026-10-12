@@ -1063,6 +1063,18 @@ rt.execute("NS.ShowZone(ELWYNN) NS.SetEditing(true) NS.WindowWallMode(true, 'zon
 check("drawn with Zone line ticked, it's a zone line", rt.eval("NS.db.zonelines and #NS.db.zonelines[ELWYNN.ach] == 1 and not (NS.db.walls and NS.db.walls[ELWYNN.ach])"))
 rt.execute("NS.WindowWallMode(false) NS.db.zonelines = nil NS.WallsChanged()")
 
+print("continent labels")
+rt.execute("for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = nil end NS.InvalidateProgress() PLAYER.map = 1429 NS.WindowOpen({ continent = 0 })")
+shown = rt.eval("""(function()
+    local out = {}
+    for _, f in ipairs(FRAMES) do
+        local t = rawget(f, "_shown") and type(rawget(f, "text")) == "table" and rawget(f, "bg") and rawget(f.text, "_text")
+        if t then out[#out + 1] = t end
+    end
+    return table.concat(out, "|")
+end)()""")
+check(f"the continent shows only I'm here! ({shown})", "I'm here!" in shown and "left" not in shown and "zones" not in shown, shown)
+
 print("per character")
 rt.execute("""ALT_ONLY = true EXPLORED[1429] = {}
     for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = true end NS.InvalidateProgress()""")
