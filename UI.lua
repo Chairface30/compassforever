@@ -1289,6 +1289,38 @@ local function Build()
         Refresh()
     end)
     frame:SetScript("OnHide", function() options:Hide() end)
+    -- The corner grip: pulling it scales the whole window, so it keeps its
+    -- shape; its top left stays where it is.
+    local grip = CreateFrame("Button", nil, frame)
+    grip:SetSize(16, 16)
+    grip:SetPoint("BOTTOMRIGHT", -6, 6)
+    grip:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
+    grip:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
+    grip:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
+    grip:SetScript("OnMouseDown", function(self)
+        local cx = GetCursorPosition()
+        local eff = frame:GetEffectiveScale()
+        self.start = { cx = cx, scale = frame:GetScale(), width = frame:GetWidth() * eff,
+                       left = frame:GetLeft() * eff, top = frame:GetTop() * eff }
+        self:SetScript("OnUpdate", function()
+            local st = self.start
+            local x = GetCursorPosition()
+            local scale = st.scale * math.max(0.3, (st.width + x - st.cx) / st.width)
+            scale = math.max(0.6, math.min(2, scale))
+            frame:SetScale(scale)
+            local newEff = frame:GetEffectiveScale()
+            frame:ClearAllPoints()
+            frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", st.left / newEff, st.top / newEff)
+        end)
+    end)
+    grip:SetScript("OnMouseUp", function(self)
+        self:SetScript("OnUpdate", nil)
+        ns.db.windowScale = frame:GetScale()
+        ns.SavePoint(frame, ns.db.window)
+    end)
+    Tip(grip, "Resize", "Drag to make the window bigger or smaller.")
+
+    frame:SetScale(ns.db.windowScale or 1)
     ns.RestorePoint(frame, ns.db.window, "CENTER", "CENTER", 0, 0)
 end
 

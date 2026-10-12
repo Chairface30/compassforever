@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- The window can be resized: drag the grip in its bottom right corner. It
+  keeps its shape as it grows or shrinks, and remembers its size.
 - Options, Display: Open instead of the world map. Your world map key (M
   unless rebound) opens Compass Forever; the world map still opens from the
   minimap, the quest log and its other buttons. Off by default.
