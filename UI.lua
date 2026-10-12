@@ -41,7 +41,6 @@ local CONTINENT_MAP = { [0] = 1415, [1] = 1414 }
 local CONTINENT_NAME = { [0] = "Eastern Kingdoms", [1] = "Kalimdor" }
 
 local frame, mapBox, scroll, listChild
-local leftSide, belowMap, mapBorder, mapOnlyButton, headerTitle
 local overallBar, contButtons, trail, strip, zoomIn, zoomOut
 local optionsButton, options, optionBoxes
 local zoneTitle, zoneInfo, nextInfo, hint, routeButton, skipButton
@@ -1065,7 +1064,7 @@ local function Build()
     local title = Label(frame, "GameFontNormalLarge")
     title:SetPoint("TOPLEFT", PAD + 4, -20)
     title:SetText(ns.title)
-    headerTitle = title
+    frame.headerTitle = title
     local close = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
     close:SetPoint("TOPRIGHT", -6, -6)
     optionsButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
@@ -1073,13 +1072,13 @@ local function Build()
     optionsButton:SetPoint("TOPRIGHT", -40, -16)
     optionsButton:SetText("Options")
     optionsButton:SetScript("OnClick", function() options:SetShown(not options:IsShown()) end)
-    mapOnlyButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    mapOnlyButton:SetSize(84, 22)
-    mapOnlyButton:SetPoint("RIGHT", optionsButton, "LEFT", -6, 0)
-    mapOnlyButton:SetScript("OnClick", function() ns.SetMapOnly(not ns.db.mapOnly) end)
-    Tip(mapOnlyButton, "Map only", "Hide the zone list and everything under the map, or bring them back.")
+    frame.mapOnlyButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    frame.mapOnlyButton:SetSize(84, 22)
+    frame.mapOnlyButton:SetPoint("RIGHT", optionsButton, "LEFT", -6, 0)
+    frame.mapOnlyButton:SetScript("OnClick", function() ns.SetMapOnly(not ns.db.mapOnly) end)
+    Tip(frame.mapOnlyButton, "Map only", "Hide the zone list and everything under the map, or bring them back.")
     overallBar = Bar(frame, 300, 16)
-    overallBar:SetPoint("RIGHT", mapOnlyButton, "LEFT", -16, 0)
+    overallBar:SetPoint("RIGHT", frame.mapOnlyButton, "LEFT", -16, 0)
     local rule = frame:CreateTexture(nil, "ARTWORK")
     rule:SetColorTexture(0.8, 0.65, 0.3, 0.35)
     rule:SetPoint("TOPLEFT", PAD, -46)
@@ -1087,11 +1086,11 @@ local function Build()
     rule:SetHeight(1)
 
     -- The left side: a tab for each continent over its zones.
-    leftSide = CreateFrame("Frame", nil, frame)
-    leftSide:SetAllPoints()
+    frame.leftSide = CreateFrame("Frame", nil, frame)
+    frame.leftSide:SetAllPoints()
     contButtons = {}
     for i, c in ipairs({ 0, 1 }) do
-        local b = CreateFrame("Button", nil, leftSide, "UIPanelButtonTemplate")
+        local b = CreateFrame("Button", nil, frame.leftSide, "UIPanelButtonTemplate")
         b:SetSize(LIST_W / 2 - 2, 22)
         b:SetPoint("TOPLEFT", PAD + (i - 1) * (LIST_W / 2 + 2), -54)
         b:SetText(CONTINENT_NAME[c])
@@ -1102,7 +1101,7 @@ local function Build()
         end)
         contButtons[i] = b
     end
-    local listInset = Inset(leftSide)
+    local listInset = Inset(frame.leftSide)
     listInset:SetPoint("TOPLEFT", PAD, TOP)
     listInset:SetPoint("BOTTOMLEFT", PAD, PAD)
     listInset:SetWidth(LIST_W)
@@ -1160,7 +1159,7 @@ local function Build()
         .. "Right-click a wall to remove it. Routes never cross a wall. Click Walls again when done.")
 
     local border = CreateFrame("Frame", nil, frame, "BackdropTemplate")
-    mapBorder = border
+    frame.mapBorder = border
     border:SetPoint("TOPLEFT", MAP_X, TOP)
     border:SetSize(MAP_W + 8, MAP_H + 8)
     if border.SetBackdrop then
@@ -1197,24 +1196,24 @@ local function Build()
 
     -- Under the map: what it shows on the left, the route buttons on the
     -- right, and how to work it along the bottom.
-    belowMap = CreateFrame("Frame", nil, frame)
-    belowMap:SetAllPoints()
-    zoneTitle = Label(belowMap, "GameFontNormalLarge", TEXT_W)
+    frame.belowMap = CreateFrame("Frame", nil, frame)
+    frame.belowMap:SetAllPoints()
+    zoneTitle = Label(frame.belowMap, "GameFontNormalLarge", TEXT_W)
     zoneTitle:SetPoint("TOPLEFT", border, "BOTTOMLEFT", 4, -10)
-    zoneInfo = Para(belowMap, "GameFontHighlight", TEXT_W, 2)
+    zoneInfo = Para(frame.belowMap, "GameFontHighlight", TEXT_W, 2)
     zoneInfo:SetPoint("TOPLEFT", zoneTitle, "BOTTOMLEFT", 0, -6)
-    nextInfo = Para(belowMap, "GameFontHighlight", TEXT_W, 2)
+    nextInfo = Para(frame.belowMap, "GameFontHighlight", TEXT_W, 2)
     nextInfo:SetPoint("TOPLEFT", zoneInfo, "BOTTOMLEFT", 0, -4)
-    hint = Label(belowMap, "GameFontDisableSmall", MAP_W)
+    hint = Label(frame.belowMap, "GameFontDisableSmall", MAP_W)
     hint:SetPoint("BOTTOMLEFT", MAP_X + 4, PAD + 2)
 
-    routeButton = CreateFrame("Button", nil, belowMap, "UIPanelButtonTemplate")
+    routeButton = CreateFrame("Button", nil, frame.belowMap, "UIPanelButtonTemplate")
     routeButton:SetSize(BUTTON_W, 26)
     routeButton:SetPoint("TOPRIGHT", border, "BOTTOMRIGHT", -4, -10)
     routeButton:SetScript("OnClick", function()
         if ns.route and ns.route.zone == view.zone then ns.StopRoute() else ns.StartRoute(view.zone) end
     end)
-    skipButton = CreateFrame("Button", nil, belowMap, "UIPanelButtonTemplate")
+    skipButton = CreateFrame("Button", nil, frame.belowMap, "UIPanelButtonTemplate")
     skipButton:SetSize(BUTTON_W, 26)
     skipButton:SetPoint("TOPRIGHT", routeButton, "BOTTOMRIGHT", 0, -6)
     skipButton:SetText("Skip this stop")
@@ -1246,11 +1245,11 @@ function ns.SetMapOnly(on)
     ns.db.mapOnly = on and true or false
     if not frame then return end
     local only = ns.db.mapOnly
-    leftSide:SetShown(not only)
-    belowMap:SetShown(not only)
+    frame.leftSide:SetShown(not only)
+    frame.belowMap:SetShown(not only)
     local x = only and PAD or MAP_X
-    mapBorder:ClearAllPoints()
-    mapBorder:SetPoint("TOPLEFT", x, TOP)
+    frame.mapBorder:ClearAllPoints()
+    frame.mapBorder:SetPoint("TOPLEFT", x, TOP)
     strip:ClearAllPoints()
     strip:SetPoint("TOPLEFT", x + 4, -54)
     if only then
@@ -1262,13 +1261,13 @@ function ns.SetMapOnly(on)
     -- buttons, so its text never runs into them
     overallBar:ClearAllPoints()
     if only then
-        overallBar:SetPoint("LEFT", headerTitle, "RIGHT", 12, 0)
-        overallBar:SetPoint("RIGHT", mapOnlyButton, "LEFT", -12, 0)
+        overallBar:SetPoint("LEFT", frame.headerTitle, "RIGHT", 12, 0)
+        overallBar:SetPoint("RIGHT", frame.mapOnlyButton, "LEFT", -12, 0)
     else
-        overallBar:SetPoint("RIGHT", mapOnlyButton, "LEFT", -16, 0)
+        overallBar:SetPoint("RIGHT", frame.mapOnlyButton, "LEFT", -16, 0)
         overallBar:SetWidth(300)
     end
-    mapOnlyButton:SetText(only and "Full view" or "Map only")
+    frame.mapOnlyButton:SetText(only and "Full view" or "Map only")
     if frame:IsShown() and Refresh then Refresh() end
 end
 
