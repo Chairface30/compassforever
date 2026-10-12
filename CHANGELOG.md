@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- A Me button beside the zoom buttons over the window's map: it opens the
+  zone you're in, zoomed in, centered on you.
 - The route is drawn on the minimap too: the same lines as the world map
   (your walk to the next stop, the stops after it, any flight) around you at
   the minimap's zoom, turning with it if it rotates and cut off at its edge,

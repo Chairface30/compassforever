@@ -474,6 +474,24 @@ local function OnWheel(_, delta)
     DrawMap()
 end
 
+-- The Me button: the zone you are in, zoomed in (if it was at full size)
+-- and centered on you.
+local CENTER_ZOOM = 2
+local function CenterOnMe()
+    local zone = ns.CurrentZone()
+    if not zone then
+        ns.Print("You aren't in a zone with areas to explore.")
+        return
+    end
+    if not (view.kind == "zone" and view.zone == zone) then ShowZoneView(zone) end
+    local px, py = ns.PlayerOn(zone.map)
+    if not (px and py) then return end
+    if zoom < CENTER_ZOOM then zoom = CENTER_ZOOM end
+    offX, offY = px * CW() - MAP_W / 2, py * CH() - MAP_H / 2
+    PlaceCanvas()
+    DrawMap()
+end
+
 -- Dragging a zoomed map moves it; a press that hardly moves is a click.
 local drag
 local function DragUpdate()
@@ -724,9 +742,9 @@ local function RefreshTrail()
         parts[2] = { CONTINENT_NAME[c], function() ShowContinentView(c) end }
     end
     if view.kind == "zone" then parts[3] = { view.zone.name } end
-    -- The strip has room for the zoom buttons at its right; the trail gets
-    -- the rest, and only the last part (the shown map) is ever cut short.
-    local x, room = 0, MAP_W - 60
+    -- The strip has room for the Me and zoom buttons at its right; the trail
+    -- gets the rest, and only the last part (the shown map) is ever cut short.
+    local x, room = 0, MAP_W - 98
     for i, b in ipairs(trail) do
         local part = parts[i]
         if part then
@@ -987,6 +1005,12 @@ local function Build()
     zoomOut:SetText("-")
     zoomOut:SetScript("OnClick", function() OnWheel(nil, -1) end)
     Tip(zoomOut, "Zoom out", "At full size, goes up to the continent or Azeroth. Or scroll down over the map.")
+    local meButton = CreateFrame("Button", nil, strip, "UIPanelButtonTemplate")
+    meButton:SetSize(34, 22)
+    meButton:SetPoint("RIGHT", zoomOut, "LEFT", -4, 0)
+    meButton:SetText("Me")
+    meButton:SetScript("OnClick", CenterOnMe)
+    Tip(meButton, "Center on me", "Opens the zone you're in, zoomed in and centered on you.")
 
     local border = CreateFrame("Frame", nil, frame, "BackdropTemplate")
     border:SetPoint("TOPLEFT", MAP_X, TOP)
