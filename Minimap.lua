@@ -82,9 +82,10 @@ end
 local function Target()
     local corpse = ns.Corpse and ns.Corpse()
     if corpse then return ns.CorpseVector(corpse) end
-    local stop = ns.CurrentStop()
+    local zone, stop = nil, nil
+    if ns.NavTarget then zone, stop = ns.NavTarget() end
     if stop then
-        local bearing = ns.StopVector(ns.route.zone, stop)
+        local bearing = ns.StopVector(zone, stop)
         if bearing then return bearing end
     end
     local zone = ns.CurrentZone()

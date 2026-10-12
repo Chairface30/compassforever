@@ -328,10 +328,14 @@ local function Reconsider(force)
         lastStop = nil
         return
     end
+    -- across the sea: the flight is to the dock
+    local zone = ns.route.zone
+    local cross = ns.Crossing and ns.Crossing(zone, stop)
+    if cross then zone, stop = cross.zone, cross.stop end
     if not force and stop == lastStop then return end
     lastStop = stop
     local before = ns.travel
-    ns.PlanTravel(ns.route.zone, stop)
+    ns.PlanTravel(zone, stop)
     if ns.travel and not (before and before.fromID == ns.travel.fromID and before.toID == ns.travel.toID) then
         ns.Banner("Fly there", ns.TravelText())
         ns.Print(ns.TravelText() .. ".")
@@ -352,6 +356,8 @@ watcher:SetScript("OnUpdate", function(_, dt)
         flying = false
         return
     end
+    -- Off a boat or zeppelin, the target is the stop again.
+    Reconsider(false)
     -- Every ten seconds, see whether flying is still worth it.
     recheck = recheck + 1
     if recheck >= 10 and ns.travel then

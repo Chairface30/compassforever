@@ -135,6 +135,13 @@ local function Update()
     local zone = r.zone
     nameText:SetText(stop.node.name)
     stepText:SetText(string.format("%s: stop %d of %d", zone.name, index, #r.stops))
+    -- on the other continent: the zeppelin or boat across first
+    local cross = ns.Crossing and ns.Crossing(zone, stop)
+    if cross then
+        stepText:SetText("then " .. stop.node.name .. ", " .. zone.name)
+        zone, stop = cross.zone, cross.stop
+        nameText:SetText(cross.name)
+    end
 
     -- A flight planned: the flight master first.
     local bearing, yards
@@ -160,6 +167,12 @@ local function Update()
         return
     end
     arrowTex:Show()
+    if cross and yards <= CLOSE_YARDS * 2 then
+        Point(0)
+        arrowTex:SetVertexColor(0.3, 0.8, 1, 0.6)
+        distText:SetText("Board the " .. cross.kind:lower())
+        return
+    end
     if yards <= CLOSE_YARDS and stop.single then
         -- a one-area route: reached
         ns.SingleReached()

@@ -48,6 +48,12 @@ function ns.NextStopText()
     local stop = ns.CurrentStop()
     if not stop then return nil end
     if ns.travel and ns.TravelText then return ns.TravelText() end
+    local cross = ns.Crossing and ns.Crossing(ns.route.zone, stop)
+    if cross then
+        local bearing, yards = ns.StopVector(cross.zone, cross.stop)
+        return string.format("Take the |cffffd100%s|r%s, then on to %s", cross.name:lower(),
+            bearing and (" (" .. ns.Compass(bearing) .. ", " .. ns.Yards(yards) .. ")") or "", ns.route.zone.name)
+    end
     local bearing, yards = ns.StopVector(ns.route.zone, stop)
     if bearing then
         return string.format("Head %s to |cffffd100%s|r, %s", ns.Compass(bearing), stop.node.name, ns.Yards(yards))

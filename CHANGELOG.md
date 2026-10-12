@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- A stop on the other continent: the arrow, the lines and the flight
+  planner take you to the nearest zeppelin (Horde) or boat (Alliance;
+  Ratchet to Booty Bay for everyone) across, flying to it when that's
+  quicker; "Board the zeppelin" at the dock. Once across, they head for
+  the stop again.
 - Route editing is a feature for everyone: Options, Route editing, Edit
   walls, roads and spots (or /cf edit) shows the Walls, Roads, Spots and
   Share buttons over the window's map (off by default; on already if you

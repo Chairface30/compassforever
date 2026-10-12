@@ -25,6 +25,7 @@ Share.lua
 MapArt.lua
 Pathing.lua
 Travel.lua
+Crossing.lua
 Corpse.lua
 RouteDraw.lua
 MinimapRoute.lua

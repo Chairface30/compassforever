@@ -116,6 +116,9 @@ function ns.RouteGeometry()
     local route = ns.route
     local stop = ns.CurrentStop()
     local zone = route and stop and route.zone
+    -- on the other continent: the way to the dock across, nothing after
+    local cross = zone and ns.Crossing and ns.Crossing(zone, stop)
+    if cross then zone, stop = cross.zone, cross.stop end
     local cont = zone and ContinentMap(zone)
     local c = zone and zone.continent
     local parts = {}
@@ -142,6 +145,7 @@ function ns.RouteGeometry()
         parts[#parts + 1] = { kind = "walk", pts = WalkFromPlayer(c, px, py, sx, sy) }
     end
 
+    if cross then return { cont = cont, c = c, parts = parts } end
     local rest = { sx, sy }
     local ax, ay = sx, sy
     for i = 2, #route.stops do

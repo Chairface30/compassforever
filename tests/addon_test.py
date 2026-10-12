@@ -1017,6 +1017,23 @@ check("off: no Walls button", not rt.eval("NS.WindowFrame().roadButton:IsShown()
 rt.execute("NS.SetEditing(true)")
 check("on: Walls, Roads, Spots and Share", rt.eval("NS.WindowFrame().roadButton:IsShown() and NS.WindowFrame().shareButton:IsShown()"))
 
+print("across the sea")
+rt.execute("""NS.StopRoute() function UnitFactionGroup() return "Horde" end
+    DUROTAR = NS.ZoneByMap(1411)
+    PLAYER.map, PLAYER.x, PLAYER.y = 1411, 0.5, 0.3
+    NS.StartRoute(ELWYNN, { quiet = true }) NS.ShowZone(ELWYNN) FRAME(0.2)
+    CROSS = NS.Crossing(ELWYNN, NS.CurrentStop())""")
+name = rt.eval("CROSS and CROSS.name")
+check(f"a stop on the other continent heads for a crossing ({name})", name is not None and rt.eval("CROSS.zone.continent") == 1, name)
+check("the Horde from Durotar takes a zeppelin", (name or "").startswith("Zeppelin"), name)
+check("the arrow says so", (name or "?") in rt.eval("TEXTS()"))
+check("the lines lead to the dock", rt.eval("NS.RouteGeometry() ~= nil and NS.RouteGeometry().c == 1"))
+rt.execute("function UnitFactionGroup() return 'Alliance' end NOW = NOW + 2 CROSS = NS.Crossing(ELWYNN, NS.CurrentStop())")
+check("the Alliance takes a boat", (rt.eval("CROSS and CROSS.name") or "").startswith("Boat"), rt.eval("CROSS and CROSS.name"))
+rt.execute("PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.42, 0.65 NOW = NOW + 2")
+check("on the stop's continent there's no crossing", rt.eval("NS.Crossing(ELWYNN, NS.CurrentStop()) == nil"))
+rt.execute("NS.StopRoute() UnitFactionGroup = nil")
+
 print("per character")
 rt.execute("""ALT_ONLY = true EXPLORED[1429] = {}
     for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = true end NS.InvalidateProgress()""")
