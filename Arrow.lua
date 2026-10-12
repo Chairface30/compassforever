@@ -160,6 +160,11 @@ local function Update()
         return
     end
     arrowTex:Show()
+    if yards <= CLOSE_YARDS and stop.visit then
+        -- an area already uncovered, gone to by choice: reached
+        ns.VisitReached()
+        return
+    end
     if yards <= CLOSE_YARDS then
         -- The area is uncovered on entering it, usually before this; if it
         -- has not been by now, the spot needs a look (or /cf skip).

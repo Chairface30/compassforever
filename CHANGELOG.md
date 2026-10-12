@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Click any area on the window's map for a route there, uncovered or not
+  (even in a fully explored zone). An uncovered one leaves the route once
+  you reach it.
 - Spots mode: a Spot here button moves the spot of the area you're standing
   in to where you are, and Shift-click on a marker moves that area's spot
   to you. Works on any character, uncovered there or not.

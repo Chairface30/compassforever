@@ -969,6 +969,24 @@ rt.execute("NS.SpotToMe(ELWYNN, ELWYNN.nodes[4])")
 check("Shift-click moves any area's spot to you", rt.eval("NS.MovedSpot(ELWYNN.nodes[4])[2] == 0.5555"))
 rt.execute("NS.db.spots = nil PLAYER.x, PLAYER.y = 0.42, 0.65 function GetSubZoneText() return '' end")
 
+print("going to an uncovered area")
+rt.execute("""NS.StopRoute() for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = nil end
+    VISIT = ELWYNN.nodes[5] DONE[VISIT.criteria] = true NS.InvalidateProgress()
+    PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.42, 0.65
+    NS.RouteVia(ELWYNN, VISIT)""")
+check("clicking an uncovered area routes to it first", rt.eval("NS.CurrentStop() and NS.CurrentStop().node == VISIT"))
+rt.execute("FIRE('CRITERIA_UPDATE') FLUSH()")
+check("and keeps it first through a replan", rt.eval("NS.CurrentStop().node == VISIT"))
+rt.execute("local s = NS.CurrentStop() PLAYER.x, PLAYER.y = s.x, s.y NS.ShowZone(ELWYNN) FRAME(0.2)")
+check("reached, it leaves the route", rt.eval("NS.CurrentStop() and NS.CurrentStop().node ~= VISIT"))
+rt.execute("""NS.StopRoute() for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = true end NS.InvalidateProgress()
+    PLAYER.x, PLAYER.y = 0.42, 0.65 NS.RouteVia(ELWYNN, VISIT)""")
+check("even in a fully explored zone", rt.eval("NS.CurrentStop() and NS.CurrentStop().node == VISIT"))
+rt.execute("local s = NS.CurrentStop() PLAYER.x, PLAYER.y = s.x, s.y FRAME(0.2)")
+check("where reaching it ends the route", rt.eval("NS.route == nil"))
+rt.execute("""for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = nil end NS.InvalidateProgress()
+    PLAYER.x, PLAYER.y = 0.42, 0.65""")
+
 print("per character")
 rt.execute("""ALT_ONLY = true EXPLORED[1429] = {}
     for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = true end NS.InvalidateProgress()""")

@@ -688,6 +688,7 @@ local function Pin(i)
             end
             if self.done then
                 GameTooltip:AddLine("Uncovered.", 0.3, 0.9, 0.3)
+                GameTooltip:AddLine(self.order == 1 and "Your next stop." or "Click to go here.", 1, 0.82, 0)
             elseif self.node.fp then
                 GameTooltip:AddLine("A flight master you haven't met: talk to them to learn this flight point.", 0.4, 0.75, 1, true)
                 GameTooltip:AddLine(self.order == 1 and "Your next stop." or "Click to go here next.", 1, 0.82, 0)
@@ -707,7 +708,7 @@ local function Pin(i)
                 return
             end
             if button == "RightButton" then ZoomOut()
-            elseif not self.done then ns.RouteVia(self.zone or view.zone, self.node) end
+            else ns.RouteVia(self.zone or view.zone, self.node) end
         end)
         return p
     end)
