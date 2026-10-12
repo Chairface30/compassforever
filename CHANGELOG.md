@@ -21,6 +21,8 @@
   route never cross a wall (flights still fly straight over them). Walls
   show faintly on the map the rest of the time. They are kept in your
   settings; good ones get built into the addon.
+  While wall mode is on, the zone's map is shown fully uncovered, in color,
+  so the ground can be seen where walls go.
 - Circles: in wall mode, Shift-click a circle's middle, then Shift-click its
   edge. No walking path enters a circle. Right-click inside one to remove
   it.

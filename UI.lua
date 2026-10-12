@@ -363,7 +363,26 @@ local function DrawArt(mapID, zone)
             end
         end
     end
-    if zone then ns.DrawCoveredGray(grayArt, zone, scale) end
+    if zone and wallMode then
+        -- drawing walls: every area uncovered, in color, to see the ground
+        for _, node in ipairs(zone.nodes) do
+            if node.files and #node.files > 0 then
+                ns.EachTile(node.ox, node.oy, node.tw, node.th, node.files, tw, th,
+                    function(file, x, y, w, h, u, v)
+                        local t = colorArt:Next()
+                        t:SetTexture(file)
+                        t:SetTexCoord(0, u, 0, v)
+                        t:SetSize(w * scale, h * scale)
+                        t:ClearAllPoints()
+                        t:SetPoint("TOPLEFT", x * scale, -y * scale)
+                        if t.SetDesaturated then t:SetDesaturated(false) end
+                        t:SetVertexColor(1, 1, 1, 1)
+                    end)
+            end
+        end
+    elseif zone then
+        ns.DrawCoveredGray(grayArt, zone, scale)
+    end
 end
 
 -- Where the cursor is on the map, as fractions; nil when off it.
