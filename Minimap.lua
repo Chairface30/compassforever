@@ -1,11 +1,19 @@
 -- Compass Forever: Minimap.lua
 -- The minimap button (LibDBIcon), also a launcher for any LibDataBroker bar.
 -- Click opens the window; right-click starts or stops this zone's route.
+--
+-- Its icon is the compass arrow (Textures\\arrow, 64 turns, as Arrow.lua),
+-- turning to point at the route's next stop, or with no route at the nearest
+-- area still covered in the zone you're in; gold and upright with nothing to
+-- point at. It is turned through the data object's iconCoords and colour, so
+-- LibDBIcon keeps drawing it.
 
 local _, ns = ...
 
 local NAME = "CompassForever"
-local ICON = "Interface\\Icons\\INV_Misc_Map_01"
+local ICON = "Interface\\AddOns\\" .. ns.addonName .. "\\Textures\\arrow"
+local GRID, FRAMES = 8, 64
+local TWO_PI = 2 * math.pi
 
 local function Tooltip(tip)
     tip:AddLine(ns.title, 0.4, 0.8, 1)
@@ -45,7 +53,68 @@ function ns.SetupMinimap()
         OnTooltipShow = Tooltip,
     })
     icon:Register(NAME, ns.launcher, ns.db.minimap)
+    ns.TurnMinimapArrow()
 end
+
+-- Where the arrow points, as a bearing (radians counter-clockwise from
+-- north): the route's next stop, else the nearest area still covered here.
+local function Target()
+    local stop = ns.CurrentStop()
+    if stop then
+        local bearing = ns.StopVector(ns.route.zone, stop)
+        if bearing then return bearing end
+    end
+    local zone = ns.CurrentZone()
+    if not zone then return nil end
+    local px, py = ns.PlayerOn(zone.map)
+    if not px then return nil end
+    local best, bestD
+    for _, node in ipairs(ns.ZoneRemaining(zone)) do
+        for _, p in ipairs(ns.NodePoints(node)) do
+            local east, north = (p[1] - px) * zone.w, -(p[2] - py) * zone.h
+            local d = east * east + north * north
+            if not bestD or d < bestD then
+                best, bestD = math.atan2(-east, north), d
+            end
+        end
+    end
+    return best
+end
+
+local shown = {}
+local function Show(cell, r, g, b)
+    if shown.cell == cell and shown.r == r and shown.g == g then return end
+    shown.cell, shown.r, shown.g = cell, r, g
+    local col, row = cell % GRID, math.floor(cell / GRID)
+    local launcher = ns.launcher
+    launcher.iconCoords = { col / GRID, (col + 1) / GRID, row / GRID, (row + 1) / GRID }
+    launcher.iconR, launcher.iconG, launcher.iconB = r, g, b
+end
+
+function ns.TurnMinimapArrow()
+    if not ns.launcher then return end
+    local bearing = Target()
+    if not bearing then
+        Show(0, 1, 0.82, 0.1)          -- nothing to point at: gold, upright
+        return
+    end
+    local ok, facing = pcall(_G.GetPlayerFacing)
+    facing = ok and ns.Num(facing) or 0
+    local turn = ((bearing - facing) % TWO_PI) / TWO_PI
+    local cell = math.floor(turn * FRAMES + 0.5) % FRAMES
+    if ns.CurrentStop() then Show(cell, 0.3, 1, 0.35) else Show(cell, 1, 0.82, 0.1) end
+end
+
+local ticker = CreateFrame("Frame")
+local elapsed = 0
+ticker:SetScript("OnUpdate", function(_, dt)
+    elapsed = elapsed + (ns.Num(dt) or 0)
+    if elapsed < 0.1 then return end
+    elapsed = 0
+    if ns.launcher and not (ns.db and ns.db.minimap and ns.db.minimap.hide) then
+        pcall(ns.TurnMinimapArrow)
+    end
+end)
 
 function ns.SetMinimapShown(on)
     ns.db.minimap.hide = not on or nil

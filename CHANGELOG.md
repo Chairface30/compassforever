@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- The minimap button is now a compass arrow that turns as you do: green,
+  pointing at the route's next stop while a route runs; gold, pointing at
+  the nearest area still covered in your zone otherwise; upright when
+  there's nothing to point at.
 - Options, Display: Walls and roads on the map (on). Off, they're hidden on
   the window's map except while you draw them; they still steer paths.
 - Spots: the Spots button over the window's map lets you drag an area's
