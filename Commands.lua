@@ -106,8 +106,17 @@ local function Help()
     print("  /cf autofly - take the planned flight as soon as the flight map opens, on or off")
     print("  /cf flightpoints - route past flight masters you haven't met, when close, on or off")
     print("  /cf banner - the big on-screen messages, on or off")
+    print("  /cf minimap - the minimap button, shown or hidden")
     print("  /cf arrow <0.5-2> - size of the arrow")
     print("  /cf probe - what the client says; send this when something looks wrong")
+end
+
+-- Routing past flight masters not yet met; a route already going is planned
+-- again with or without them.
+function ns.SetLearnFlights(on)
+    ns.db.learnFlights = on and true or false
+    if ns.route then ns.StartRoute(ns.route.zone, { quiet = true, skipped = ns.route.skipped, auto = ns.route.auto }) end
+    ns.Fire("settings")
 end
 
 SLASH_COMPASSFOREVER1 = "/cf"
@@ -143,13 +152,15 @@ SlashCmdList.COMPASSFOREVER = function(msg)
         ns.SetAutoRoute(not ns.db.autoRoute)
         ns.Print("automatic routes " .. (ns.db.autoRoute and "on" or "off") .. ".")
     elseif cmd == "flightpoints" then
-        ns.db.learnFlights = not ns.db.learnFlights
+        ns.SetLearnFlights(not ns.db.learnFlights)
         ns.Print("routing past new flight masters " .. (ns.db.learnFlights and "on" or "off") .. ".")
-        if ns.route then ns.StartRoute(ns.route.zone, { quiet = true, skipped = ns.route.skipped, auto = ns.route.auto }) end
     elseif cmd == "autofly" then
         ns.db.autoFly = not ns.db.autoFly
         ns.Print("flying automatically " .. (ns.db.autoFly and "on" or "off") .. ".")
         ns.Fire("settings")
+    elseif cmd == "minimap" then
+        ns.SetMinimapShown(ns.db.minimap.hide and true or false)
+        ns.Print("minimap button " .. (ns.db.minimap.hide and "hidden" or "shown") .. ".")
     elseif cmd == "banner" then
         ns.db.banner = not ns.db.banner
         ns.Print("on-screen messages " .. (ns.db.banner and "on" or "off") .. ".")

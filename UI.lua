@@ -19,19 +19,32 @@
 
 local _, ns = ...
 
-local W, H = 900, 600
-local LIST_W = 250
+-- The layout, in one place. Left: continent tabs over the zone list, in an
+-- inset. Right: the trail and zoom buttons over the map, and under it what
+-- the map shows, with the route buttons beside it. Every line of text has a
+-- width, so none of it runs into the next thing.
+local W, H = 900, 616
+local PAD = 16
+local LIST_W = 248                  -- the list's inset, scroll bar included
+local ROW_W = LIST_W - 38           -- a row, leaving the scroll bar room
 local MAP_W, MAP_H = 600, 400
-local ROW_H = 38
+local MAP_X = PAD + LIST_W + 12     -- the map's border, from the frame's left
+local TOP = -80                     -- where the list inset and the map border start
+local BUTTON_W = 140
+local TEXT_W = MAP_W - BUTTON_W - 16
+local ROW_H = 44
 local GREEN, GOLD, GRAY = "|cff55dd55", "|cffffd100", "|cff999999"
+local HERE_RGB, ROUTE_RGB = { 0.4, 0.8, 1 }, { 0.33, 0.87, 0.33 }
 
 local WORLD = 947
 local CONTINENT_MAP = { [0] = 1415, [1] = 1414 }
 local CONTINENT_NAME = { [0] = "Eastern Kingdoms", [1] = "Kalimdor" }
 
 local frame, mapBox, scroll, listChild
-local overallBar, autoBox, pinBox, flyBox, contButtons, trail
-local zoneTitle, zoneInfo, nextInfo, routeButton, skipButton
+local overallBar, contButtons, trail, strip, zoomIn, zoomOut
+local optionsButton, options, optionBoxes
+local zoneTitle, zoneInfo, nextInfo, hint, routeButton, skipButton
+local scrolledTo
 local zoneRows = {}
 local continent = 0          -- the continent the list shows
 local view = { kind = "continent", map = CONTINENT_MAP[0] }
@@ -76,12 +89,62 @@ local function SetBar(bar, done, total)
     else bar:SetStatusBarColor(0.95, 0.7, 0.15) end
 end
 
-local function Check(parent, label, tip, onClick)
+-- One line of text that stops at `width` instead of running on.
+local function Label(parent, font, width)
+    local fs = parent:CreateFontString(nil, "OVERLAY", font)
+    fs:SetJustifyH("LEFT")
+    if width then fs:SetWidth(width) end
+    pcall(fs.SetWordWrap, fs, false)
+    return fs
+end
+
+-- Text that wraps at `width`, at most `lines` lines.
+local function Para(parent, font, width, lines)
+    local fs = parent:CreateFontString(nil, "OVERLAY", font)
+    fs:SetJustifyH("LEFT")
+    fs:SetJustifyV("TOP")
+    fs:SetWidth(width)
+    pcall(fs.SetWordWrap, fs, true)
+    if lines then pcall(fs.SetMaxLines, fs, lines) end
+    return fs
+end
+
+local function Inset(parent)
+    local f = CreateFrame("Frame", nil, parent, "BackdropTemplate")
+    if f.SetBackdrop then
+        f:SetBackdrop({
+            bgFile = "Interface\\Buttons\\WHITE8X8",
+            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+            edgeSize = 12,
+            insets = { left = 3, right = 3, top = 3, bottom = 3 },
+        })
+        f:SetBackdropColor(0, 0, 0, 0.45)
+        f:SetBackdropBorderColor(0.6, 0.5, 0.3)
+    end
+    return f
+end
+
+local function Tip(owner, title, text)
+    owner:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:AddLine(title, 1, 1, 1)
+        if text then GameTooltip:AddLine(text, 1, 0.82, 0, true) end
+        GameTooltip:Show()
+    end)
+    owner:SetScript("OnLeave", function() GameTooltip:Hide() end)
+end
+
+-- A setting: a box, its name, and a short line under it saying what it does.
+local function Check(parent, label, desc, tip, onClick)
     local c = CreateFrame("CheckButton", nil, parent, "UICheckButtonTemplate")
     c:SetSize(24, 24)
-    c.label = c:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    c.label:SetPoint("LEFT", c, "RIGHT", 2, 1)
+    c.label = Label(c, "GameFontHighlight", 230)
+    c.label:SetPoint("TOPLEFT", c, "TOPRIGHT", 2, -4)
     c.label:SetText(label)
+    c.desc = Label(c, "GameFontDisableSmall", 230)
+    c.desc:SetPoint("TOPLEFT", c.label, "BOTTOMLEFT", 0, -2)
+    c.desc:SetText(desc)
+    c:SetHitRectInsets(0, -232, 0, -10)
     c:SetScript("OnClick", function(self) onClick(self:GetChecked() and true or false) end)
     c:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -135,6 +198,8 @@ local function ZoneTooltip(owner, zone, anchor)
     GameTooltip:SetOwner(owner, anchor or "ANCHOR_RIGHT")
     local d, t = ns.ZoneCounts(zone)
     GameTooltip:AddLine(zone.name, 1, 1, 1)
+    if zone == ns.CurrentZone() then GameTooltip:AddLine("You are here.", unpack(HERE_RGB)) end
+    if ns.route and ns.route.zone == zone then GameTooltip:AddLine("Your current route.", unpack(ROUTE_RGB)) end
     if d == t then
         GameTooltip:AddLine("Fully explored.", 0.3, 0.9, 0.3)
     else
@@ -149,21 +214,30 @@ end
 local function ZoneRow(i)
     local row = zoneRows[i]
     if row then return row end
+    -- A row: the name (cut short if need be) with what is left at the right,
+    -- a line saying you are here or on its route, and a bar. A stripe down
+    -- the left edge says the same at a glance.
     row = CreateFrame("Button", nil, listChild)
-    row:SetSize(LIST_W - 26, ROW_H - 2)
+    row:SetSize(ROW_W, ROW_H - 3)
     row:SetPoint("TOPLEFT", 0, -(i - 1) * ROW_H)
     row.bg = row:CreateTexture(nil, "BACKGROUND")
     row.bg:SetAllPoints()
     local hl = row:CreateTexture(nil, "HIGHLIGHT")
     hl:SetAllPoints()
     hl:SetColorTexture(1, 0.82, 0, 0.12)
-    row.name = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    row.name:SetPoint("TOPLEFT", 6, -5)
-    row.name:SetJustifyH("LEFT")
-    row.count = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    row.count:SetPoint("TOPRIGHT", -6, -6)
-    row.bar = Bar(row, LIST_W - 38, 5)
-    row.bar:SetPoint("BOTTOMLEFT", 6, 6)
+    row.stripe = row:CreateTexture(nil, "ARTWORK")
+    row.stripe:SetPoint("TOPLEFT")
+    row.stripe:SetPoint("BOTTOMLEFT")
+    row.stripe:SetWidth(3)
+    row.count = Label(row, "GameFontHighlightSmall")
+    row.count:SetPoint("TOPRIGHT", -8, -7)
+    row.count:SetJustifyH("RIGHT")
+    row.name = Label(row, "GameFontNormal", ROW_W - 72)
+    row.name:SetPoint("TOPLEFT", 10, -6)
+    row.status = Label(row, "GameFontHighlightSmall", ROW_W - 18)
+    row.status:SetPoint("TOPLEFT", row.name, "BOTTOMLEFT", 0, -2)
+    row.bar = Bar(row, ROW_W - 18, 4)
+    row.bar:SetPoint("BOTTOMLEFT", 10, 6)
     row:SetScript("OnClick", function(self) ShowZoneView(self.zone) end)
     row:SetScript("OnEnter", function(self) ZoneTooltip(self, self.zone) end)
     row:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -173,28 +247,58 @@ end
 
 local function RefreshList()
     local here = ns.CurrentZone()
-    local n = 0
+    local n, selected = 0, nil
     for _, zone in ipairs(ns.ZONES) do
         if zone.continent == continent then
             n = n + 1
             local row = ZoneRow(n)
             row.zone = zone
             local d, t = ns.ZoneCounts(zone)
-            local tag = ""
-            if zone == here then tag = " |cff66ccff(here)|r" end
-            if ns.route and ns.route.zone == zone then tag = tag .. " |cff55dd55(route)|r" end
-            row.name:SetText((d == t and GRAY or "") .. zone.name .. "|r" .. tag)
+            local isHere = zone == here
+            local routed = ns.route and ns.route.zone == zone
+            row.name:SetText((d == t and GRAY or "") .. zone.name .. "|r")
             row.count:SetText(d == t and (GREEN .. "Done|r") or (GOLD .. (t - d) .. " left|r"))
+            if isHere and routed then
+                row.status:SetText("|cff66ccffYou are here|r" .. GRAY .. ", |r|cff55dd55on your route|r")
+            elseif routed then
+                row.status:SetText("|cff55dd55On your route|r")
+            elseif isHere then
+                row.status:SetText("|cff66ccffYou are here|r")
+            else
+                row.status:SetText(GRAY .. d .. " of " .. t .. " areas|r")
+            end
+            local rgb = routed and ROUTE_RGB or (isHere and HERE_RGB)
+            if rgb then row.stripe:SetColorTexture(rgb[1], rgb[2], rgb[3], 1) end
+            row.stripe:SetShown(rgb and true or false)
             SetBar(row.bar, d, t)
-            if view.zone == zone then row.bg:SetColorTexture(1, 0.82, 0, 0.22)
-            else row.bg:SetColorTexture(1, 1, 1, d == t and 0.02 or 0.06) end
+            if view.zone == zone then
+                selected = n
+                row.bg:SetColorTexture(1, 0.82, 0, 0.2)
+            else
+                row.bg:SetColorTexture(1, 1, 1, n % 2 == 0 and 0.03 or 0.06)
+            end
             row:Show()
         end
     end
     for i = n + 1, #zoneRows do zoneRows[i]:Hide() end
     listChild:SetHeight(math.max(1, n * ROW_H))
     for _, b in ipairs(contButtons) do
-        b:SetEnabled(not (view.kind == "continent" and b.continent == continent))
+        if b.continent == continent then b:LockHighlight() else b:UnlockHighlight() end
+    end
+    -- Bring a newly opened zone into the list's view, once: after that the
+    -- list stays where the player scrolls it.
+    local h = ns.Num(scroll:GetHeight()) or 0
+    if selected and scrolledTo ~= view.zone and h > 0 then
+        scrolledTo = view.zone
+        local cur = ns.Num(scroll:GetVerticalScroll()) or 0
+        local top = (selected - 1) * ROW_H
+        local want = cur
+        if top < cur then want = top
+        elseif top + ROW_H > cur + h then want = top + ROW_H - h end
+        want = math.max(0, math.min(want, n * ROW_H - h))
+        if want ~= cur then pcall(scroll.SetVerticalScroll, scroll, want) end
+    elseif not selected then
+        scrolledTo = nil
     end
 end
 
@@ -605,6 +709,8 @@ DrawMap = function()
     else DrawWorld() end
     DrawRouteStops(used)
     DrawPlayer()
+    zoomIn:SetEnabled(zoom < ZOOM_MAX)
+    zoomOut:SetEnabled(zoom > 1.001 or view.kind ~= "world")
 end
 
 -------------------------------------------------------------------------------
@@ -618,17 +724,25 @@ local function RefreshTrail()
         parts[2] = { CONTINENT_NAME[c], function() ShowContinentView(c) end }
     end
     if view.kind == "zone" then parts[3] = { view.zone.name } end
-    local x = 0
+    -- The strip has room for the zoom buttons at its right; the trail gets
+    -- the rest, and only the last part (the shown map) is ever cut short.
+    local x, room = 0, MAP_W - 60
     for i, b in ipairs(trail) do
         local part = parts[i]
         if part then
             local last = i == #parts
-            b.text:SetText((last and "|cffffffff" or GOLD) .. part[1] .. "|r" .. (last and "" or GRAY .. "  >|r"))
-            b:SetWidth((b.text:GetStringWidth() or 60) + 8)
+            b.text:SetWidth(0)
+            b.text:SetText((last and "|cffffffff" or GOLD) .. part[1] .. "|r")
+            local w = (ns.Num(b.text:GetStringWidth()) or 60) + 6
+            if last then w = math.min(w, math.max(40, room - x)) end
+            b.text:SetWidth(w - 6)
+            b:SetWidth(w)
             b:ClearAllPoints()
-            b:SetPoint("BOTTOMLEFT", canvas, "TOPLEFT", x, 8)
-            x = x + b:GetWidth() + 4
+            b:SetPoint("LEFT", strip, "LEFT", x, 0)
+            b.sep:SetShown(not last)
+            x = x + w + (last and 0 or 16)
             b.go = not last and part[2] or nil
+            b:EnableMouse(b.go and true or false)
             b:Show()
         else
             b:Hide()
@@ -636,22 +750,29 @@ local function RefreshTrail()
     end
 end
 
+-- The gray line at the bottom: how to work the map that is shown.
+local HINTS = {
+    world = "Click a continent to open it. Scroll or use + and - to zoom.",
+    continent = "Click a zone to open it. Scroll to zoom, drag to pan. Right-click: Azeroth.",
+    zone = "Click a marker to head there next. Scroll to zoom, drag to pan. Right-click: back.",
+}
+
 local function RefreshInfo()
     routeButton:Hide()
     skipButton:Hide()
     nextInfo:SetText("")
+    hint:SetText(HINTS[view.kind] or "")
     if view.kind == "world" then
         local ad, at, zd, zt = ns.Totals()
         zoneTitle:SetText("Azeroth")
         zoneInfo:SetText(string.format("%d of %d areas, %d of %d zones explored.", ad, at, zd, zt))
-        nextInfo:SetText(GRAY .. "Click a continent to open it. Scroll to zoom.|r")
         return
     end
     if view.kind == "continent" then
         local ad, at, zd, zt = ns.Totals(continent)
         zoneTitle:SetText(CONTINENT_NAME[continent])
         zoneInfo:SetText(string.format("%d of %d areas, %d of %d zones explored.", ad, at, zd, zt))
-        nextInfo:SetText(GRAY .. "Click a zone to open it. Scroll to zoom; right-click to see Azeroth.|r")
+        nextInfo:SetText(GRAY .. "Pick a zone on the map or in the list to see its areas and route.|r")
         return
     end
     local zone = view.zone
@@ -666,9 +787,11 @@ local function RefreshInfo()
     else
         zoneInfo:SetText(string.format("%d of %d areas uncovered. %s%d to find.|r", d, t, GOLD, t - d))
     end
-    nextInfo:SetText(routed and (ns.NextStopText() or "") or
-        (GRAY .. (d < t and "Start the route, or click a marker to head there first. " or "")
-            .. "Scroll to zoom; right-click to go back.|r"))
+    if routed then
+        nextInfo:SetText(ns.NextStopText() or "")
+    elseif d < t then
+        nextInfo:SetText(GRAY .. "Start the route for the shortest way through the areas left.|r")
+    end
     routeButton:SetShown(d < t)
     routeButton:SetText(routed and "Stop route" or "Start route")
     skipButton:SetShown(routed and #ns.route.stops > 1)
@@ -683,9 +806,7 @@ Refresh = function()
     local ad, at, zd, zt = ns.Totals()
     SetBar(overallBar, ad, at)
     overallBar.text:SetText(string.format("Explorer: %d / %d areas, %d / %d zones", ad, at, zd, zt))
-    autoBox:SetChecked(ns.db.autoRoute)
-    pinBox:SetChecked(ns.db.mapPins)
-    flyBox:SetChecked(ns.db.autoFly)
+    for _, box in ipairs(optionBoxes) do box:SetChecked(box.get()) end
     RefreshList()
     DrawMap()
     RefreshTrail()
@@ -693,11 +814,81 @@ Refresh = function()
 end
 ns.RefreshWindow = Refresh
 
+-- The settings, in a panel that drops down from the Options button.
+local OPTIONS = {
+    { section = "Routes" },
+    { label = "Route me automatically", desc = "Start a zone's route as you enter it.",
+      tip = "Entering a zone with areas still to uncover starts its route and tells you where to run. "
+          .. "Leaving the zone ends that route.",
+      get = function() return ns.db.autoRoute end,
+      set = function(on) ns.SetAutoRoute(on) end },
+    { label = "Stop at new flight masters", desc = "Learn flight points close to the route.",
+      tip = "A flight master you haven't met joins the route when it costs at most 800 yards more walking.",
+      get = function() return ns.db.learnFlights end,
+      set = function(on) ns.SetLearnFlights(on) end },
+    { label = "Fly automatically", desc = "Take the planned flight when the map opens.",
+      tip = "When the route plans a flight, take it as soon as you open the flight master's map. "
+          .. "Off, a button by the flight map takes it in one click.",
+      get = function() return ns.db.autoFly end,
+      set = function(on) ns.db.autoFly = on ns.Fire("settings") end },
+    { section = "Display" },
+    { label = "World map markers", desc = "Areas left and the route on the world map.",
+      tip = "Areas still to uncover, numbered in route order, drawn in gray where still covered, "
+          .. "plus a bar to start the route.",
+      get = function() return ns.db.mapPins end,
+      set = function(on) ns.db.mapPins = on ns.Fire("settings") end },
+    { label = "On-screen messages", desc = "Big text for new routes and uncovered areas.",
+      get = function() return ns.db.banner end,
+      set = function(on) ns.db.banner = on end },
+    { label = "Minimap button", desc = "Click it to open this window.",
+      tip = "Right-click it to start or stop the route through the zone you're in.",
+      get = function() return not ns.db.minimap.hide end,
+      set = function(on) ns.SetMinimapShown(on) end },
+}
+
+local function BuildOptions()
+    options = CreateFrame("Frame", nil, frame, "BackdropTemplate")
+    options:SetFrameLevel(frame:GetFrameLevel() + 30)
+    options:EnableMouse(true)
+    if options.SetBackdrop then
+        options:SetBackdrop({
+            bgFile = "Interface\\Buttons\\WHITE8X8",
+            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+            edgeSize = 14,
+            insets = { left = 4, right = 4, top = 4, bottom = 4 },
+        })
+        options:SetBackdropColor(0.06, 0.05, 0.04, 0.97)
+        options:SetBackdropBorderColor(0.8, 0.65, 0.3)
+    end
+    options:SetPoint("TOPRIGHT", optionsButton, "BOTTOMRIGHT", 0, -4)
+    optionBoxes = {}
+    local y = -12
+    for _, opt in ipairs(OPTIONS) do
+        if opt.section then
+            local head = Label(options, "GameFontNormal", 250)
+            head:SetPoint("TOPLEFT", 14, y - (y == -12 and 0 or 6))
+            head:SetText(opt.section)
+            y = y - (y == -12 and 20 or 26)
+        else
+            local box = Check(options, opt.label, opt.desc, opt.tip or opt.desc, opt.set)
+            box:SetPoint("TOPLEFT", 12, y)
+            box.get = opt.get
+            optionBoxes[#optionBoxes + 1] = box
+            y = y - 38
+        end
+    end
+    options:SetSize(290, -y + 6)
+    options:Hide()
+    options:SetScript("OnShow", function() optionsButton:LockHighlight() end)
+    options:SetScript("OnHide", function() optionsButton:UnlockHighlight() end)
+end
+
 local function Build()
     if frame then return end
     frame = CreateFrame("Frame", "CompassForeverFrame", UIParent, "BackdropTemplate")
     frame:SetSize(W, H)
     frame:SetFrameStrata("HIGH")
+    frame:SetToplevel(true)
     frame:SetClampedToScreen(true)
     frame:SetMovable(true)
     frame:EnableMouse(true)
@@ -717,38 +908,31 @@ local function Build()
     end
     tinsert(UISpecialFrames, "CompassForeverFrame")
 
-    local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    title:SetPoint("TOPLEFT", 22, -18)
+    -- The header: name, the Explorer bar, Options and close; a rule under it.
+    local title = Label(frame, "GameFontNormalLarge")
+    title:SetPoint("TOPLEFT", PAD + 4, -20)
     title:SetText(ns.title)
     local close = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
     close:SetPoint("TOPRIGHT", -6, -6)
+    optionsButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    optionsButton:SetSize(96, 22)
+    optionsButton:SetPoint("TOPRIGHT", -40, -16)
+    optionsButton:SetText("Options")
+    optionsButton:SetScript("OnClick", function() options:SetShown(not options:IsShown()) end)
+    overallBar = Bar(frame, 300, 16)
+    overallBar:SetPoint("RIGHT", optionsButton, "LEFT", -16, 0)
+    local rule = frame:CreateTexture(nil, "ARTWORK")
+    rule:SetColorTexture(0.8, 0.65, 0.3, 0.35)
+    rule:SetPoint("TOPLEFT", PAD, -46)
+    rule:SetPoint("TOPRIGHT", -PAD, -46)
+    rule:SetHeight(1)
 
-    overallBar = Bar(frame, 330, 18)
-    overallBar:SetPoint("TOPLEFT", 22, -46)
-
-    autoBox = Check(frame, "Route me automatically when I enter a zone",
-        "Entering a zone with areas still to uncover starts its route and tells you where to run. "
-        .. "Leaving the zone ends that route.", function(on) ns.SetAutoRoute(on) end)
-    autoBox:SetPoint("TOPLEFT", 380, -38)
-    pinBox = Check(frame, "Show markers on the world map",
-        "Areas still to uncover, numbered in route order, drawn in gray where still covered, "
-        .. "plus a bar to start the route.",
-        function(on)
-            ns.db.mapPins = on
-            ns.Fire("settings")
-        end)
-    pinBox:SetPoint("TOPLEFT", 380, -60)
-    flyBox = Check(frame, "Fly automatically",
-        "When the route plans a flight, take it as soon as you open the flight master's map. "
-        .. "Off, a button by the flight map takes it in one click.",
-        function(on) ns.db.autoFly = on end)
-    flyBox:SetPoint("TOPLEFT", 380, -82)
-
+    -- The left side: a tab for each continent over its zones.
     contButtons = {}
     for i, c in ipairs({ 0, 1 }) do
         local b = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-        b:SetSize(LIST_W / 2 - 4, 22)
-        b:SetPoint("TOPLEFT", 18 + (i - 1) * (LIST_W / 2), -100)
+        b:SetSize(LIST_W / 2 - 2, 22)
+        b:SetPoint("TOPLEFT", PAD + (i - 1) * (LIST_W / 2 + 2), -54)
         b:SetText(CONTINENT_NAME[c])
         b.continent = c
         b:SetScript("OnClick", function()
@@ -757,16 +941,51 @@ local function Build()
         end)
         contButtons[i] = b
     end
-
-    scroll = CreateFrame("ScrollFrame", "CompassForeverZoneList", frame, "UIPanelScrollFrameTemplate")
-    scroll:SetPoint("TOPLEFT", 18, -130)
-    scroll:SetSize(LIST_W - 26, H - 148)
+    local listInset = Inset(frame)
+    listInset:SetPoint("TOPLEFT", PAD, TOP)
+    listInset:SetPoint("BOTTOMLEFT", PAD, PAD)
+    listInset:SetWidth(LIST_W)
+    scroll = CreateFrame("ScrollFrame", "CompassForeverZoneList", listInset, "UIPanelScrollFrameTemplate")
+    scroll:SetPoint("TOPLEFT", 6, -6)
+    scroll:SetPoint("BOTTOMRIGHT", -28, 6)
     listChild = CreateFrame("Frame", nil, scroll)
-    listChild:SetSize(LIST_W - 26, 1)
+    listChild:SetSize(ROW_W, 1)
     scroll:SetScrollChild(listChild)
 
+    -- The right side: the trail and zoom buttons, then the map.
+    strip = CreateFrame("Frame", nil, frame)
+    strip:SetPoint("TOPLEFT", MAP_X + 4, -54)
+    strip:SetSize(MAP_W, 22)
+    trail = {}
+    for i = 1, 3 do
+        local b = CreateFrame("Button", nil, strip)
+        b:SetHeight(22)
+        b.text = Label(b, "GameFontNormal")
+        b.text:SetPoint("LEFT", 3, 0)
+        b.sep = Label(b, "GameFontDisable")
+        b.sep:SetPoint("LEFT", b, "RIGHT", 4, 0)
+        b.sep:SetText(">")
+        local hl = b:CreateTexture(nil, "HIGHLIGHT")
+        hl:SetAllPoints()
+        hl:SetColorTexture(1, 0.82, 0, 0.15)
+        b:SetScript("OnClick", function(self) if self.go then self.go() end end)
+        trail[i] = b
+    end
+    zoomIn = CreateFrame("Button", nil, strip, "UIPanelButtonTemplate")
+    zoomIn:SetSize(24, 22)
+    zoomIn:SetPoint("RIGHT", strip, "RIGHT", 0, 0)
+    zoomIn:SetText("+")
+    zoomIn:SetScript("OnClick", function() OnWheel(nil, 1) end)
+    Tip(zoomIn, "Zoom in", "Or scroll up over the map.")
+    zoomOut = CreateFrame("Button", nil, strip, "UIPanelButtonTemplate")
+    zoomOut:SetSize(24, 22)
+    zoomOut:SetPoint("RIGHT", zoomIn, "LEFT", -4, 0)
+    zoomOut:SetText("-")
+    zoomOut:SetScript("OnClick", function() OnWheel(nil, -1) end)
+    Tip(zoomOut, "Zoom out", "At full size, goes up to the continent or Azeroth. Or scroll down over the map.")
+
     local border = CreateFrame("Frame", nil, frame, "BackdropTemplate")
-    border:SetPoint("TOPLEFT", LIST_W + 26, -112)
+    border:SetPoint("TOPLEFT", MAP_X, TOP)
     border:SetSize(MAP_W + 8, MAP_H + 8)
     if border.SetBackdrop then
         border:SetBackdrop({ edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 12 })
@@ -800,34 +1019,31 @@ local function Build()
     playerDot:SetSize(24, 24)
     playerDot:Hide()
 
-    trail = {}
-    for i = 1, 3 do
-        local b = CreateFrame("Button", nil, frame)
-        b:SetHeight(18)
-        b.text = b:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        b.text:SetPoint("LEFT", 2, 0)
-        b:SetScript("OnClick", function(self) if self.go then self.go() end end)
-        trail[i] = b
-    end
-
-    zoneTitle = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    -- Under the map: what it shows on the left, the route buttons on the
+    -- right, and how to work it along the bottom.
+    zoneTitle = Label(frame, "GameFontNormalLarge", TEXT_W)
     zoneTitle:SetPoint("TOPLEFT", border, "BOTTOMLEFT", 4, -10)
-    zoneInfo = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    zoneInfo = Para(frame, "GameFontHighlight", TEXT_W, 2)
     zoneInfo:SetPoint("TOPLEFT", zoneTitle, "BOTTOMLEFT", 0, -6)
-    nextInfo = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    nextInfo:SetPoint("TOPLEFT", zoneInfo, "BOTTOMLEFT", 0, -6)
+    nextInfo = Para(frame, "GameFontHighlight", TEXT_W, 2)
+    nextInfo:SetPoint("TOPLEFT", zoneInfo, "BOTTOMLEFT", 0, -4)
+    hint = Label(frame, "GameFontDisableSmall", MAP_W)
+    hint:SetPoint("BOTTOMLEFT", MAP_X + 4, PAD + 2)
 
     routeButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    routeButton:SetSize(130, 26)
-    routeButton:SetPoint("TOPRIGHT", border, "BOTTOMRIGHT", 0, -8)
+    routeButton:SetSize(BUTTON_W, 26)
+    routeButton:SetPoint("TOPRIGHT", border, "BOTTOMRIGHT", -4, -10)
     routeButton:SetScript("OnClick", function()
         if ns.route and ns.route.zone == view.zone then ns.StopRoute() else ns.StartRoute(view.zone) end
     end)
     skipButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    skipButton:SetSize(130, 26)
-    skipButton:SetPoint("TOPRIGHT", routeButton, "BOTTOMRIGHT", 0, -4)
+    skipButton:SetSize(BUTTON_W, 26)
+    skipButton:SetPoint("TOPRIGHT", routeButton, "BOTTOMRIGHT", 0, -6)
     skipButton:SetText("Skip this stop")
     skipButton:SetScript("OnClick", function() ns.SkipStop() end)
+    Tip(skipButton, "Skip this stop", "Leaves it for the end of the route.")
+
+    BuildOptions()
 
     local elapsed = 0
     frame:SetScript("OnUpdate", function(_, dt)
@@ -841,6 +1057,7 @@ local function Build()
         ns.InvalidateProgress()
         Refresh()
     end)
+    frame:SetScript("OnHide", function() options:Hide() end)
     ns.RestorePoint(frame, ns.db.window, "CENTER", "CENTER", 0, 0)
 end
 

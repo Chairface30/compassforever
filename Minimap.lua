@@ -46,3 +46,12 @@ function ns.SetupMinimap()
     })
     icon:Register(NAME, ns.launcher, ns.db.minimap)
 end
+
+function ns.SetMinimapShown(on)
+    ns.db.minimap.hide = not on or nil
+    local stub = _G.LibStub
+    local icon = stub and stub("LibDBIcon-1.0", true)
+    if not (icon and ns.launcher) then return end
+    if on then icon:Show(NAME) else icon:Hide(NAME) end
+    ns.Fire("settings")
+end

@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+- The window is laid out again so nothing overlaps or runs off: the trail
+  over the map no longer slides away when the map is zoomed or collides with
+  the settings, long route text wraps beside the route buttons instead of
+  running under them, and zone names in the list are cut short before they
+  reach the count.
+- Settings moved into an Options panel (top right), grouped into Routes and
+  Display, each with a line saying what it does. New there: routing past new
+  flight masters, on-screen messages and the minimap button (also
+  /cf minimap).
+- Zoom buttons (+ and -) beside the trail, and a line under the map saying
+  how to work the map that is shown.
+- The zone list: tabs for the continents, a colored stripe and a line for
+  the zone you're in and the zone you're routing, and opening a zone scrolls
+  it into view.
+
 ## Compass Forever v1.1 (2026-10-10)
 
 - The walking path works from anywhere on the continent, not just inside

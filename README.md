@@ -12,7 +12,7 @@ Type `/cf` (or `/compassforever`), or click the map icon on the minimap.
   left, with **Start route**. Each area still to find has a marker; click one to
   head there next. Areas you haven't uncovered yet are drawn in gray, so you
   see the whole zone.
-- **Or let it run itself.** Tick *Route me automatically when I enter a zone*.
+- **Or let it run itself.** Tick *Route me automatically* under Options in the window.
   Every time you enter a zone with areas still covered, a route starts and a
   banner tells you where to run: "Duskwood: 7 areas to uncover. Head northwest
   to Raven Hill, 420 yd". Leaving the zone ends that route.
