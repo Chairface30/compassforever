@@ -923,6 +923,14 @@ rt.execute("NS.MoveSpot(ELWYNN, ELWYNN.nodes[2], 0.5, 0.5)")
 check("a dragged spot is used for the route", rt.eval("NS.NodePoints(ELWYNN.nodes[2])[1][1] == 0.5"))
 rt.execute("NS.ResetSpot(ELWYNN, ELWYNN.nodes[2]) NS.StopRoute() NS.db.credit = nil NS.db.learnFlights = true")
 
+print("zones mapped by hand")
+check("Durotar is built in (hand-mapped)", rt.eval("NS.ZoneHandMapped(NS.ZoneByMap(1411))"))
+check("Elwynn is not", not rt.eval("NS.ZoneHandMapped(ELWYNN)"))
+rt.execute("NS.SetZoneMarkedDone(ELWYNN, true)")
+check("a zone marked done is kept", rt.eval("NS.ZoneMarkedDone(ELWYNN)"))
+rt.execute("NS.SetZoneMarkedDone(ELWYNN, false)")
+check("and unmarked", not rt.eval("NS.ZoneMarkedDone(ELWYNN)"))
+
 print("lua escapes")
 # A path written through a shell heredoc once lost its backslashes; every
 # texture path must read Interface\... in the source.

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- A Done mapping this zone tick box on a zone's map: ticked, the zone gets a
+  gold * in the list, ready to be built in. Zones already mapped by hand
+  (built in) show their names in purple.
 - Durotar is mapped by hand: walls and roads keep its routes to ground you
   can run, and its spots are where the game really gives credit. Built-in
   walls and roads steer paths without being drawn; only your own show and

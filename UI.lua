@@ -300,6 +300,15 @@ local function ZoneRow(i)
     return row
 end
 
+-- A zone's name as shown: purple once mapped by hand (built in), with a gold
+-- asterisk while it's marked done and waiting to be built in.
+local HAND = "|cffcc88ff"
+local function ZoneName(zone, dim)
+    local color = ns.ZoneHandMapped(zone) and HAND or (dim and GRAY or "")
+    local mark = ns.ZoneMarkedDone(zone) and (GOLD .. " *|r") or ""
+    return color .. zone.name .. "|r" .. mark
+end
+
 local function RefreshList()
     local here = ns.CurrentZone()
     local n, selected = 0, nil
@@ -311,7 +320,7 @@ local function RefreshList()
             local d, t = ns.ZoneCounts(zone)
             local isHere = zone == here
             local routed = ns.route and ns.route.zone == zone
-            row.name:SetText((d == t and GRAY or "") .. zone.name .. "|r")
+            row.name:SetText(ZoneName(zone, d == t))
             row.count:SetText(d == t and (GREEN .. "Done|r") or (GOLD .. (t - d) .. " left|r"))
             if isHere and routed then
                 row.status:SetText("|cff66ccffYou are here|r" .. GRAY .. ", |r|cff55dd55on your route|r")
@@ -1124,6 +1133,9 @@ local HINTS = {
 local function RefreshInfo()
     routeButton:Hide()
     skipButton:Hide()
+    local done = frame.doneCheck
+    done:SetShown(view.kind == "zone")
+    if view.kind == "zone" then done:SetChecked(ns.ZoneMarkedDone(view.zone)) end
     nextInfo:SetText("")
     hint:SetText(HINTS[view.kind] or "")
     if view.kind == "world" then
@@ -1146,7 +1158,7 @@ local function RefreshInfo()
     end
     local zone = view.zone
     local d, t = ns.ZoneCounts(zone)
-    zoneTitle:SetText(zone.name)
+    zoneTitle:SetText(ZoneName(zone))
     local routed = ns.route and ns.route.zone == zone
     if d == t then
         zoneInfo:SetText(GREEN .. "Fully explored. All " .. t .. " areas uncovered.|r")
@@ -1461,6 +1473,28 @@ local function Build()
     playerDot:SetTexture("Interface\\Minimap\\MinimapArrow")
     playerDot:SetSize(24, 24)
     playerDot:Hide()
+
+    -- On the map's corner, for a zone: tick when its walls, roads and spots
+    -- are all laid out, ready to be built into the addon.
+    local done = CreateFrame("CheckButton", nil, frame, "UICheckButtonTemplate")
+    frame.doneCheck = done
+    done:SetSize(24, 24)
+    done:SetPoint("TOPLEFT", border, "TOPLEFT", 6, -6)
+    done:SetFrameLevel(mapBox:GetFrameLevel() + 20)
+    local doneBg = done:CreateTexture(nil, "BACKGROUND")
+    doneBg:SetPoint("TOPLEFT", -2, 2)
+    doneBg:SetSize(176, 28)
+    doneBg:SetColorTexture(0, 0, 0, 0.55)
+    local doneText = done:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    doneText:SetPoint("LEFT", done, "RIGHT", 2, 0)
+    doneText:SetText("Done mapping this zone")
+    done:SetScript("OnClick", function(self)
+        if view.zone then ns.SetZoneMarkedDone(view.zone, self:GetChecked()) end
+        Refresh()
+    end)
+    Tip(done, "Done mapping",
+        "Tick when this zone's walls, roads and spots are all laid out: it gets a * in the list, "
+        .. "ready to be built into the addon. Zones already built in show in purple.")
 
     -- Under the map: what it shows on the left, the route buttons on the
     -- right, and how to work it along the bottom.

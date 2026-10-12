@@ -20,8 +20,29 @@ function ns.MovedSpot(node)
     return spots and spots[node.criteria] or ns.SPOTS and ns.SPOTS[node.criteria] or nil
 end
 
+-- A zone mapped by hand: walls, roads or spots of it built into the addon.
+function ns.ZoneHandMapped(zone)
+    if ns.WALLS and ns.WALLS[zone.ach] and #ns.WALLS[zone.ach] > 0 then return true end
+    if ns.ROADS and ns.ROADS[zone.ach] and #ns.ROADS[zone.ach] > 0 then return true end
+    for _, node in ipairs(zone.nodes) do
+        if node.criteria and ns.SPOTS and ns.SPOTS[node.criteria] then return true end
+    end
+    return false
+end
+
+-- Marked done mapping by the player: ready to be built in.
+function ns.ZoneMarkedDone(zone)
+    return ns.db and ns.db.finished and ns.db.finished[zone.ach] and true or false
+end
+
+function ns.SetZoneMarkedDone(zone, on)
+    ns.db.finished = ns.db.finished or {}
+    ns.db.finished[zone.ach] = on and true or nil
+end
+
 -- At login: saved walls, roads and spots that are now shipped are dropped,
--- so what was built in doesn't show as the player's own.
+-- so what was built in doesn't show as the player's own; a zone marked done
+-- with nothing of its own left has been built in, and loses the mark.
 local function Same(a, b)
     if a.circle or b.circle then
         if not (a.circle and b.circle) then return false end
@@ -58,6 +79,16 @@ local function DropShipped()
     for crit, xy in pairs(db.spots or {}) do
         local s = ns.SPOTS and ns.SPOTS[crit]
         if s and Same(xy, s) then db.spots[crit] = nil end
+    end
+    for _, zone in ipairs(ns.ZONES) do
+        if ns.ZoneMarkedDone(zone) and ns.ZoneHandMapped(zone)
+                and not ns.OwnLines(zone, "walls") and not ns.OwnLines(zone, "roads") then
+            local own = false
+            for _, node in ipairs(zone.nodes) do
+                if node.criteria and db.spots and db.spots[node.criteria] then own = true end
+            end
+            if not own then ns.SetZoneMarkedDone(zone, false) end
+        end
     end
 end
 ns.On("login", function() pcall(DropShipped) end)
