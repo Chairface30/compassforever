@@ -640,24 +640,31 @@ rt.execute("NS.PlayerOn = function(map) if map == 1415 then return 0.4900, 0.760
 check("close by: walk", rt.eval("NS.travel == nil"))
 rt.execute("NS.PlayerOn, NS.Translate = REAL_PLAYERON, REAL_TRANSLATE NS.travel = nil")
 
-print("known flight points without a flight map")
-rt.execute("""NS.db.taxi = {}
+print("known flight points")
+rt.execute("""NS.db.taxi = {} NS.db.taxiRead = {}
     C_TaxiMap.GetTaxiNodesForMap = function(map)
         if map ~= 1415 then return {} end
         return { { nodeID = 11, name = "Undercity, Tirisfal", isUndiscovered = false },
-                 { nodeID = 10, name = "The Sepulcher, Silverpine Forest", isUndiscovered = false },
-                 { nodeID = 13, name = "Tarren Mill, Hillsbrad", isUndiscovered = true } }
+                 { nodeID = 10, name = "The Sepulcher, Silverpine Forest", isUndiscovered = false } }
     end
     NS.ReadKnownFromMaps()""")
+check("the world map calling a point discovered proves nothing", rt.eval("next(NS.KnownFlights()) == nil"))
+check("and until a flight map is read, nothing is assumed", rt.eval("NS.flightsRead") is False)
+rt.execute("""TAXI = { { "Undercity, Tirisfal", "CURRENT" }, { "The Sepulcher, Silverpine Forest", "REACHABLE" } }
+    function NumTaxiNodes() return #TAXI end
+    function TaxiNodeName(i) return TAXI[i][1] end
+    function TaxiNodeGetType(i) return TAXI[i][2] end
+    FIRE('TAXIMAP_OPENED') FLUSH()""")
 known = rt.eval("(function() local t = {} for id in pairs(NS.KnownFlights()) do t[#t + 1] = id end table.sort(t) return table.concat(t, ',') end)()")
-check("the map's flight points are known, the undiscovered one isn't", known == "10,11", known)
+check(f"the flight map's points are known ({known})", known == "10,11", known)
+check("and the list counts as read", rt.eval("NS.flightsRead") is True)
 rt.execute("""C_TaxiMap.GetTaxiNodesForMap = function(map)
         if map ~= 1415 then return {} end
         return { { nodeID = 10, name = "The Sepulcher, Silverpine Forest", isUndiscovered = true } }
     end
     NS.ReadKnownFromMaps()""")
 check("a point the client calls undiscovered is forgotten", rt.eval("NS.KnownFlights()[10] == nil") and rt.eval("NS.KnownFlights()[11] == true"))
-rt.execute("C_TaxiMap.GetTaxiNodesForMap = nil")
+rt.execute("C_TaxiMap.GetTaxiNodesForMap = nil NumTaxiNodes = nil TaxiNodeName = nil TaxiNodeGetType = nil")
 
 print("flight masters not yet learned")
 rt.execute("""NS.StopRoute()
@@ -682,14 +689,13 @@ check("not with /cf flightpoints off", rt.eval("""(function() for _, st in ipair
 rt.execute("SlashCmdList.COMPASSFOREVER('flightpoints')")
 check("back with it on", rt.eval("""(function() for _, st in ipairs(NS.route.stops) do if st.node.fp then return true end end return false end)()""") is True)
 # Learn it: the client now says it's known.
-rt.execute("""C_TaxiMap.GetTaxiNodesForMap = function(map)
-        if map ~= 1415 then return {} end
-        return { { nodeID = 9999, name = "Test Post, Elwynn", isUndiscovered = false } }
-    end
-    FIRE('TAXI_NODE_STATUS_CHANGED') FLUSH()""")
+rt.execute("""function NumTaxiNodes() return 1 end
+    function TaxiNodeName() return "Test Post, Elwynn" end
+    function TaxiNodeGetType() return "CURRENT" end
+    FIRE('TAXIMAP_OPENED') FLUSH()""")
 check("learning it takes it off the route", rt.eval("""(function() for _, st in ipairs(NS.route.stops) do if st.node.fp == 9999 then return true end end return false end)()""") is False)
 check("and the banner says so", "flight point" in (rt.eval("(function() for _, f in ipairs(FRAMES) do local t = rawget(f, '_text') if type(t) == 'string' and t:find('^Learned') then return t end end end)()") or ""))
-rt.execute("""C_TaxiMap.GetTaxiNodesForMap = nil NS.FLIGHT_NODES[9999] = nil NS.flightsRead = false
+rt.execute("""NumTaxiNodes = nil TaxiNodeName = nil TaxiNodeGetType = nil NS.FLIGHT_NODES[9999] = nil NS.flightsRead = false
     NS.StopRoute() PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.42, 0.65""")
 
 print("at the flight master")

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Fixed: every character counted as knowing every flight point, so New
+  flight master said you knew them all and Stop at new flight masters
+  never added any. The world map's flight point list on Forever calls
+  every point discovered; known points now come only from the flight map
+  itself. Each character needs to open a flight master's map once to
+  fill in its list (the old lists are cleared).
 - New flight master (under the window's map, or /cf fp): a route to the
   flight master quickest to reach on your continent whose flight point you
   haven't learned, walking or flying through the points you know (a far

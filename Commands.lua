@@ -88,7 +88,20 @@ local function Probe()
     local known = 0
     for _ in pairs(ns.KnownFlights and ns.KnownFlights() or {}) do known = known + 1 end
     print(string.format("  flight points known on this character: %d%s", known,
-        known == 0 and " (open any flight map once to fill this in)" or ""))
+        ns.flightsRead and "" or " (not read yet: open any flight map once)"))
+    -- while a flight map is open: what it lists
+    local okN, n = ns.Ask(ns.API(nil, "NumTaxiNodes"))
+    if okN and ns.Num(n) and n > 0 then
+        local kinds = {}
+        for i = 1, n do
+            local okK, kind = ns.Ask(ns.API(nil, "TaxiNodeGetType"), i)
+            kind = okK and tostring(kind) or "?"
+            kinds[kind] = (kinds[kind] or 0) + 1
+        end
+        local parts = {}
+        for k, v in pairs(kinds) do parts[#parts + 1] = k .. " " .. v end
+        print("  flight map open: " .. n .. " points (" .. table.concat(parts, ", ") .. ")")
+    end
     print("  UnitOnTaxi = " .. (ns.API(nil, "UnitOnTaxi") and "|cff55ff55yes|r" or "|cffff5555missing|r")
         .. ", C_TaxiMap.GetAllTaxiNodes = "
         .. (ns.API("C_TaxiMap", "GetAllTaxiNodes") and "|cff55ff55yes|r" or "|cffff5555missing|r"))

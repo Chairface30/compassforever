@@ -1,11 +1,14 @@
 -- Compass Forever: Travel.lua
 -- Flying there when that is quicker than walking.
 --
--- Which flight points a character knows is read from the client the way
--- the world map reads it to draw flight masters (C_TaxiMap.GetTaxiNodesForMap,
--- which says of each point whether it is undiscovered), at login and when
--- the client says a point changed; every open flight map is read too. Both
--- are remembered for that character (CompassForeverDB.taxi).
+-- Which flight points a character knows is read from the flight map, each
+-- time one opens (it lists only the points the character has), and
+-- remembered for that character (CompassForeverDB.taxi). Until a
+-- character's first flight map, nothing is assumed known or unknown.
+--
+-- The world map's list (C_TaxiMap.GetTaxiNodesForMap) is only trusted to
+-- say a point is undiscovered: on Forever it calls every point of both
+-- factions discovered, for every character.
 --
 -- At the flight master, with a flight planned, a "Fly to ..." button sits by
 -- the flight map; with "Fly automatically" on, the flight is taken as soon as
@@ -41,8 +44,20 @@ local function CharKey()
     return (ok and name or "?") .. "-" .. (okR and realm or "?")
 end
 
+-- Lists made before the world map's word stopped counting called every
+-- point known: dropped once, so each character's first flight map fills
+-- in the real list.
+local TAXI_VERSION = 2
+local function Fresh()
+    local db = ns.db
+    if db.taxiVersion ~= TAXI_VERSION then
+        db.taxi, db.taxiRead, db.taxiVersion = {}, {}, TAXI_VERSION
+    end
+end
+
 local function Known()
     local db = ns.db
+    Fresh()
     db.taxi = db.taxi or {}
     local key = CharKey()
     db.taxi[key] = db.taxi[key] or {}
@@ -51,7 +66,7 @@ end
 ns.KnownFlights = Known
 
 local nameIndex
-local function ByName(name)
+local function ByName(name, retried)
     if not nameIndex then
         nameIndex = {}
         for id, node in pairs(ns.FLIGHT_NODES or {}) do
@@ -62,7 +77,13 @@ local function ByName(name)
     end
     name = name and name:lower()
     if not name then return nil end
-    return nameIndex[name] or nameIndex[name:match("^([^,]+)") or ""]
+    local id = nameIndex[name] or nameIndex[name:match("^([^,]+)") or ""]
+    if not id and not retried then
+        -- a point added since the index was made: make it again, once
+        nameIndex = nil
+        return ByName(name, true)
+    end
+    return id
 end
 
 -- Read the open flight map: every point the character can fly to, or is at.
@@ -70,6 +91,9 @@ local function ReadTaxiMap()
     local known, seen = Known(), 0
     local getAll = ns.API("C_TaxiMap", "GetAllTaxiNodes")
     local mapFn = ns.API(nil, "GetTaxiMapID")
+    -- the flight map's own list first; the newer call only without it
+    local okC0, n0 = ns.Ask(ns.API(nil, "NumTaxiNodes"))
+    if okC0 and ns.Num(n0) and n0 > 0 then getAll = nil end
     if getAll then
         local okM, mapID = ns.Ask(mapFn)
         local ok, nodes = ns.Ask(getAll, okM and mapID or nil)
@@ -79,8 +103,8 @@ local function ReadTaxiMap()
                 local id = ns.Num(info.nodeID)
                 if not (id and ns.FLIGHT_NODES[id]) then id = ByName(ns.Text(info.name)) end
                 local state = info.state
-                local unknown = states.Unreachable ~= nil and state == states.Unreachable
-                if id and not unknown then
+                local mine = state == nil or state == states.Current or state == states.Reachable
+                if id and mine then
                     known[id] = true
                     seen = seen + 1
                 end
@@ -95,11 +119,16 @@ local function ReadTaxiMap()
             local okN, name = ns.Ask(nameOf, i)
             local okK, kind = ns.Ask(kindOf, i)
             local id = okN and ByName(ns.Text(name))
-            if id and (not okK or kind == "CURRENT" or kind == "REACHABLE") then
+            if id and (not okK or kind == "CURRENT" or kind == "REACHABLE" or kind == "DISTANT") then
                 known[id] = true
                 seen = seen + 1
             end
         end
+    end
+    if seen > 0 then
+        ns.db.taxiRead = ns.db.taxiRead or {}
+        ns.db.taxiRead[CharKey()] = true
+        ns.flightsRead = true
     end
     return seen
 end
@@ -112,14 +141,14 @@ local function Side()
     return 3
 end
 
--- Read the known points from the maps, as the world map does. Every point
--- the client lists that isn't undiscovered is known; one it says is
--- undiscovered is forgotten (it is the client's word, not a guess). Returns
--- how many points the client said anything about.
+-- The world map's word on flight points: one it calls undiscovered is
+-- forgotten; one it calls discovered proves nothing (see the top). Returns
+-- how many points it said anything about.
 local function ReadFromMaps()
+    Fresh()
+    ns.flightsRead = (ns.db.taxiRead and ns.db.taxiRead[CharKey()]) and true or false
     local forMap = ns.API("C_TaxiMap", "GetTaxiNodesForMap")
     if not forMap then return 0 end
-    ns.flightsRead = ns.flightsRead or false
     local known, said = Known(), 0
     local maps = { 1415, 1414, 1453, 1454, 1455, 1456, 1457, 1458 }
     for _, zone in ipairs(ns.ZONES) do maps[#maps + 1] = zone.map end
@@ -133,12 +162,7 @@ local function ReadFromMaps()
                 if id and not seen[id] then
                     seen[id] = true
                     said = said + 1
-                    ns.flightsRead = true
-                    if info.isUndiscovered == true then
-                        known[id] = nil
-                    elseif info.isUndiscovered == false then
-                        known[id] = true
-                    end
+                    if info.isUndiscovered == true then known[id] = nil end
                 end
             end
         end
@@ -261,7 +285,8 @@ end
 function ns.NearestNewFlightMaster()
     ReadFromMaps()
     if not ns.flightsRead then
-        return nil, nil, "The game hasn't said which flight points you know yet. Open a flight master's map once."
+        return nil, nil, "Talk to any flight master and open the flight map once on this character, "
+            .. "so Compass Forever knows which flight points it has."
     end
     local here = ns.PlayerContinent and ns.PlayerContinent()
     local c = here and ns.CONTINENT_YARDS[here]
