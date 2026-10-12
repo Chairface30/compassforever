@@ -246,6 +246,7 @@ local function Build()
             ns.Print("|cffff5555arrow:|r", err)
         end
     end)
+    ns.TimeUpdates(frame, "arrow")
     ns.RestorePoint(frame, ns.db.arrow, "TOP", "TOP", 0, -140)
 end
 

@@ -749,6 +749,7 @@ driver:SetScript("OnUpdate", function(self)
         job.done(path, cost)
     end
 end)
+ns.TimeUpdates(driver, "path search")
 
 -- Find a walking path in `space` from (fx, fy) to (tx, ty); `done(path,
 -- cost)` is called when found. A newer request with the same `key` replaces

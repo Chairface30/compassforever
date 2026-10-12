@@ -191,6 +191,7 @@ function ns.SetupMinimapRoute()
         elapsed = 0
         Draw()
     end)
+    ns.TimeUpdates(overlay, "minimap route")
 end
 
 -- A new or changed route is drawn at once, its shape asked for again.

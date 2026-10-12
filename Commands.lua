@@ -18,6 +18,38 @@ end
 -- What /cf probe prints: the functions this relies on, what they say
 -- about the zone the player is in, and whether the map's uncovered art lines
 -- up with the built-in data. This is what to send back when something is off.
+-- Measure for a while, then say where the time and memory went.
+local function Perf(seconds)
+    if ns.perf then ns.Print("already measuring.") return end
+    seconds = math.max(2, math.min(120, seconds))
+    local function Fps()
+        local ok, f = ns.Ask(_G.GetFramerate)
+        return ok and ns.Num(f) or 0
+    end
+    local fps0 = Fps()
+    local okT, t0 = pcall(GetTime)
+    ns.perf = {}
+    ns.Print(string.format("measuring for %d seconds (%.0f fps now)...", seconds, fps0))
+    C_Timer.After(seconds, function()
+        local p = ns.perf
+        ns.perf = nil
+        local okT1, t1 = pcall(GetTime)
+        local span = (okT and okT1 and t1 > t0) and (t1 - t0) or seconds
+        local list = {}
+        for name, e in pairs(p) do list[#list + 1] = { name = name, e = e } end
+        table.sort(list, function(a, b) return a.e.ms > b.e.ms end)
+        ns.Print(string.format("over %.0f s (%.0f fps now): ms per second, calls, KB made", span, Fps()))
+        local total = 0
+        for i, it in ipairs(list) do
+            total = total + it.e.ms
+            if i <= 12 then
+                print(string.format("  %-18s %6.2f ms/s  %5d calls  %7.0f KB", it.name, it.e.ms / span, it.e.n, it.e.kb))
+            end
+        end
+        print(string.format("  total %.2f ms per second (%.1f%% of one core)", total / span, total / span / 10))
+    end)
+end
+
 local function Probe()
     ns.Print("probe:")
     local names = {
@@ -124,6 +156,7 @@ local function Help()
     print("  /cf fp - a route to the nearest flight master you haven't met")
     print("  /cf edit - the tools for walls, roads and spots, shown or hidden")
     print("  /cf share - share your walls, roads and spots, or take in a friend's")
+    print("  /cf perf [seconds] - measure what the addon costs (default 10 seconds)")
     print("  /cf probe - what the client says; send this when something looks wrong")
 end
 
@@ -194,6 +227,8 @@ SlashCmdList.COMPASSFOREVER = function(msg)
         ns.Print("route editing " .. (ns.db.editing and "on" or "off") .. ".")
     elseif cmd == "share" then
         ns.ShowShare(ns.CurrentZone())
+    elseif cmd == "perf" then
+        Perf(tonumber(rest) or 10)
     elseif cmd == "probe" then
         ns.InvalidateProgress()
         Probe()

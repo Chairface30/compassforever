@@ -128,10 +128,52 @@ function ns.On(message, fn)
     table.insert(listeners[message], fn)
 end
 
+-------------------------------------------------------------------------------
+-- Measuring (/cf perf): time and memory each part takes, while switched on
+-------------------------------------------------------------------------------
+
+ns.perf = nil
+
+local function Clock()
+    local f = _G.debugprofilestop
+    return type(f) == "function" and f() or 0
+end
+
+function ns.PerfAdd(name, ms, kb)
+    local p = ns.perf
+    if not p then return end
+    local e = p[name]
+    if not e then
+        e = { ms = 0, n = 0, kb = 0 }
+        p[name] = e
+    end
+    e.ms, e.n = e.ms + ms, e.n + 1
+    if kb > 0 then e.kb = e.kb + kb end
+end
+
+-- `fn`, timed under `name` while measuring.
+function ns.Timed(name, fn)
+    return function(...)
+        if not ns.perf then return fn(...) end
+        local t0, m0 = Clock(), collectgarbage("count")
+        local a, b, c, d = fn(...)
+        ns.PerfAdd(name, Clock() - t0, collectgarbage("count") - m0)
+        return a, b, c, d
+    end
+end
+
+-- A frame's OnUpdate, timed under `name`.
+function ns.TimeUpdates(frame, name)
+    local ok, fn = pcall(frame.GetScript, frame, "OnUpdate")
+    if ok and type(fn) == "function" then frame:SetScript("OnUpdate", ns.Timed(name, fn)) end
+end
+
 function ns.Fire(message, ...)
     for _, fn in ipairs(listeners[message] or {}) do
+        local t0, m0 = ns.perf and Clock(), ns.perf and collectgarbage("count")
         local ok, err = pcall(fn, ...)
         if not ok then ns.Print("|cffff5555" .. message .. ":|r", err) end
+        if t0 then ns.PerfAdd("on " .. message, Clock() - t0, collectgarbage("count") - m0) end
     end
 end
 
@@ -139,6 +181,7 @@ end
 -- criteria update, the exploration update and the info message together):
 -- one refresh, a moment later, covers them all.
 local pending = false
+local lastSignature
 function ns.ProgressChanged()
     if pending then return end
     -- the moment it happened, before the batching delay (Spots.lua)
@@ -148,6 +191,12 @@ function ns.ProgressChanged()
     local function run()
         pending = false
         ns.InvalidateProgress()
+        -- the game sends these for every kill and quest step: only a change
+        -- in what's uncovered (where you are, or on the route) or in the
+        -- flight points known goes on to replan and redraw
+        local sig = ns.ProgressSignature and ns.ProgressSignature()
+        if sig and sig == lastSignature then return end
+        lastSignature = sig
         ns.Fire("progress")
     end
     if after then after(0.3, run) else run() end

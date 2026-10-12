@@ -144,6 +144,7 @@ ticker:SetScript("OnUpdate", function(_, dt)
         pcall(ns.TurnMinimapArrow)
     end
 end)
+ns.TimeUpdates(ticker, "minimap button")
 
 function ns.SetMinimapShown(on)
     ns.db.minimap.hide = not on or nil

@@ -137,6 +137,12 @@ local drawnFor                -- the map the markers were last drawn for
 
 local function Refresh()
     if not overlay then return end
+    -- nothing to do while the map is closed (opening it redraws)
+    local shownMap = Canvas()
+    if shownMap and shownMap.IsShown and not shownMap:IsShown() then
+        drawnFor = nil
+        return
+    end
     drawnFor = ShownMap()
     for i = 1, used do pins[i]:Hide() end
     used = 0
@@ -262,6 +268,7 @@ local function Setup()
         local inv = (okS and ns.Num(scale) and scale > 0) and (UIParent:GetEffectiveScale() / scale) or 1
         pcall(DrawLines, mapID, inv)
     end)
+    ns.TimeUpdates(o, "world map")
     child:HookScript("OnSizeChanged", SafeRefresh)
 end
 

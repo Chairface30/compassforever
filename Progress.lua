@@ -121,6 +121,25 @@ function ns.ZoneState(zone)
     end)
 end
 
+-- What a progress refresh depends on, as text: the areas of the zone you're
+-- in and of the route's zone, and the flight points known.
+function ns.ProgressSignature()
+    local parts = {}
+    local seen = {}
+    for _, zone in ipairs({ ns.CurrentZone() or false, ns.route and ns.route.zone or false }) do
+        if zone and not seen[zone] then
+            seen[zone] = true
+            local s = ns.ZoneState(zone).state
+            parts[#parts + 1] = zone.ach .. "="
+            for i = 1, #zone.nodes do parts[#parts + 1] = s[i] == true and "1" or s[i] == false and "0" or "?" end
+        end
+    end
+    local known = 0
+    for _ in pairs(ns.KnownFlights and ns.KnownFlights() or {}) do known = known + 1 end
+    parts[#parts + 1] = "f" .. known
+    return table.concat(parts)
+end
+
 -- done, total, unknown for one zone.
 function ns.ZoneCounts(zone)
     local s = ns.ZoneState(zone).state

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Kills, loot and quest steps no longer replan and redraw everything: a
+  progress refresh goes on only when what's uncovered (here or on the
+  route) or the flight points known really changed. The world map's
+  markers aren't redrawn while it's closed.
+- /cf perf [seconds]: measures what each part of the addon costs in time
+  and memory, for reporting lag.
 - Less lag: the arrow and the minimap button could aim at different
   targets (the flight master and the stop) and threw away each other's
   walking path many times a second, so it was searched for again and
