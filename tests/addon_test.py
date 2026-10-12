@@ -65,6 +65,7 @@ local function Widget(kind)
         elseif key == "GetChecked" then return function(s) return rawget(s, "_checked") end
         elseif key == "Show" then return function(s) rawset(s, "_shown", true) end
         elseif key == "Hide" then return function(s) rawset(s, "_shown", false) end
+        elseif key == "SetShown" then return function(s, v) rawset(s, "_shown", v and true or false) end
         elseif key == "IsShown" then return function(s) return rawget(s, "_shown") == true end
         elseif key == "GetWidth" then return function(s) return rawget(s, "_w") or 1000 end
         elseif key == "GetHeight" then return function(s) return rawget(s, "_h") or 1000 end
@@ -986,6 +987,35 @@ check("reaching it ends the route", rt.eval("NS.route == nil"))
 rt.execute("PLAYER.x, PLAYER.y = 0.42, 0.65 NS.RouteVia(ELWYNN, PICK) NS.StartRoute(ELWYNN)")
 check("Start route then gives the whole zone", rt.eval("NS.ZoneRouted(ELWYNN) and #NS.route.stops > 1"))
 rt.execute("""NS.StopRoute() for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = nil end NS.InvalidateProgress()""")
+
+print("sharing walls, roads and spots")
+rt.execute("""NS.db.walls = { [ELWYNN.ach] = { { 0.1, 0.2, 0.3, 0.4 }, { circle = { 0.5, 0.5, 40 } } } }
+    NS.db.roads = { [ELWYNN.ach] = { { 0.11, 0.22, 0.33, 0.44, 0.55, 0.66 } } }
+    NS.db.spots = { [ELWYNN.nodes[2].criteria] = { 0.1234, 0.5678 } }
+    SHARE = NS.ExportEdits()""")
+share = rt.eval("SHARE")
+check(f"export makes one line of text ({len(share)} chars)", share.startswith("CF1:") and chr(10) not in share, share)
+rt.execute("""PARSED = NS.ParseEdits(SHARE)
+    NS.db.walls, NS.db.roads, NS.db.spots = {}, {}, {}
+    NS.ImportEdits(PARSED, "add")""")
+check("read back, the walls come in", rt.eval("#NS.db.walls[ELWYNN.ach] == 2 and NS.db.walls[ELWYNN.ach][2].circle[3] == 40"))
+check("with the roads", rt.eval("NS.db.roads[ELWYNN.ach][1][5] == 0.55"))
+check("and the spots", rt.eval("NS.db.spots[ELWYNN.nodes[2].criteria][1] == 0.1234"))
+rt.execute("NS.ImportEdits(PARSED, 'add')")
+check("adding again doesn't double them", rt.eval("#NS.db.walls[ELWYNN.ach] == 2"))
+rt.execute("NS.db.walls[ELWYNN.ach][3] = { 0.9, 0.9, 0.8, 0.8 } NS.ImportEdits(PARSED, 'replace')")
+check("replace swaps the zone's own for the shared", rt.eval("#NS.db.walls[ELWYNN.ach] == 2"))
+check("cut-off text is refused", rt.eval("(select(2, NS.ParseEdits(SHARE:sub(1, -8))))") is not None)
+check("other text is refused", rt.eval("NS.ParseEdits('hello') == nil"))
+rt.execute("NS.ShowShare(ELWYNN)")
+check("the Share window opens with this zone's text", rt.eval("CompassForeverShare ~= nil"))
+rt.execute("NS.db.walls, NS.db.roads, NS.db.spots = nil, nil, nil NS.WallsChanged()")
+
+print("editing tools only when turned on")
+rt.execute("NS.ShowZone(ELWYNN) NS.SetEditing(false)")
+check("off: no Walls button", not rt.eval("NS.WindowFrame().roadButton:IsShown()"))
+rt.execute("NS.SetEditing(true)")
+check("on: Walls, Roads, Spots and Share", rt.eval("NS.WindowFrame().roadButton:IsShown() and NS.WindowFrame().shareButton:IsShown()"))
 
 print("per character")
 rt.execute("""ALT_ONLY = true EXPLORED[1429] = {}

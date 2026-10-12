@@ -21,6 +21,7 @@ Data\Spots.lua
 Progress.lua
 Route.lua
 Spots.lua
+Share.lua
 MapArt.lua
 Pathing.lua
 Travel.lua

@@ -925,6 +925,13 @@ local function SetWallMode(on, kind)
 end
 ns.WindowWallMode = SetWallMode
 
+-- The editing tools shown or hidden (Options, Route editing).
+function ns.SetEditing(on)
+    ns.db.editing = on and true or false
+    if not on and wallMode then SetWallMode(false) end
+    ns.Fire("settings")
+end
+
 -- The route's lines on whatever map is shown: the walking path to the next
 -- stop, any flight, and the legs between stops, carried across zone lines
 -- (RouteDraw.lua). Redrawn every tick, as the player moves.
@@ -1101,9 +1108,14 @@ local function RefreshTrail()
     end
     if view.kind == "zone" then parts[3] = { view.zone.name } end
     if view.kind == "map" then parts[3] = { view.name } end
-    -- The strip has room for the Roads, Walls, Me and zoom buttons at its right; the trail
-    -- gets the rest, and only the last part (the shown map) is ever cut short.
-    local x, room = 0, MAP_W - 254
+    -- The strip has room for the Me and zoom buttons at its right, and while
+    -- editing the Share, Spots, Roads and Walls ones; the trail gets the rest,
+    -- and only the last part (the shown map) is ever cut short.
+    local editing = ns.db.editing and true or false
+    for _, b in ipairs({ wallButton, frame.roadButton, frame.spotButton, frame.shareButton }) do
+        b:SetShown(editing)
+    end
+    local x, room = 0, editing and MAP_W - 314 or MAP_W - 98
     for i, b in ipairs(trail) do
         local part = parts[i]
         if part then
@@ -1139,7 +1151,7 @@ local function RefreshInfo()
     routeButton:Hide()
     skipButton:Hide()
     local done = frame.doneCheck
-    done:SetShown(view.kind == "zone")
+    done:SetShown(view.kind == "zone" and ns.db.editing and true or false)
     if view.kind == "zone" then done:SetChecked(ns.ZoneMarkedDone(view.zone)) end
     nextInfo:SetText("")
     hint:SetText(HINTS[view.kind] or "")
@@ -1224,6 +1236,13 @@ local OPTIONS = {
           .. "Off, a button by the flight map takes it in one click.",
       get = function() return ns.db.autoFly end,
       set = function(on) ns.db.autoFly = on ns.Fire("settings") end },
+    { section = "Route editing" },
+    { label = "Edit walls, roads and spots", desc = "Make routes better, and share them.",
+      tip = "Shows the Walls, Roads, Spots and Share buttons over the map. Walls keep routes off ground "
+          .. "you can't really cross, roads pull them onto paths, and spots mark where an area is "
+          .. "really uncovered. Share sends yours to friends as text, or takes in theirs.",
+      get = function() return ns.db.editing end,
+      set = function(on) ns.SetEditing(on) end },
     { section = "Display" },
     { label = "World map markers", desc = "Areas left and the route on the world map.",
       tip = "Areas still to uncover, numbered in route order, plus a bar to start the route.",
@@ -1435,6 +1454,13 @@ local function Build()
     frame.spotButton:SetPoint("RIGHT", frame.roadButton, "LEFT", -4, 0)
     frame.spotButton:SetText("Spots")
     frame.spotButton:SetScript("OnClick", function() SetWallMode(not (wallMode and editKind == "spots"), "spots") end)
+    frame.shareButton = CreateFrame("Button", nil, strip, "UIPanelButtonTemplate")
+    frame.shareButton:SetSize(52, 22)
+    frame.shareButton:SetPoint("RIGHT", frame.spotButton, "LEFT", -4, 0)
+    frame.shareButton:SetText("Share")
+    frame.shareButton:SetScript("OnClick", function() ns.ShowShare(view.kind == "zone" and view.zone or nil) end)
+    Tip(frame.shareButton, "Share routes",
+        "Your walls, roads and spots as text to send to friends, or paste theirs in to use them.")
     Tip(frame.spotButton, "Move spots",
         "On a zone's map: drag an area's marker to move its spot, Shift-click it to move it to where you stand, "
         .. "or stand in an area and click Spot here; right-click a marker to put it back. "
@@ -1675,6 +1701,7 @@ end
 -- For the tests: what the map shows, and a click on it.
 function ns.WindowView() return view end
 function ns.WindowZoom() return zoom, offX, offY end
+function ns.WindowFrame() return frame end
 ns.WindowWheel = OnWheel
 ns.WindowZoomOut = ZoomOut
 ns.WindowOpen = function(target)

@@ -25,6 +25,7 @@ local DEFAULTS = {
     learnFlights = true,   -- route past flight masters not yet learned, when close
     autoFly = false,       -- take the planned flight as soon as the flight map opens
     learnSpots = true,     -- on a route, an area's spot moves to where credit was given
+    editing = false,       -- the window's tools for walls, roads and spots, and sharing them
     minimap = {},          -- LibDBIcon's own settings
 }
 
@@ -81,6 +82,12 @@ end
 function ns.LoadSettings()
     if type(CompassForeverDB) ~= "table" then CompassForeverDB = {} end
     local db = CompassForeverDB
+    -- whoever already drew or moved something keeps the tools showing
+    if db.editing == nil then
+        for _, key in ipairs({ "walls", "roads", "spots", "finished" }) do
+            if type(db[key]) == "table" and next(db[key]) then db.editing = true end
+        end
+    end
     for key, value in pairs(DEFAULTS) do
         if db[key] == nil then
             db[key] = type(value) == "table" and {} or value

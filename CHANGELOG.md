@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Route editing is a feature for everyone: Options, Route editing, Edit
+  walls, roads and spots (or /cf edit) shows the Walls, Roads, Spots and
+  Share buttons over the window's map (off by default; on already if you
+  have drawn or moved anything). Share (or /cf share) writes your walls,
+  roads and spots as one line of text for this zone or all of them, to
+  copy with Ctrl+C and send to friends; pasting theirs in shows what it
+  holds, then Add to mine or Replace mine takes it in.
 - Clicking an area's marker routes you to that one area only, uncovered
   or not (even in a fully explored zone); the route ends when you reach it
   or uncover it. Start route gives the whole zone's route.
