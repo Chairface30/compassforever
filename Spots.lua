@@ -125,6 +125,44 @@ function ns.ResetSpot(zone, node)
 end
 ns.DropShippedEdits = DropShipped
 
+-- A node's spot moved to where you stand, uncovered here or not (spots are
+-- the account's, not the character's).
+function ns.SpotToMe(zone, node)
+    local px, py = ns.PlayerOn(zone.map)
+    if not (px and py and px >= 0 and px <= 1 and py >= 0 and py <= 1) then
+        ns.Print("You're not on " .. zone.name .. "'s map.")
+        return
+    end
+    ns.MoveSpot(zone, node, px, py)
+end
+
+-- The area you're standing in, by the game's subzone name.
+function ns.AreaHere()
+    local zone = ns.CurrentZone()
+    if not zone then return nil end
+    local ok, sub = ns.Ask(ns.API(nil, "GetSubZoneText"))
+    sub = ok and ns.Text(sub)
+    if not sub or sub == "" then return zone, nil end
+    sub = sub:lower()
+    for _, node in ipairs(zone.nodes) do
+        if node.name:lower() == sub and not node.fp then return zone, node end
+    end
+    return zone, nil
+end
+
+-- The Spot here button: the area you're in gets its spot where you stand.
+function ns.SpotHere()
+    local zone, node = ns.AreaHere()
+    if not zone then
+        ns.Print("You're not in a zone with areas to explore.")
+    elseif not node then
+        ns.Print("You're not in one of " .. zone.name .. "'s areas (by its name). "
+            .. "Shift-click an area's marker in Spots mode to move that one to you.")
+    else
+        ns.SpotToMe(zone, node)
+    end
+end
+
 -- Credit: what the zone you're in had uncovered last time, by its ach.
 local seen = {}
 

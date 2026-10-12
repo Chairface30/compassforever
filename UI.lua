@@ -683,7 +683,8 @@ local function Pin(i)
                 GameTooltip:AddLine(string.format("Credit given at %.1f, %.1f", credit[1] * 100, credit[2] * 100), 0.3, 0.9, 1)
             end
             if wallMode and editKind == "spots" then
-                GameTooltip:AddLine("Drag to move this spot. Right-click to put it back.", 1, 0.82, 0, true)
+                GameTooltip:AddLine("Drag to move this spot, or Shift-click to move it to where you stand. "
+                    .. "Right-click to put it back.", 1, 0.82, 0, true)
             end
             if self.done then
                 GameTooltip:AddLine("Uncovered.", 0.3, 0.9, 0.3)
@@ -701,7 +702,8 @@ local function Pin(i)
         p:SetScript("OnLeave", function() GameTooltip:Hide() end)
         p:SetScript("OnClick", function(self, button)
             if wallMode and editKind == "spots" then
-                if button == "RightButton" then ns.ResetSpot(self.zone or view.zone, self.node) end
+                if button == "RightButton" then ns.ResetSpot(self.zone or view.zone, self.node)
+                elseif IsShiftKeyDown() and not self.node.fp then ns.SpotToMe(self.zone or view.zone, self.node) end
                 return
             end
             if button == "RightButton" then ZoomOut()
@@ -916,6 +918,7 @@ local function SetWallMode(on, kind)
     if frame and frame.roadButton then
         frame.roadButton:SetText((wallMode and editKind == "roads") and "|cff99ff0dRoads|r" or "Roads")
         frame.spotButton:SetText((wallMode and editKind == "spots") and "|cff55ddffSpots|r" or "Spots")
+        frame.spotHere:SetShown(wallMode and editKind == "spots")
     end
     DrawMap()
 end
@@ -1432,7 +1435,8 @@ local function Build()
     frame.spotButton:SetText("Spots")
     frame.spotButton:SetScript("OnClick", function() SetWallMode(not (wallMode and editKind == "spots"), "spots") end)
     Tip(frame.spotButton, "Move spots",
-        "On a zone's map: drag an area's marker to move its spot; right-click a marker to put it back. "
+        "On a zone's map: drag an area's marker to move its spot, Shift-click it to move it to where you stand, "
+        .. "or stand in an area and click Spot here; right-click a marker to put it back. "
         .. "Cyan dots show where the game gave credit for an area. Click Spots again when done.")
     Tip(frame.roadButton, "Draw roads",
         "On a zone's map: left-click to add corners of a road, right-click to finish it. "
@@ -1496,6 +1500,20 @@ local function Build()
     Tip(done, "Done mapping",
         "Tick when this zone's walls, roads and spots are all laid out: it gets a * in the list, "
         .. "ready to be built into the addon. Zones already built in show in purple.")
+
+    -- On the map's other corner, in Spots mode: the area you stand in gets
+    -- its spot where you are.
+    frame.spotHere = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    frame.spotHere:SetSize(86, 22)
+    frame.spotHere:SetPoint("TOPRIGHT", border, "TOPRIGHT", -8, -8)
+    frame.spotHere:SetFrameLevel(mapBox:GetFrameLevel() + 20)
+    frame.spotHere:SetText("Spot here")
+    frame.spotHere:SetScript("OnClick", function() ns.SpotHere() end)
+    frame.spotHere:Hide()
+    Tip(frame.spotHere, "Spot here",
+        "Moves the spot of the area you're standing in (by its name) to where you are. "
+        .. "Works on any character, whether it has uncovered the area or not. "
+        .. "Shift-click a marker to move that area's spot to you instead.")
 
     -- Under the map: what it shows on the left, the route buttons on the
     -- right, and how to work it along the bottom.

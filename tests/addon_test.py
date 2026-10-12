@@ -957,6 +957,18 @@ before, after = rt.eval("BEFORE"), rt.eval("MAP_DOTS()")
 check(f"a zone's markers go when the map changes without telling ({before} -> {after})", before > 0 and after < before, (before, after))
 rt.execute("SHOWN_MAP = 1429")
 
+print("spot here")
+rt.execute("""PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.4444, 0.5555 NS.db.spots = nil
+    HERE_NODE = ELWYNN.nodes[3]
+    function GetSubZoneText() return HERE_NODE.name end
+    NS.SpotHere()""")
+check("Spot here moves the area you're in to you", rt.eval("NS.MovedSpot(HERE_NODE) and NS.MovedSpot(HERE_NODE)[1] == 0.4444"))
+rt.execute("function GetSubZoneText() return 'Nowhere Special' end PRINTED = {} NS.SpotHere()")
+check("and says so when you're in none", any("Shift-click" in l for l in printed(rt)))
+rt.execute("NS.SpotToMe(ELWYNN, ELWYNN.nodes[4])")
+check("Shift-click moves any area's spot to you", rt.eval("NS.MovedSpot(ELWYNN.nodes[4])[2] == 0.5555"))
+rt.execute("NS.db.spots = nil PLAYER.x, PLAYER.y = 0.42, 0.65 function GetSubZoneText() return '' end")
+
 print("per character")
 rt.execute("""ALT_ONLY = true EXPLORED[1429] = {}
     for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = true end NS.InvalidateProgress()""")

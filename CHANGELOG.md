@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Spots mode: a Spot here button moves the spot of the area you're standing
+  in to where you are, and Shift-click on a marker moves that area's spot
+  to you. Works on any character, uncovered there or not.
 - World map: backing out of a city no longer leaves its markers on the
   next map.
 - Uncovered areas are per character: read from your own map, not the
