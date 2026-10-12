@@ -82,6 +82,10 @@ end
 local function Target()
     local corpse = ns.Corpse and ns.Corpse()
     if corpse then return ns.CorpseVector(corpse) end
+    if ns.travel and ns.TravelVector then
+        local bearing = ns.TravelVector()
+        if bearing then return bearing end
+    end
     local zone, stop = nil, nil
     if ns.NavTarget then zone, stop = ns.NavTarget() end
     if stop then

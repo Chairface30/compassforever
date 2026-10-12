@@ -1127,6 +1127,26 @@ end)()""")
 check(f"a flight can make a farther flight master the quickest ({flew})", flew is not None)
 rt.execute("NS.StopRoute() UnitFactionGroup = nil NS.flightsRead = false")
 
+print("paths kept per target")
+both = rt.eval("""(function()
+    local z = NS.ZoneByMap(1412)
+    local px, py = NS.ZoneToContinentPoint(z, 0.45, 0.45)
+    local ax, ay = NS.ZoneToContinentPoint(z, 0.55, 0.45)
+    local bx, by = NS.ZoneToContinentPoint(z, 0.45, 0.60)
+    NS.ForgetPaths()
+    for _ = 1, 3 do
+        NS.Steer(z.continent, { x = ax, y = ay }, px, py)
+        NS.Steer(z.continent, { x = bx, y = by }, px, py)
+        for _ = 1, 400 do FRAME(0.05) if NS.PathJobs() == 0 then break end end
+    end
+    -- two things aiming at two targets, back and forth: both keep their path
+    local a = NS.Steer(z.continent, { x = ax, y = ay }, px, py)
+    local b = NS.Steer(z.continent, { x = bx, y = by }, px, py)
+    local a2 = NS.Steer(z.continent, { x = ax, y = ay }, px, py)
+    return (a and 1 or 0) + (b and 1 or 0) + (a2 and 1 or 0) .. ":" .. NS.PathJobs()
+end)()""")
+check(f"two targets don't throw away each other's path ({both})", both == "3:0", both)
+
 print("per character")
 rt.execute("""ALT_ONLY = true EXPLORED[1429] = {}
     for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = true end NS.InvalidateProgress()""")

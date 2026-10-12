@@ -764,7 +764,7 @@ local function Request(space, fx, fy, tx, ty, key, done)
     }
     -- The arrow's path goes first: the drawn legs between later stops can
     -- wait.
-    if key == "steer" then table.insert(jobs, 1, job) else jobs[#jobs + 1] = job end
+    if key:sub(1, 5) == "steer" then table.insert(jobs, 1, job) else jobs[#jobs + 1] = job end
     driver:Show()
 end
 
@@ -847,30 +847,43 @@ end
 -- along the path; nil while there is no path yet (the arrow then points
 -- straight). `c` is the continent (0 or 1); `stop`, px and py are on its
 -- map.
+-- One path kept per target (the arrow, the minimap button and the drawn
+-- lines can each aim somewhere else: a flight master, a dock, the stop), so
+-- they never throw away each other's; targets unused for a while are let go.
+local KEEP = 20              -- seconds a target unused is kept
+
 function ns.Steer(c, stop, px, py, localZone)
-    local sp = ns.ContinentSpace(c, localZone)
-    if not sp then return nil end
-    local cont = sp.cont
+    local cont = ns.CONTINENT_YARDS and ns.CONTINENT_YARDS[c]
+    if not (cont and cont.maxX) then return nil end
     local key = string.format("%d:%.5f:%.5f:%d", c, stop.x, stop.y, localZone and localZone.ach or 0)
     local now = Now()
-    if steer.key ~= key then
-        steer.key, steer.path, steer.asked = key, nil, nil
+    local e = steer[key]
+    if not e then
+        e = {}
+        steer[key] = e
+        for k, other in pairs(steer) do
+            if now - (other.used or now) > KEEP then steer[k] = nil end
+        end
     end
+    e.used = now
+    steer.last = e
     local function Ask()
-        steer.asked = now
-        Request(sp, px, py, stop.x, stop.y, "steer", function(path)
-            if steer.key == key then
-                steer.path = path
-                steer.found = now
+        e.asked = now
+        -- the space is built only to search, not on every look
+        local sp = ns.ContinentSpace(c, localZone)
+        if not sp then return end
+        Request(sp, px, py, stop.x, stop.y, "steer:" .. key, function(path)
+            if steer[key] == e then
+                e.path = path
                 ns.Fire("path")
             end
         end)
     end
-    if not steer.asked then Ask() end
-    local path = steer.path
+    if not e.asked then Ask() end
+    local path = e.path
     if not path or #path < 2 then return nil end
     local k, cx, cy, off = Project(path, cont, px, py)
-    if off > OFF_PATH and now - steer.asked > ASK_AGAIN then Ask() end
+    if off > OFF_PATH and now - e.asked > ASK_AGAIN then Ask() end
     -- From the projection, AHEAD yards along.
     local left, aimX, aimY = AHEAD, path[#path].x, path[#path].y
     local here = { x = cx, y = cy }
@@ -895,7 +908,8 @@ end
 
 -- What /cf probe says about the arrow's path.
 function ns.SteerStatus()
-    return steer.key, steer.path and #steer.path or nil, steer.asked, #jobs
+    local e = steer.last or {}
+    return nil, e.path and #e.path or nil, e.asked, #jobs
 end
 
 -------------------------------------------------------------------------------
@@ -909,16 +923,17 @@ local between = {}
 -- After a wall changes: every path is looked for again.
 function ns.ForgetPaths()
     between = {}
-    steer.key, steer.path, steer.asked = nil, nil, nil
+    steer = {}
 end
 
 function ns.PathBetween(c, ax, ay, bx, by, localZone)
-    local sp = ns.ContinentSpace(c, localZone)
-    if not sp then return nil end
     local key = string.format("%d:%.5f:%.5f:%.5f:%.5f:%d", c, ax, ay, bx, by, localZone and localZone.ach or 0)
     local p = between[key]
     if p == nil then
         between[key] = false
+        -- the space is built only to search
+        local sp = ns.ContinentSpace(c, localZone)
+        if not sp then return nil end
         Request(sp, ax, ay, bx, by, "between:" .. key, function(path)
             between[key] = path or "none"
             ns.Fire("path")

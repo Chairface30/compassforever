@@ -80,6 +80,8 @@ local function TravelVector()
     return Bearing(px, py, t.x, t.y, t.w, t.h)
 end
 
+ns.TravelVector = TravelVector
+
 local function Cell(relative)
     local turn = (relative % TWO_PI) / TWO_PI
     return math.floor(turn * FRAMES + 0.5) % FRAMES

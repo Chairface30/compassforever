@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Less lag: the arrow and the minimap button could aim at different
+  targets (the flight master and the stop) and threw away each other's
+  walking path many times a second, so it was searched for again and
+  again. Each target now keeps its own path; the minimap button aims
+  where the arrow does; paths and the route's lines aren't rebuilt when
+  nothing changed.
 - Fixed: every character counted as knowing every flight point, so New
   flight master said you knew them all and Stop at new flight masters
   never added any. The world map's flight point list on Forever calls

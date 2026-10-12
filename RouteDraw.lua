@@ -111,7 +111,8 @@ end
 --   route - stop to stop, along the walking paths between them.
 --   corpse - while a ghost, from you to your corpse, ahead of everything
 --           (the route's stops still drawn, if on the same continent).
-function ns.RouteGeometry()
+local memo, memoAt = nil, -1
+local function Geometry()
     local corpse = ns.Corpse and ns.Corpse()
     local route = ns.route
     local stop = ns.CurrentStop()
@@ -161,6 +162,27 @@ function ns.RouteGeometry()
     if #rest >= 4 then parts[#parts + 1] = { kind = "route", pts = rest } end
     return { cont = cont, c = c, parts = parts }
 end
+
+local memoWhere
+function ns.RouteGeometry()
+    local ok, now = pcall(GetTime)
+    now = ok and now or 0
+    -- the same while you stand still (a moment at most), else worked out again
+    local here = ns.PlayerMap()
+    local x, y
+    if here then x, y = ns.PlayerOn(here) end
+    local where = tostring(here) .. ":" .. tostring(x) .. ":" .. tostring(y)
+    if memoAt >= 0 and now - memoAt < 0.5 and where == memoWhere then return memo end
+    memo, memoAt, memoWhere = Geometry(), now, where
+    return memo
+end
+-- anything that changes the route's shape is drawn at once
+local function Forget() memoAt = -1 end
+ns.On("route", Forget)
+ns.On("path", Forget)
+ns.On("settings", Forget)
+ns.On("spots", Forget)
+ns.On("progress", Forget)
 
 -- A function turning continent fractions into `mapID`'s fractions, or nil
 -- when that map isn't on the continent (or is Azeroth, holding it).
