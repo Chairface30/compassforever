@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## Compass Forever v1.2 (2026-10-12)
 
 - The window is laid out again so nothing overlaps or runs off: the trail
   over the map no longer slides away when the map is zoomed or collides with
