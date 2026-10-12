@@ -1,9 +1,11 @@
 -- Compass Forever: Progress.lua
 -- Which parts of each zone map are uncovered, read from the client.
 --
--- Each "Explore <zone>" achievement has one criterion per part of the
--- zone's map; when a criterion cannot be read, the map's own list of uncovered
--- art (C_MapExplorationInfo) is asked instead.
+-- Uncovering is per character: the map's own list of uncovered art
+-- (C_MapExplorationInfo) is what this character has found. The "Explore
+-- <zone>" achievements are account-wide, so their criteria show areas
+-- another character uncovered; they are asked only when the map can't be
+-- read.
 --
 -- Answers are cached until something that could change them happens
 -- (ns.ProgressChanged in Core.lua).
@@ -90,6 +92,15 @@ end
 function ns.ZoneState(zone)
     return Cached("z" .. zone.ach, function()
         local state, source = {}, nil
+        -- This character's map first: every node with art is answered by it.
+        local art = ExploredArt(zone.map)
+        if art then
+            for i, node in ipairs(zone.nodes) do
+                if node.ox then state[i] = art[node.ox .. ":" .. node.oy] == true end
+            end
+            source = "map"
+        end
+        -- Only what the map left unknown from the account-wide criteria.
         local crit = Criteria(zone.ach)
         if crit then
             local byID = {}
@@ -98,37 +109,11 @@ function ns.ZoneState(zone)
                 if c.asset then byID["o" .. c.asset] = c.done end
             end
             for i, node in ipairs(zone.nodes) do
-                local done = byID[node.criteria]
-                if done == nil then done = byID["o" .. node.overlay] end
-                state[i] = done
-            end
-            source = "achievement"
-        end
-        -- Whatever the criteria left unknown, the map may know.
-        local art = ExploredArt(zone.map)
-        if art then
-            -- The map's list is trusted only where it matches the data: some
-            -- uncovered art of this zone found at a node's spot.
-            local matches = false
-            for _, node in ipairs(zone.nodes) do
-                if node.ox and art[node.ox .. ":" .. node.oy] then
-                    matches = true
-                    break
-                end
-            end
-            for i, node in ipairs(zone.nodes) do
-                if state[i] == nil and node.ox then
-                    state[i] = art[node.ox .. ":" .. node.oy] == true
-                    source = source or "map"
-                elseif state[i] == false and node.ox and art[node.ox .. ":" .. node.oy] then
-                    state[i] = true      -- the map has caught up first
-                elseif state[i] == true and matches and node.ox and not art[node.ox .. ":" .. node.oy] then
-                    -- The criterion is ticked but the map still has the gap:
-                    -- the achievement can name an older overlay with more
-                    -- areas than the map's (Razorwind Canyon ticks Drygulch
-                    -- Ravine), so the area stays on the route until the map
-                    -- shows it.
-                    state[i] = false
+                if state[i] == nil then
+                    local done = byID[node.criteria]
+                    if done == nil then done = byID["o" .. node.overlay] end
+                    state[i] = done
+                    if done ~= nil then source = source or "achievement" end
                 end
             end
         end

@@ -140,11 +140,26 @@ function GetAchievementCriteriaInfo(id, i)
     return c.name, 43, DONE[c.id] or false, DONE[c.id] and 1 or 0, 1, nil, 0, c.asset, "", c.id, true
 end
 
--- The map's uncovered art: EXPLORED[map] = { { offsetX, offsetY } ... }
+-- The map's uncovered art: EXPLORED[map] = { { offsetX, offsetY } ... }.
+-- In the game a character uncovering an area gets both the criterion and
+-- the art; so here a DONE criterion uncovers its art too, unless ALT_ONLY
+-- (another character of the account did it: criterion only).
 EXPLORED = {}
+ALT_ONLY = false
 C_MapExplorationInfo = { GetExploredMapTextures = function(map)
     local out = {}
-    for _, o in ipairs(EXPLORED[map] or {}) do
+    local list = {}
+    for _, o in ipairs(EXPLORED[map] or {}) do list[#list + 1] = o end
+    if not ALT_ONLY then
+        for _, z in ipairs(NS.ZONES or {}) do
+            if z.map == map then
+                for _, n in ipairs(z.nodes) do
+                    if DONE[n.criteria] and n.ox then list[#list + 1] = { n.ox, n.oy } end
+                end
+            end
+        end
+    end
+    for _, o in ipairs(list) do
         out[#out + 1] = { offsetX = o[1], offsetY = o[2], textureWidth = 300, textureHeight = 200,
             numTexturesWide = 2, numTexturesTall = 1, fileDataIDs = { 2001, 2002 } }
     end
@@ -930,6 +945,16 @@ rt.execute("NS.SetZoneMarkedDone(ELWYNN, true)")
 check("a zone marked done is kept", rt.eval("NS.ZoneMarkedDone(ELWYNN)"))
 rt.execute("NS.SetZoneMarkedDone(ELWYNN, false)")
 check("and unmarked", not rt.eval("NS.ZoneMarkedDone(ELWYNN)"))
+
+print("per character")
+rt.execute("""ALT_ONLY = true EXPLORED[1429] = {}
+    for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = true end NS.InvalidateProgress()""")
+check("areas another character uncovered stay covered here",
+      rt.eval("(select(1, NS.ZoneCounts(ELWYNN)))") == 0, rt.eval("(select(1, NS.ZoneCounts(ELWYNN)))"))
+rt.execute("local n = ELWYNN.nodes[1] EXPLORED[1429] = { { n.ox, n.oy } } NS.InvalidateProgress()")
+check("only this character's map counts", rt.eval("(select(1, NS.ZoneCounts(ELWYNN)))") == 1)
+rt.execute("""ALT_ONLY = false EXPLORED[1429] = {}
+    for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = nil end NS.InvalidateProgress()""")
 
 print("corpse")
 rt.execute("""NS.StopRoute() PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.42, 0.65

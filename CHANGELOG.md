@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Uncovered areas are per character: read from your own map, not the
+  account-wide Explore achievements, so an alt no longer sees its zones
+  as explored because another character did them. Spots, walls and roads
+  stay account-wide.
 - Tirisfal Glades is mapped by hand: 14 walls, 16 roads and its 14 spots
   where the game really gives credit.
 - Dead: as a ghost, the arrow, the minimap button and the route lines
