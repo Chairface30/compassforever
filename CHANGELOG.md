@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- The route is drawn on the minimap too: the same lines as the world map
+  (your walk to the next stop, the stops after it, any flight) around you at
+  the minimap's zoom, turning with it if it rotates and cut off at its edge,
+  with a dot on each stop in reach (the next one larger). Options, Display:
+  Route on the minimap (on by default).
+
 ## Compass Forever v1.2 (2026-10-12)
 
 - The window is laid out again so nothing overlaps or runs off: the trail

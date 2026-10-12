@@ -170,6 +170,7 @@ local COLORS = {
     route = { 1, 0.82, 0.1, 0.75 },
     fly = { 0.4, 0.75, 1, 0.9 },
 }
+ns.ROUTE_COLORS = COLORS
 
 -- Draw the route on `canvas` (width x height of its own units), showing map
 -- `mapID`. lineFor(i) hands out the i-th line. Returns how many were used.

@@ -14,6 +14,7 @@ local DEFAULTS = {
     arrow = {},            -- the arrow's spot
     arrowScale = 1,
     mapPins = true,        -- markers and the route bar on the world map
+    minimapRoute = true,   -- the route drawn on the minimap too
     autoRoute = false,     -- start a zone's route on entering it
     banner = true,         -- big words for a new route, an uncovered area
     learnFlights = true,   -- route past flight masters not yet learned, when close
@@ -157,6 +158,7 @@ boot:SetScript("OnEvent", function(_, event, arg1)
         -- throws: each is tried on its own.
         for _, name in ipairs(PROGRESS_EVENTS) do pcall(boot.RegisterEvent, boot, name) end
         if ns.SetupMinimap then pcall(ns.SetupMinimap) end
+        if ns.SetupMinimapRoute then pcall(ns.SetupMinimapRoute) end
         ns.Fire("login")
         ns.ProgressChanged()
         return

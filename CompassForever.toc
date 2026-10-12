@@ -21,6 +21,7 @@ MapArt.lua
 Pathing.lua
 Travel.lua
 RouteDraw.lua
+MinimapRoute.lua
 Arrow.lua
 Banner.lua
 Auto.lua
