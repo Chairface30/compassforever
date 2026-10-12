@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Spots: the Spots button over the window's map lets you drag an area's
+  marker to move its spot; right-click a marker to put it back. A route
+  under way there is planned again at once.
+- Where credit is given: whenever an area of the zone you're in is
+  uncovered, where you were standing is said in chat and kept, shown as a
+  cyan dot on the window's map and in the marker's tooltip. While you run a
+  route, the area's spot moves there too (Options, Routes: Learn spots from
+  credit, on by default).
 - Roads: the Roads button over the window's map draws roads on the zone
   shown, in lime green, the same way as walls (left-click corners,
   right-click to finish, right-click a road to remove it). Walking paths

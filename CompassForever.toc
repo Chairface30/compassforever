@@ -19,6 +19,7 @@ Data\Walls.lua
 Data\Roads.lua
 Progress.lua
 Route.lua
+Spots.lua
 MapArt.lua
 Pathing.lua
 Travel.lua

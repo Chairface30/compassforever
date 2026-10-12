@@ -876,6 +876,31 @@ walls2 = rt.eval("(function() local w = NS.db.walls[ELWYNN.ach] local t = {} for
 check(f"right-click on a wall removes just that one ({walls2})", walls2 == "2,c", walls2)
 rt.execute("NS.WindowWallMode(false) NS.db.walls = nil NS.WallsChanged()")
 
+print("credit and spots")
+rt.execute("""NS.StopRoute() NS.db.credit = nil NS.db.spots = nil NS.db.learnFlights = false
+    for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = nil end NS.InvalidateProgress()
+    PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.42, 0.65
+    FIRE('CRITERIA_UPDATE') FLUSH()
+    NS.StartRoute(ELWYNN, { quiet = true })
+    CREDITED = NS.CurrentStop().node
+    PLAYER.x, PLAYER.y = 0.4321, 0.6543
+    DONE[CREDITED.criteria] = true
+    -- in the game the map fills in with the achievement
+    EXPLORED[1429] = EXPLORED[1429] or {}
+    table.insert(EXPLORED[1429], { CREDITED.ox, CREDITED.oy })
+    FIRE('CRITERIA_UPDATE')
+    PLAYER.x, PLAYER.y = 0.5, 0.5   -- run on before progress is handled
+    FLUSH()""")
+credit = rt.eval("(function() local c = NS.db.credit and NS.db.credit[CREDITED.criteria] return c and (c[1] .. ',' .. c[2]) end)()")
+check(f"where credit was given is kept ({credit})", credit == "0.4321,0.6543", credit)
+moved = rt.eval("(function() local p = NS.NodePoints(CREDITED)[1] return p[1] .. ',' .. p[2] end)()")
+check(f"and on a route the spot moves there ({moved})", moved == "0.4321,0.6543", moved)
+rt.execute("NS.ResetSpot(ELWYNN, CREDITED)")
+check("right-click puts it back", rt.eval("NS.MovedSpot(CREDITED) == nil"))
+rt.execute("NS.MoveSpot(ELWYNN, ELWYNN.nodes[2], 0.5, 0.5)")
+check("a dragged spot is used for the route", rt.eval("NS.NodePoints(ELWYNN.nodes[2])[1][1] == 0.5"))
+rt.execute("NS.ResetSpot(ELWYNN, ELWYNN.nodes[2]) NS.StopRoute() NS.db.credit = nil NS.db.learnFlights = true")
+
 print("lua escapes")
 # A path written through a shell heredoc once lost its backslashes; every
 # texture path must read Interface\... in the source.

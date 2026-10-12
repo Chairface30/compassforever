@@ -22,6 +22,7 @@ local DEFAULTS = {
     banner = true,         -- big words for a new route, an uncovered area
     learnFlights = true,   -- route past flight masters not yet learned, when close
     autoFly = false,       -- take the planned flight as soon as the flight map opens
+    learnSpots = true,     -- on a route, an area's spot moves to where credit was given
     minimap = {},          -- LibDBIcon's own settings
 }
 
@@ -131,6 +132,8 @@ end
 local pending = false
 function ns.ProgressChanged()
     if pending then return end
+    -- the moment it happened, before the batching delay (Spots.lua)
+    if ns.OnProgressEvent then pcall(ns.OnProgressEvent) end
     pending = true
     local after = ns.API("C_Timer", "After")
     local function run()

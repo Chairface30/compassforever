@@ -96,8 +96,11 @@ end
 
 local SCALE = 10000
 
--- A node's standing points as fractions.
+-- A node's standing points as fractions: one moved by hand (Spots.lua), or
+-- the ones picked from the terrain.
 local function Points(node)
+    local moved = ns.MovedSpot and ns.MovedSpot(node)
+    if moved then return { { moved[1], moved[2] } } end
     local out = {}
     local p = node.points
     for i = 1, #p, 2 do out[#out + 1] = { p[i] / SCALE, p[i + 1] / SCALE } end
@@ -135,7 +138,9 @@ function ns.PlanRoute(zone, nodes, sx, sy)
     for i, node in ipairs(nodes) do
         pts[i] = {}
         for k, p in ipairs(Points(node)) do
-            pts[i][k] = { x = p[1], y = p[2], id = ns.PointID and ns.PointID(zone, node, k) or nil }
+            -- a moved spot has no walking costs worked out: straight lines
+            local moved = ns.MovedSpot and ns.MovedSpot(node)
+            pts[i][k] = { x = p[1], y = p[2], id = not moved and ns.PointID and ns.PointID(zone, node, k) or nil }
         end
     end
 
