@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Walls: the Walls button over the window's map turns on wall drawing for
+  the zone shown. Left-click adds corners, right-click finishes a wall,
+  right-click on a wall removes it. Walking paths, the arrow and the drawn
+  route never cross a wall (flights still fly straight over them). Walls
+  show faintly on the map the rest of the time. They are kept in your
+  settings; good ones get built into the addon.
 - An area counts as uncovered only once the zone map shows it, not just once
   the achievement ticks it. Forever redrew some zone maps, and the
   achievement can still check an older map piece covering more ground:

@@ -310,6 +310,10 @@ local baseTiles, colorArt, grayArt
 local pins, badges, lines = {}, {}, {}
 local playerDot, highlight
 local hasLines
+-- Wall mode: clicks on a zone's map draw walls (Pathing.lua) instead.
+local wallMode, drawing, wallButton = false, nil, nil
+local wallLines = {}
+local WallClick
 
 local function Pool(list, i, make)
     local t = list[i]
@@ -522,6 +526,10 @@ local function OnMapClick(_, button)
         mapBox:SetScript("OnUpdate", nil)
         if moved then return end
     end
+    if wallMode and view.kind == "zone" then
+        WallClick(button)
+        return
+    end
     if button == "RightButton" then
         ZoomOut()
         return
@@ -610,6 +618,113 @@ local function Line(i)
         return l
     end)
 end
+
+-------------------------------------------------------------------------------
+-- Walls: drawn on a zone's map, no path crosses them
+-------------------------------------------------------------------------------
+-- Left-click adds a corner to the wall being drawn, right-click finishes it
+-- (or, with none being drawn, removes the wall under the cursor). A zone's
+-- walls become the player's own copy on the first change.
+
+local WALL_COLOR = { 1, 0.25, 0.2, 0.95 }
+
+local function WallLine(i)
+    return Pool(wallLines, i, function()
+        local l = canvas:CreateLine(nil, "OVERLAY")
+        l:SetThickness(3)
+        return l
+    end)
+end
+
+local function DrawWalls()
+    for _, l in ipairs(wallLines) do l:Hide() end
+    if not (hasLines and view.kind == "zone") then return end
+    local n = 0
+    local function Draw(pts, r, g, b, a)
+        for k = 1, #pts - 3, 2 do
+            n = n + 1
+            local l = WallLine(n)
+            l:SetStartPoint("TOPLEFT", canvas, pts[k] * CW(), -pts[k + 1] * CH())
+            l:SetEndPoint("TOPLEFT", canvas, pts[k + 2] * CW(), -pts[k + 3] * CH())
+            l:SetColorTexture(r, g, b, a)
+        end
+    end
+    -- shown always while editing; otherwise faintly, so they can be seen
+    local c = WALL_COLOR
+    for _, wall in ipairs(ns.ZoneWalls(view.zone)) do
+        Draw(wall, c[1], c[2], c[3], wallMode and c[4] or 0.45)
+    end
+    if wallMode and drawing then Draw(drawing, 1, 0.85, 0.2, 1) end
+end
+
+-- The zone's own walls, copied from the shipped ones on the first change.
+local function OwnWalls(zone)
+    ns.db.walls = ns.db.walls or {}
+    local mine = ns.db.walls[zone.ach]
+    if not mine then
+        mine = {}
+        for _, wall in ipairs(ns.ZoneWalls(zone)) do
+            local copy = {}
+            for k, v in ipairs(wall) do copy[k] = v end
+            mine[#mine + 1] = copy
+        end
+        ns.db.walls[zone.ach] = mine
+    end
+    return mine
+end
+
+local function Round(v) return math.floor(v * 10000 + 0.5) / 10000 end
+
+-- The wall nearest the cursor, within a few pixels: its index.
+local function WallAt(zone, x, y)
+    local best, bestD = nil, 10
+    for w, wall in ipairs(ns.ZoneWalls(zone)) do
+        for k = 1, #wall - 3, 2 do
+            local ax, ay = wall[k] * CW(), wall[k + 1] * CH()
+            local bx, by = wall[k + 2] * CW(), wall[k + 3] * CH()
+            local px, py = x * CW(), y * CH()
+            local dx, dy = bx - ax, by - ay
+            local len2 = dx * dx + dy * dy
+            local t = len2 > 0 and math.max(0, math.min(1, ((px - ax) * dx + (py - ay) * dy) / len2)) or 0
+            local d = math.sqrt((px - ax - t * dx) ^ 2 + (py - ay - t * dy) ^ 2)
+            if d < bestD then best, bestD = w, d end
+        end
+    end
+    return best
+end
+
+WallClick = function(button)
+    local zone = view.zone
+    local x, y = CursorOnMap()
+    if not x then return end
+    if button == "LeftButton" then
+        drawing = drawing or {}
+        drawing[#drawing + 1], drawing[#drawing + 2] = Round(x), Round(y)
+    elseif drawing then
+        if #drawing >= 4 then
+            table.insert(OwnWalls(zone), drawing)
+            ns.WallsChanged()
+        end
+        drawing = nil
+    else
+        local w = WallAt(zone, x, y)
+        if w then
+            table.remove(OwnWalls(zone), w)
+            ns.WallsChanged()
+        end
+    end
+    DrawWalls()
+end
+
+local function SetWallMode(on)
+    wallMode = on and true or false
+    drawing = nil
+    if wallButton then
+        wallButton:SetText(wallMode and "|cffff5544Walls|r" or "Walls")
+    end
+    DrawMap()
+end
+ns.WindowWallMode = SetWallMode
 
 -- The route's lines on whatever map is shown: the walking path to the next
 -- stop, any flight, and the legs between stops, carried across zone lines
@@ -727,6 +842,11 @@ DrawMap = function()
     else DrawWorld() end
     DrawRouteStops(used)
     DrawPlayer()
+    -- markers would catch the clicks that draw walls
+    if wallMode then
+        for _, p in ipairs(pins) do p:Hide() end
+    end
+    DrawWalls()
     zoomIn:SetEnabled(zoom < ZOOM_MAX)
     zoomOut:SetEnabled(zoom > 1.001 or view.kind ~= "world")
 end
@@ -742,9 +862,9 @@ local function RefreshTrail()
         parts[2] = { CONTINENT_NAME[c], function() ShowContinentView(c) end }
     end
     if view.kind == "zone" then parts[3] = { view.zone.name } end
-    -- The strip has room for the Me and zoom buttons at its right; the trail
+    -- The strip has room for the Walls, Me and zoom buttons at its right; the trail
     -- gets the rest, and only the last part (the shown map) is ever cut short.
-    local x, room = 0, MAP_W - 98
+    local x, room = 0, MAP_W - 150
     for i, b in ipairs(trail) do
         local part = parts[i]
         if part then
@@ -1011,6 +1131,14 @@ local function Build()
     meButton:SetText("Me")
     meButton:SetScript("OnClick", CenterOnMe)
     Tip(meButton, "Center on me", "Opens the zone you're in, zoomed in and centered on you.")
+    wallButton = CreateFrame("Button", nil, strip, "UIPanelButtonTemplate")
+    wallButton:SetSize(48, 22)
+    wallButton:SetPoint("RIGHT", meButton, "LEFT", -4, 0)
+    wallButton:SetText("Walls")
+    wallButton:SetScript("OnClick", function() SetWallMode(not wallMode) end)
+    Tip(wallButton, "Draw walls",
+        "On a zone's map: left-click to add corners of a wall, right-click to finish it. "
+        .. "Right-click a wall to remove it. Routes never cross a wall. Click Walls again when done.")
 
     local border = CreateFrame("Frame", nil, frame, "BackdropTemplate")
     border:SetPoint("TOPLEFT", MAP_X, TOP)

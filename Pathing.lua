@@ -188,10 +188,11 @@ ns.OnRoad = OnRoad
 -- Thin a path to the few waypoints that matter: any point within TRACK
 -- yards of the straight line between its neighbours goes
 -- (Ramer-Douglas-Peucker). The path still bends round what it must, but is
--- drawn and followed as a handful of straight runs.
+-- drawn and followed as a handful of straight runs. A run that would cut
+-- through a wall (crosses(a, b)) keeps its corner however close.
 local TRACK = 20
 
-local function Simplify(path, xs, ys)
+local function Simplify(path, xs, ys, crosses)
     if #path < 3 then return path end
     local keep = { [1] = true, [#path] = true }
     local function Dist(p, a, b)
@@ -213,7 +214,7 @@ local function Simplify(path, xs, ys)
             local d = Dist(path[k], path[i], path[j])
             if d > far then far, at = d, k end
         end
-        if at and far > TRACK then
+        if at and (far > TRACK or (crosses and crosses(path[i], path[j]))) then
             keep[at] = true
             stack[#stack + 1] = { i, at }
             stack[#stack + 1] = { at, j }
@@ -314,7 +315,7 @@ local function Search(sp, fx, fy, tx, ty)
         end
     end
     path[#path + 1] = { x = tx, y = ty }
-    return Simplify(path, sp.xs, sp.ys), best[goal]
+    return Simplify(path, sp.xs, sp.ys, sp.Crosses), best[goal]
 end
 
 -- One zone's grid as a space (its map's fractions).
@@ -361,6 +362,130 @@ local function Covers(g, i, j)
     return li >= 0 and lj >= 0 and li < g.nx and lj < g.ny
 end
 
+-------------------------------------------------------------------------------
+-- Walls
+-------------------------------------------------------------------------------
+-- Lines drawn on a zone's map (in the window's wall mode, or shipped in
+-- Data/Walls.lua) where the terrain says you can walk but you can't: no
+-- path crosses one. A zone's walls are the player's own once edited
+-- (CompassForeverDB.walls), else the shipped ones. Each is a flat list of
+-- that zone's map fractions, x1, y1, x2, y2, ...
+--
+-- They are kept per continent as the steps of its grid they cut: "i:j:x"
+-- for the step from (i, j) to (i + 1, j), "i:j:y" for (i, j) to (i, j + 1).
+
+local wallSteps, wallLines = {}, {}
+
+function ns.ZoneWalls(zone)
+    local mine = ns.db and ns.db.walls and ns.db.walls[zone.ach]
+    if mine then return mine end
+    return ns.WALLS and ns.WALLS[zone.ach] or {}
+end
+
+-- Forget the cut steps and every path found, after a wall changes.
+function ns.WallsChanged()
+    wallSteps, wallLines = {}, {}
+    if ns.ForgetPaths then ns.ForgetPaths() end
+    ns.Fire("path")
+end
+
+-- Does segment p-q cross segment a-b (any one set of units)?
+local function Crosses(px, py, qx, qy, ax, ay, bx, by)
+    local function Side(ox, oy, dx, dy, x, y) return dx * (y - oy) - dy * (x - ox) end
+    local d1 = Side(ax, ay, bx - ax, by - ay, px, py)
+    local d2 = Side(ax, ay, bx - ax, by - ay, qx, qy)
+    local d3 = Side(px, py, qx - px, qy - py, ax, ay)
+    local d4 = Side(px, py, qx - px, qy - py, bx, by)
+    return (d1 > 0) ~= (d2 > 0) and (d3 > 0) ~= (d4 > 0)
+end
+
+-- Continent map fractions as continent grid units (not rounded).
+local function GridUnits(cont, x, y)
+    local wy = cont.maxY - x * cont.w
+    local wx = cont.maxX - y * cont.h
+    return (32 * TILE - wy) / NODE, (32 * TILE - wx) / NODE
+end
+
+local function WallSteps(c)
+    local cut = wallSteps[c]
+    if cut then return cut end
+    cut = {}
+    wallSteps[c] = cut
+    local segs = {}
+    wallLines[c] = segs
+    local cont = ns.CONTINENT_YARDS and ns.CONTINENT_YARDS[c]
+    if not (cont and cont.maxX and ns.ZoneToContinentPoint) then return cut end
+    for _, zone in ipairs(ns.ZONES) do
+        if zone.continent == c then
+            for _, wall in ipairs(ns.ZoneWalls(zone)) do
+                local pts = {}
+                local fr = {}
+                for k = 1, #wall - 1, 2 do
+                    local cx, cy = ns.ZoneToContinentPoint(zone, wall[k], wall[k + 1])
+                    if cx then
+                        local gi, gj = GridUnits(cont, cx, cy)
+                        pts[#pts + 1], pts[#pts + 2] = gi, gj
+                        fr[#fr + 1], fr[#fr + 2] = cx, cy
+                    end
+                end
+                for k = 1, #fr - 3, 2 do
+                    segs[#segs + 1] = { fr[k], fr[k + 1], fr[k + 2], fr[k + 3] }
+                end
+                for k = 1, #pts - 3, 2 do
+                    local ax, ay, bx, by = pts[k], pts[k + 1], pts[k + 2], pts[k + 3]
+                    -- every step near the line, tested against it
+                    local len = math.sqrt((bx - ax) ^ 2 + (by - ay) ^ 2)
+                    local n = math.max(1, math.ceil(len * 2))
+                    for s = 0, n do
+                        local x, y = ax + (bx - ax) * s / n, ay + (by - ay) * s / n
+                        for i = math.floor(x) - 1, math.floor(x) + 1 do
+                            for j = math.floor(y) - 1, math.floor(y) + 1 do
+                                if Crosses(i, j, i + 1, j, ax, ay, bx, by) then cut[i .. ":" .. j .. ":x"] = true end
+                                if Crosses(i, j, i, j + 1, ax, ay, bx, by) then cut[i .. ":" .. j .. ":y"] = true end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return cut
+end
+
+-- Is the orthogonal step from continent point (i, j) cut by a wall?
+local function Walled(cut, i, j, di, dj)
+    if di == 1 then return cut[i .. ":" .. j .. ":x"] end
+    if di == -1 then return cut[(i - 1) .. ":" .. j .. ":x"] end
+    if dj == 1 then return cut[i .. ":" .. j .. ":y"] end
+    return cut[i .. ":" .. (j - 1) .. ":y"]
+end
+
+-- Does a straight run a-b (points with x, y) cross any of `segs`?
+local function CrossesAny(segs, a, b)
+    for _, w in ipairs(segs) do
+        if Crosses(a.x, a.y, b.x, b.y, w[1], w[2], w[3], w[4]) then return true end
+    end
+    return false
+end
+
+-- One zone's grid as a space, its continent's walls in the way.
+local function WalledZoneSpace(zone, g)
+    local sp = ZoneSpace(g)
+    local own = {}
+    for _, wall in ipairs(ns.ZoneWalls(zone)) do
+        for k = 1, #wall - 3, 2 do own[#own + 1] = { wall[k], wall[k + 1], wall[k + 2], wall[k + 3] } end
+    end
+    if #own > 0 then sp.Crosses = function(a, b) return CrossesAny(own, a, b) end end
+    if not g.gx then return sp end
+    local cut = WallSteps(zone.continent)
+    local can = sp.Can
+    sp.Can = function(self, i, j, di, dj)
+        if Walled(cut, i + g.gx, j + g.gy, di, dj) then return nil end
+        return can(self, i, j, di, dj)
+    end
+    return sp
+end
+
 function ns.ContinentSpace(c)
     local cont = ns.CONTINENT_YARDS and ns.CONTINENT_YARDS[c]
     if not (cont and cont.maxX) then return nil end
@@ -386,8 +511,11 @@ function ns.ContinentSpace(c)
     end
     local hasRoads = false
     for _, g in ipairs(grids) do if g.roads then hasRoads = true end end
+    local cut = WallSteps(c)
+    local segs = wallLines[c] or {}
     return {
         yd = NODE, xs = cont.w, ys = cont.h, hasRoads = hasRoads, cont = cont,
+        Crosses = #segs > 0 and function(a, b) return CrossesAny(segs, a, b) end or nil,
         -- Continent map fractions <-> continent grid points, through world
         -- yards (x east = -world Y, y south = -world X).
         Node = function(_, x, y)
@@ -401,6 +529,7 @@ function ns.ContinentSpace(c)
             return (cont.maxY - wy) / cont.w, (cont.maxX - wx) / cont.h
         end,
         Can = function(_, i, j, di, dj)
+            if Walled(cut, i, j, di, dj) then return nil end
             local g = Find(i, j, i + di, j + dj)
             if g then return Can(g, i - g.gx, j - g.gy, di, dj) end
             if Any(i, j) or Any(i + di, j + dj) then return UNKNOWN end
@@ -479,7 +608,7 @@ function ns.RequestPath(zone, fx, fy, tx, ty, key, done)
         done(nil)
         return
     end
-    Request(ZoneSpace(g), fx, fy, tx, ty, key, done)
+    Request(WalledZoneSpace(zone, g), fx, fy, tx, ty, key, done)
 end
 
 function ns.PathJobs() return #jobs end
@@ -500,7 +629,7 @@ end
 function ns.FindPathNow(zone, fx, fy, tx, ty)
     local g = ns.Grid(zone)
     if not g then return nil end
-    local sp = ZoneSpace(g)
+    local sp = WalledZoneSpace(zone, g)
     local co = coroutine.create(function() return Search(sp, fx, fy, tx, ty) end)
     while true do
         local ok, path, cost = coroutine.resume(co)
@@ -610,6 +739,12 @@ end
 -- until found (draw it straight until then). "path" fires when one arrives.
 
 local between = {}
+
+-- After a wall changes: every path is looked for again.
+function ns.ForgetPaths()
+    between = {}
+    steer.key, steer.path, steer.asked = nil, nil, nil
+end
 
 function ns.PathBetween(c, ax, ay, bx, by)
     local sp = ns.ContinentSpace(c)

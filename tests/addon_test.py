@@ -744,6 +744,31 @@ b_path = rt.eval("(NS.StopVector(SP, NS.CurrentStop()))")
 check("and the arrow follows it from there", b_path is not None)
 rt.execute("NS.StopRoute() PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.42, 0.65")
 
+print("walls")
+walled = rt.eval("""(function()
+    local z = NS.ZoneByMap(1411)
+    local ax, ay, bx, by = 0.45, 0.45, 0.55, 0.45
+    local p1, c1 = NS.FindPathNow(z, ax, ay, bx, by)
+    NS.db.walls = { [z.ach] = { { 0.5, 0.35, 0.5, 0.55 } } }
+    NS.WallsChanged()
+    local p2, c2 = NS.FindPathNow(z, ax, ay, bx, by)
+    local crosses = false
+    for k = 1, #p2 - 1 do
+        local a, b = p2[k], p2[k + 1]
+        if (a.x - 0.5) * (b.x - 0.5) < 0 then
+            local y = a.y + (b.y - a.y) * (0.5 - a.x) / (b.x - a.x)
+            -- going round an end may clip its tip by a grid step (8 yards)
+            if y > 0.36 and y < 0.54 then crosses = true end
+        end
+    end
+    NS.db.walls = nil
+    NS.WallsChanged()
+    local p3, c3 = NS.FindPathNow(z, ax, ay, bx, by)
+    return c1, c2, crosses, c3
+end)()""")
+check(f"a wall sends the path round it ({walled[0]:.0f} yd, then {walled[1]:.0f} yd)", walled[1] > walled[0] + 100 and not walled[2], walled)
+check("and taking it away brings the old path back", abs(walled[3] - walled[0]) < 1, walled)
+
 print("window and world map")
 rt.execute("PRINTED = {} NS.ShowZone(ELWYNN)")
 check("window opens on a zone without an error", not any("|cffff5555" in p for p in printed(rt)), printed(rt))
