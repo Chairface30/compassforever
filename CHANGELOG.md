@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- The minimap button is twice its old size, ring and all.
 - After Me, the window's map keeps you in its middle as you move, and opens
   the next map when you cross into one (Me shows blue while it follows).
   Click Me again, drag the map or open another to stop.

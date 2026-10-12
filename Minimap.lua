@@ -53,6 +53,26 @@ function ns.SetupMinimap()
         OnTooltipShow = Tooltip,
     })
     icon:Register(NAME, ns.launcher, ns.db.minimap)
+    -- Twice the usual size: the button, its ring, background and arrow, each
+    -- from the size and spot LibDBIcon gave it, so they still line up. (A
+    -- scaled button would sit twice as far out, off the minimap's edge.)
+    local button = icon:GetMinimapButton(NAME)
+    if button and not button.doubled then
+        button.doubled = true
+        local w, h = button:GetSize()
+        button:SetSize(w * 2, h * 2)
+        for _, region in ipairs({ button.border, button.background, button.icon }) do
+            if region then
+                local rw, rh = region:GetSize()
+                region:SetSize(rw * 2, rh * 2)
+                local point, rel, relPoint, x, y = region:GetPoint(1)
+                if point then
+                    region:ClearAllPoints()
+                    region:SetPoint(point, rel, relPoint, (x or 0) * 2, (y or 0) * 2)
+                end
+            end
+        end
+    end
     ns.TurnMinimapArrow()
 end
 
