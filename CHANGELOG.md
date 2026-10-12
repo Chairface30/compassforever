@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- New flight master (under the window's map, or /cf fp): a route to the
+  nearest flight master on your continent whose flight point you haven't
+  learned, along the same walls, roads and zone lines.
 - The continent and Azeroth maps in the window carry no labels now, only
   "I'm here!" on the zone you're in.
 - Zone lines: in Walls mode tick Zone line (on the map) to draw purple

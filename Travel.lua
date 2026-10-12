@@ -152,9 +152,9 @@ ns.ReadKnownFromMaps = ReadFromMaps
 -- the client has said which points are known: until then every flight
 -- master would look undiscovered.
 local stopNodes = {}
-function ns.FlightStops(zone)
+function ns.FlightStops(zone, always)
     local out = {}
-    if not (ns.db.learnFlights and ns.flightsRead and ns.FLIGHT_NODES and ns.MapRect) then return out end
+    if not ((always or ns.db.learnFlights) and ns.flightsRead and ns.FLIGHT_NODES and ns.MapRect) then return out end
     local c = ns.CONTINENT_YARDS and ns.CONTINENT_YARDS[zone.continent]
     local r = c and ns.MapRect(zone.map, c.map)
     if not r then return out end
@@ -180,6 +180,45 @@ function ns.FlightStops(zone)
     return out
 end
 
+
+-- The flight master nearest you (as the crow flies) whose flight point
+-- this character hasn't learned, on your continent: zone and route stop,
+-- or nil and why not.
+function ns.NearestNewFlightMaster()
+    ReadFromMaps()
+    if not ns.flightsRead then
+        return nil, nil, "The game hasn't said which flight points you know yet. Open a flight master's map once."
+    end
+    local here = ns.PlayerContinent and ns.PlayerContinent()
+    local cont = here and ns.CONTINENT_YARDS[here]
+    local px, py
+    if cont then px, py = ns.PlayerOn(cont.map) end
+    if not px then return nil, nil, "Can't place you on a continent here." end
+    local bestZone, bestNode, bestD
+    for _, zone in ipairs(ns.ZONES) do
+        if zone.continent == here then
+            for _, node in ipairs(ns.FlightStops(zone, true)) do
+                local x, y = ns.ZoneToContinentPoint(zone, node.points[1] / 10000, node.points[2] / 10000)
+                if x then
+                    local d = ((x - px) * cont.w) ^ 2 + ((y - py) * cont.h) ^ 2
+                    if not bestD or d < bestD then bestZone, bestNode, bestD = zone, node, d end
+                end
+            end
+        end
+    end
+    if not bestZone then return nil, nil, "You know every flight point on this continent." end
+    return bestZone, bestNode
+end
+
+-- A route to it (a one-area route: Route.lua).
+function ns.RouteToFlightMaster()
+    local zone, node, why = ns.NearestNewFlightMaster()
+    if not zone then
+        ns.Print(why)
+        return
+    end
+    ns.RouteVia(zone, node)
+end
 
 -------------------------------------------------------------------------------
 -- Where things are on the continent

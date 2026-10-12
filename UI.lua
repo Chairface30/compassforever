@@ -1199,6 +1199,7 @@ Refresh = function()
     DrawMap()
     RefreshTrail()
     RefreshInfo()
+    frame.fpButton:SetShown(not skipButton:IsShown())
 end
 ns.RefreshWindow = Refresh
 
@@ -1579,6 +1580,14 @@ local function Build()
     skipButton:SetText("Skip this stop")
     skipButton:SetScript("OnClick", function() ns.SkipStop() end)
     Tip(skipButton, "Skip this stop", "Leaves it for the end of the route.")
+    -- where Skip goes, while there's nothing to skip
+    frame.fpButton = CreateFrame("Button", nil, frame.belowMap, "UIPanelButtonTemplate")
+    frame.fpButton:SetSize(BUTTON_W, 26)
+    frame.fpButton:SetPoint("TOPRIGHT", routeButton, "BOTTOMRIGHT", 0, -6)
+    frame.fpButton:SetText("New flight master")
+    frame.fpButton:SetScript("OnClick", function() ns.RouteToFlightMaster() end)
+    Tip(frame.fpButton, "Nearest new flight master",
+        "A route to the closest flight master on this continent whose flight point you haven't learned.")
 
     BuildOptions()
     ns.SetMapOnly(ns.db.mapOnly)

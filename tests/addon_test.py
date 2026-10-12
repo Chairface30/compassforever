@@ -1075,6 +1075,16 @@ shown = rt.eval("""(function()
 end)()""")
 check(f"the continent shows only I'm here! ({shown})", "I'm here!" in shown and "left" not in shown and "zones" not in shown, shown)
 
+print("nearest new flight master")
+rt.execute("""NS.StopRoute() function UnitFactionGroup() return "Alliance" end
+    PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.42, 0.65
+    NS.flightsRead = true for k in pairs(NS.KnownFlights()) do NS.KnownFlights()[k] = nil end
+    NS.RouteToFlightMaster()""")
+fp = rt.eval("NS.CurrentStop() and NS.CurrentStop().node.name")
+check(f"routes to the nearest flight master not yet learned ({fp})", (fp or "").startswith("Flight master: "), fp)
+check("and only there", rt.eval("NS.route and #NS.route.stops == 1"))
+rt.execute("NS.StopRoute() UnitFactionGroup = nil NS.flightsRead = false")
+
 print("per character")
 rt.execute("""ALT_ONLY = true EXPLORED[1429] = {}
     for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = true end NS.InvalidateProgress()""")
