@@ -41,7 +41,7 @@ local CONTINENT_MAP = { [0] = 1415, [1] = 1414 }
 local CONTINENT_NAME = { [0] = "Eastern Kingdoms", [1] = "Kalimdor" }
 
 local frame, mapBox, scroll, listChild
-local leftSide, belowMap, mapBorder, mapOnlyButton
+local leftSide, belowMap, mapBorder, mapOnlyButton, headerTitle
 local overallBar, contButtons, trail, strip, zoomIn, zoomOut
 local optionsButton, options, optionBoxes
 local zoneTitle, zoneInfo, nextInfo, hint, routeButton, skipButton
@@ -80,7 +80,10 @@ local function Bar(parent, w, h)
     bg:SetAllPoints()
     bg:SetColorTexture(0, 0, 0, 0.5)
     bar.text = bar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    bar.text:SetPoint("CENTER")
+    -- kept inside the bar: cut short rather than running past its ends
+    bar.text:SetPoint("LEFT", 4, 0)
+    bar.text:SetPoint("RIGHT", -4, 0)
+    pcall(bar.text.SetWordWrap, bar.text, false)
     return bar
 end
 
@@ -944,7 +947,9 @@ Refresh = function()
     if not frame or not frame:IsShown() then return end
     local ad, at, zd, zt = ns.Totals()
     SetBar(overallBar, ad, at)
-    overallBar.text:SetText(string.format("Explorer: %d / %d areas, %d / %d zones", ad, at, zd, zt))
+    -- shorter in Map only, where the header is narrow
+    local fmt = ns.db.mapOnly and "%d / %d areas, %d / %d zones" or "Explorer: %d / %d areas, %d / %d zones"
+    overallBar.text:SetText(string.format(fmt, ad, at, zd, zt))
     for _, box in ipairs(optionBoxes) do box:SetChecked(box.get()) end
     RefreshList()
     DrawMap()
@@ -1060,6 +1065,7 @@ local function Build()
     local title = Label(frame, "GameFontNormalLarge")
     title:SetPoint("TOPLEFT", PAD + 4, -20)
     title:SetText(ns.title)
+    headerTitle = title
     local close = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
     close:SetPoint("TOPRIGHT", -6, -6)
     optionsButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
@@ -1252,8 +1258,18 @@ function ns.SetMapOnly(on)
     else
         frame:SetSize(W, H)
     end
-    overallBar:SetWidth(only and 150 or 300)
+    -- the bar fills what the header has left between the title and the
+    -- buttons, so its text never runs into them
+    overallBar:ClearAllPoints()
+    if only then
+        overallBar:SetPoint("LEFT", headerTitle, "RIGHT", 12, 0)
+        overallBar:SetPoint("RIGHT", mapOnlyButton, "LEFT", -12, 0)
+    else
+        overallBar:SetPoint("RIGHT", mapOnlyButton, "LEFT", -16, 0)
+        overallBar:SetWidth(300)
+    end
     mapOnlyButton:SetText(only and "Full view" or "Map only")
+    if frame:IsShown() and Refresh then Refresh() end
 end
 
 -- The world map key (M unless rebound) opens this window instead, when
