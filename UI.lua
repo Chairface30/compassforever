@@ -55,6 +55,15 @@ local Refresh
 -- left of and above the box's.
 local canvas
 local zoom, offX, offY = 1, 0, 0
+-- After Me: the map keeps you in its middle as you move, onto the next map
+-- when you cross into one. Dragging the map, or opening another, stops it.
+local follow = false
+local function SetFollow(on)
+    follow = on and true or false
+    if frame and frame.meButton then
+        frame.meButton:SetText(follow and "|cff55ddffMe|r" or "Me")
+    end
+end
 local ZOOM_MAX, ZOOM_STEP = 4, 1.25
 local function CW() return MAP_W * zoom end
 local function CH() return MAP_H * zoom end
@@ -165,6 +174,7 @@ end
 
 local function ResetZoom()
     zoom, offX, offY = 1, 0, 0
+    SetFollow(false)
 end
 
 local function ShowZoneView(zone)
@@ -571,6 +581,7 @@ local function CenterOnMe()
     if zoom < CENTER_ZOOM then zoom = CENTER_ZOOM end
     offX, offY = px * CW() - MAP_W / 2, py * CH() - MAP_H / 2
     PlaceCanvas()
+    SetFollow(true)
     DrawMap()
 end
 
@@ -584,6 +595,7 @@ local function DragUpdate()
     local dx, dy = (cx - drag.x) / s, (cy - drag.y) / s
     if math.abs(dx) + math.abs(dy) > 4 then drag.moved = true end
     if drag.moved then
+        SetFollow(false)
         offX, offY = drag.offX - dx, drag.offY + dy
         PlaceCanvas()
     end
@@ -916,9 +928,24 @@ local function DrawRouteLines()
 end
 
 -- The player on the shown map, and the route's lines from them.
+local following                -- busy moving to the next map
 local function DrawPlayer()
     local px, py = ns.PlayerOn(view.map)
     local inside = px and px >= 0 and px <= 1 and py >= 0 and py <= 1
+    if follow and not following then
+        -- crossed onto another map: open it and carry on following
+        local here = ns.PlayerMap()
+        if here and here ~= view.map then
+            following = true
+            CenterOnMe()
+            following = nil
+            return
+        end
+    end
+    if follow and inside then
+        offX, offY = px * CW() - MAP_W / 2, py * CH() - MAP_H / 2
+        PlaceCanvas()
+    end
     playerDot:SetShown(inside and true or false)
     if inside then
         playerDot:ClearAllPoints()
@@ -1371,8 +1398,12 @@ local function Build()
     meButton:SetSize(34, 22)
     meButton:SetPoint("RIGHT", zoomOut, "LEFT", -4, 0)
     meButton:SetText("Me")
-    meButton:SetScript("OnClick", CenterOnMe)
-    Tip(meButton, "Center on me", "Opens the zone you're in, zoomed in and centered on you.")
+    frame.meButton = meButton
+    meButton:SetScript("OnClick", function()
+        if follow then SetFollow(false) else CenterOnMe() end
+    end)
+    Tip(meButton, "Center on me", "Opens the map you're on, zoomed in, and keeps you in the middle as you move "
+        .. "(onto the next map too). Click again, drag the map or open another to stop.")
     wallButton = CreateFrame("Button", nil, strip, "UIPanelButtonTemplate")
     wallButton:SetSize(48, 22)
     wallButton:SetPoint("RIGHT", meButton, "LEFT", -4, 0)

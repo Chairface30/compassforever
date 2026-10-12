@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- After Me, the window's map keeps you in its middle as you move, and opens
+  the next map when you cross into one (Me shows blue while it follows).
+  Click Me again, drag the map or open another to stop.
 - The window opens every map, not only zones with areas to explore: click a
   city (or any map inside a zone) on the map to open it, right-click goes
   back up. Opening the window or pressing Me in a city shows that city,
