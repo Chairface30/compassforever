@@ -803,6 +803,20 @@ end)()""")
 check(f"a circle sends the path round it ({circled[0]:.0f} yd, then {circled[1]:.0f} yd, nearest {circled[2]:.0f} yd from its middle)",
       circled[1] > circled[0] and circled[2] >= 120 - 9, circled)
 
+roaded = rt.eval("""(function()
+    local z = NS.ZoneByMap(1411)
+    local ax, ay, bx, by = 0.45, 0.45, 0.55, 0.45
+    local p1 = NS.FindPathNow(z, ax, ay, bx, by)
+    local function lowest(p) local m = 0 for _, q in ipairs(p) do m = math.max(m, q.y) end return m end
+    NS.db.roads = { [z.ach] = { { 0.45, 0.45, 0.45, 0.55, 0.55, 0.55, 0.55, 0.45 } } }
+    NS.WallsChanged()
+    local p2 = NS.FindPathNow(z, ax, ay, bx, by)
+    NS.db.roads = nil
+    NS.WallsChanged()
+    return lowest(p1), lowest(p2)
+end)()""")
+check(f"a drawn road is followed round its bend (deepest {roaded[0]:.3f}, then {roaded[1]:.3f})", roaded[0] < 0.5 and roaded[1] > 0.53, roaded)
+
 print("replacing the world map")
 rt.execute("NS.db.replaceWorldMap = true NS.ApplyMapKey()")
 check("the world map key opens the window", rt.eval("OVERRIDES.M and OVERRIDES.M.button") == "CompassForeverMapKey")

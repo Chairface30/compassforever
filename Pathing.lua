@@ -27,6 +27,7 @@ local _, ns = ...
 
 local PENALTY = 25
 local ROAD = 0.7              -- a step along a road costs this share of one off it
+local DRAWN_ROAD = 0.25       -- a step along a road drawn by hand: paths keep to it
 local SLICE = 1500            -- points looked at per frame (about 3 ms)
 
 local HEX = {}
@@ -241,7 +242,9 @@ local function Search(sp, fx, fy, tx, ty)
     local best, came = { [start] = 0 }, {}
     local open = Heap()
     local yd = sp.yd
-    local hf = sp.hasRoads and 0.85 or 1
+    -- With roads drawn by hand any step may cost as little as one along them,
+    -- so the estimate of what's left has to assume that much.
+    local hf = sp.DrawnRoad and DRAWN_ROAD or sp.hasRoads and 0.85 or 1
     local function H(i, j)
         local di, dj = i - ti, j - tj
         -- A little over the cheapest the rest could cost (all road): the
@@ -266,6 +269,11 @@ local function Search(sp, fx, fy, tx, ty)
             local way1 = a1 == true and a2 == true
             local way2 = b1 == true and b2 == true
             cost = yd * SQRT2 * ((way1 or way2) and 1 or PENALTY)
+        end
+        -- along a drawn road: cheap, whatever the terrain says (it's a way
+        -- through); along a terrain road: cheaper
+        if sp.DrawnRoad and sp:DrawnRoad(i, j) and sp:DrawnRoad(i + di, j + dj) then
+            return yd * ((di == 0 or dj == 0) and 1 or SQRT2) * DRAWN_ROAD
         end
         if sp.hasRoads and sp:Road(i, j) and sp:Road(i + di, j + dj) then cost = cost * ROAD end
         return cost
@@ -376,6 +384,16 @@ end
 -- for the step from (i, j) to (i + 1, j), "i:j:y" for (i, j) to (i, j + 1).
 
 local wallSteps, wallLines = {}, {}
+local roadPoints = {}
+
+-- Roads drawn by hand on a zone's map (the window's road mode, or shipped
+-- in Data/Roads.lua): paths keep to them until they have to leave for
+-- where they're going. Same form as walls: lists of map fractions.
+function ns.ZoneRoads(zone)
+    local mine = ns.db and ns.db.roads and ns.db.roads[zone.ach]
+    if mine then return mine end
+    return ns.ROADS and ns.ROADS[zone.ach] or {}
+end
 
 function ns.ZoneWalls(zone)
     local mine = ns.db and ns.db.walls and ns.db.walls[zone.ach]
@@ -385,7 +403,7 @@ end
 
 -- Forget the cut steps and every path found, after a wall changes.
 function ns.WallsChanged()
-    wallSteps, wallLines = {}, {}
+    wallSteps, wallLines, roadPoints = {}, {}, {}
     if ns.ForgetPaths then ns.ForgetPaths() end
     ns.Fire("path")
 end
@@ -474,6 +492,45 @@ local function WallSteps(c)
     return cut
 end
 
+-- The continent grid points under the drawn roads ("i:j"), a few yards
+-- either side so a path can stay on.
+local function RoadPoints(c)
+    local on = roadPoints[c]
+    if on then return on end
+    on = {}
+    roadPoints[c] = on
+    local cont = ns.CONTINENT_YARDS and ns.CONTINENT_YARDS[c]
+    if not (cont and cont.maxX and ns.ZoneToContinentPoint) then return on end
+    for _, zone in ipairs(ns.ZONES) do
+        if zone.continent == c then
+            for _, road in ipairs(ns.ZoneRoads(zone)) do
+                local pts = {}
+                for k = 1, #road - 1, 2 do
+                    local cx, cy = ns.ZoneToContinentPoint(zone, road[k], road[k + 1])
+                    if cx then
+                        local gi, gj = GridUnits(cont, cx, cy)
+                        pts[#pts + 1], pts[#pts + 2] = gi, gj
+                    end
+                end
+                for k = 1, #pts - 3, 2 do
+                    local ax, ay, bx, by = pts[k], pts[k + 1], pts[k + 2], pts[k + 3]
+                    local n = math.max(1, math.ceil(math.sqrt((bx - ax) ^ 2 + (by - ay) ^ 2) * 2))
+                    for s = 0, n do
+                        local i = math.floor(ax + (bx - ax) * s / n + 0.5)
+                        local j = math.floor(ay + (by - ay) * s / n + 0.5)
+                        on[i .. ":" .. j] = true
+                        on[(i + 1) .. ":" .. j] = true
+                        on[(i - 1) .. ":" .. j] = true
+                        on[i .. ":" .. (j + 1)] = true
+                        on[i .. ":" .. (j - 1)] = true
+                    end
+                end
+            end
+        end
+    end
+    return on
+end
+
 -- Is the orthogonal step from continent point (i, j) cut by a wall?
 local function Walled(cut, i, j, di, dj)
     if di == 1 then return cut[i .. ":" .. j .. ":x"] end
@@ -519,6 +576,10 @@ local function WalledZoneSpace(zone, g)
     end
     if #own > 0 then sp.Crosses = function(a, b) return CrossesAny(own, a, b) end end
     if not g.gx then return sp end
+    local road = RoadPoints(zone.continent)
+    if next(road) then
+        sp.DrawnRoad = function(_, i, j) return road[(i + g.gx) .. ":" .. (j + g.gy)] end
+    end
     local cut = WallSteps(zone.continent)
     local can = sp.Can
     sp.Can = function(self, i, j, di, dj)
@@ -555,9 +616,11 @@ function ns.ContinentSpace(c)
     for _, g in ipairs(grids) do if g.roads then hasRoads = true end end
     local cut = WallSteps(c)
     local segs = wallLines[c] or {}
+    local road = RoadPoints(c)
     return {
         yd = NODE, xs = cont.w, ys = cont.h, hasRoads = hasRoads, cont = cont,
         Crosses = #segs > 0 and function(a, b) return CrossesAny(segs, a, b) end or nil,
+        DrawnRoad = next(road) and function(_, i, j) return road[i .. ":" .. j] end or nil,
         -- Continent map fractions <-> continent grid points, through world
         -- yards (x east = -world Y, y south = -world X).
         Node = function(_, x, y)

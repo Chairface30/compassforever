@@ -315,6 +315,7 @@ local playerDot, highlight
 local hasLines
 -- Wall mode: clicks on a zone's map draw walls (Pathing.lua) instead.
 local wallMode, drawing, wallButton = false, nil, nil
+local editKind = "walls"      -- what wall mode draws: "walls" or "roads"
 local circleCenter            -- a circle's middle, set by its first Shift-click
 local wallLines = {}
 local WallClick
@@ -643,14 +644,21 @@ local function Line(i)
 end
 
 -------------------------------------------------------------------------------
--- Walls: drawn on a zone's map, no path crosses them
+-- Walls and roads: drawn on a zone's map
 -------------------------------------------------------------------------------
--- Left-click adds a corner to the wall being drawn, right-click finishes it
--- (or, with none being drawn, removes the wall or circle under the cursor).
+-- No path crosses a wall; paths keep to a road until they have to leave it.
+-- Left-click adds a corner to the line being drawn, right-click finishes it
+-- (or, with none being drawn, removes the one under the cursor). For walls,
 -- Shift-click sets a circle's middle, a second Shift-click its edge: no path
--- enters it. A zone's walls become the player's own copy on the first change.
+-- enters it. A zone's lines become the player's own copy on the first change.
 
 local WALL_COLOR = { 1, 0.25, 0.2, 0.95 }
+local ROAD_COLOR = { 0.6, 1, 0.05, 1 }       -- bright lime green
+
+local function Lines(zone, kind)
+    if kind == "roads" then return ns.ZoneRoads(zone) end
+    return ns.ZoneWalls(zone)
+end
 
 local function WallLine(i)
     return Pool(wallLines, i, function()
@@ -683,14 +691,16 @@ local function DrawWalls()
         end
         Draw(pts, r, g, b, a)
     end
-    -- shown always while editing; otherwise faintly, so they can be seen
-    local c = WALL_COLOR
-    local alpha = wallMode and c[4] or 0.45
-    for _, wall in ipairs(ns.ZoneWalls(zone)) do
-        if wall.circle then
-            Ring(wall.circle[1], wall.circle[2], wall.circle[3], c[1], c[2], c[3], alpha)
-        else
-            Draw(wall, c[1], c[2], c[3], alpha)
+    -- the kind being edited in full, the rest faintly, so they can be seen
+    for _, kind in ipairs({ "roads", "walls" }) do
+        local c = kind == "roads" and ROAD_COLOR or WALL_COLOR
+        local alpha = (wallMode and editKind == kind) and c[4] or 0.45
+        for _, wall in ipairs(Lines(zone, kind)) do
+            if wall.circle then
+                Ring(wall.circle[1], wall.circle[2], wall.circle[3], c[1], c[2], c[3], alpha)
+            else
+                Draw(wall, c[1], c[2], c[3], alpha)
+            end
         end
     end
     if wallMode and drawing then Draw(drawing, 1, 0.85, 0.2, 1) end
@@ -703,29 +713,31 @@ local function DrawWalls()
     end
 end
 
--- The zone's own walls, copied from the shipped ones on the first change.
-local function OwnWalls(zone)
-    ns.db.walls = ns.db.walls or {}
-    local mine = ns.db.walls[zone.ach]
+-- The zone's own walls or roads, copied from the shipped ones on the first
+-- change.
+local function OwnWalls(zone, kind)
+    kind = kind or editKind
+    ns.db[kind] = ns.db[kind] or {}
+    local mine = ns.db[kind][zone.ach]
     if not mine then
         mine = {}
-        for _, wall in ipairs(ns.ZoneWalls(zone)) do
+        for _, wall in ipairs(Lines(zone, kind)) do
             local copy = {}
             for k, v in ipairs(wall) do copy[k] = v end
             if wall.circle then copy.circle = { wall.circle[1], wall.circle[2], wall.circle[3] } end
             mine[#mine + 1] = copy
         end
-        ns.db.walls[zone.ach] = mine
+        ns.db[kind][zone.ach] = mine
     end
     return mine
 end
 
 local function Round(v) return math.floor(v * 10000 + 0.5) / 10000 end
 
--- The wall nearest the cursor, within a few pixels: its index.
+-- The wall (or road) nearest the cursor, within a few pixels: its index.
 local function WallAt(zone, x, y)
     local best, bestD = nil, 10
-    for w, wall in ipairs(ns.ZoneWalls(zone)) do
+    for w, wall in ipairs(Lines(zone, editKind)) do
         local c = wall.circle
         if c then
             -- inside it, or near its edge
@@ -753,7 +765,7 @@ WallClick = function(button, x, y)
     local zone = view.zone
     if not x then x, y = CursorOnMap() end
     if not x then return end
-    if button == "LeftButton" and IsShiftKeyDown() then
+    if button == "LeftButton" and IsShiftKeyDown() and editKind == "walls" then
         if not circleCenter then
             circleCenter = { Round(x), Round(y) }
         else
@@ -775,7 +787,8 @@ WallClick = function(button, x, y)
             local walls = OwnWalls(zone)
             table.insert(walls, drawing)
             ns.WallsChanged()
-            ns.Print(string.format("Wall added (%d in %s). Left-click to start the next one.", #walls, zone.name))
+            ns.Print(string.format("%s added (%d in %s). Left-click to start the next one.",
+                editKind == "roads" and "Road" or "Wall", #walls, zone.name))
         end
         drawing = nil
     else
@@ -788,11 +801,16 @@ WallClick = function(button, x, y)
     DrawWalls()
 end
 
-local function SetWallMode(on)
+-- Wall mode on or off; `kind` picks walls or roads (walls by default).
+local function SetWallMode(on, kind)
     wallMode = on and true or false
+    editKind = kind or "walls"
     drawing, circleCenter = nil, nil
     if wallButton then
-        wallButton:SetText(wallMode and "|cffff5544Walls|r" or "Walls")
+        wallButton:SetText((wallMode and editKind == "walls") and "|cffff5544Walls|r" or "Walls")
+    end
+    if frame and frame.roadButton then
+        frame.roadButton:SetText((wallMode and editKind == "roads") and "|cff99ff0dRoads|r" or "Roads")
     end
     DrawMap()
 end
@@ -934,9 +952,9 @@ local function RefreshTrail()
         parts[2] = { CONTINENT_NAME[c], function() ShowContinentView(c) end }
     end
     if view.kind == "zone" then parts[3] = { view.zone.name } end
-    -- The strip has room for the Walls, Me and zoom buttons at its right; the trail
+    -- The strip has room for the Roads, Walls, Me and zoom buttons at its right; the trail
     -- gets the rest, and only the last part (the shown map) is ever cut short.
-    local x, room = 0, MAP_W - 150
+    local x, room = 0, MAP_W - 202
     for i, b in ipairs(trail) do
         local part = parts[i]
         if part then
@@ -1226,12 +1244,21 @@ local function Build()
     wallButton:SetSize(48, 22)
     wallButton:SetPoint("RIGHT", meButton, "LEFT", -4, 0)
     wallButton:SetText("Walls")
-    wallButton:SetScript("OnClick", function() SetWallMode(not wallMode) end)
+    wallButton:SetScript("OnClick", function() SetWallMode(not (wallMode and editKind == "walls"), "walls") end)
     Tip(wallButton, "Draw walls",
         "On a zone's map: left-click to add corners of a wall, right-click to finish it. "
         .. "Shift-click a circle's middle, then Shift-click its edge. "
         .. "Right-click a wall or circle to remove it. Routes never cross a wall or enter a circle. "
         .. "Click Walls again when done.")
+    frame.roadButton = CreateFrame("Button", nil, strip, "UIPanelButtonTemplate")
+    frame.roadButton:SetSize(48, 22)
+    frame.roadButton:SetPoint("RIGHT", wallButton, "LEFT", -4, 0)
+    frame.roadButton:SetText("Roads")
+    frame.roadButton:SetScript("OnClick", function() SetWallMode(not (wallMode and editKind == "roads"), "roads") end)
+    Tip(frame.roadButton, "Draw roads",
+        "On a zone's map: left-click to add corners of a road, right-click to finish it. "
+        .. "Right-click a road to remove it. Paths keep to roads until they have to leave them. "
+        .. "Click Roads again when done.")
 
     local border = CreateFrame("Frame", nil, frame, "BackdropTemplate")
     frame.mapBorder = border

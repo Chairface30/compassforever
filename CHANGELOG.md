@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Roads: the Roads button over the window's map draws roads on the zone
+  shown, in lime green, the same way as walls (left-click corners,
+  right-click to finish, right-click a road to remove it). Walking paths
+  keep to a drawn road until they have to leave it for where they're going,
+  even over ground the terrain calls too steep. With roads drawn, a path
+  takes a little longer to work out.
 - Options, Display: Covered areas on the world map (on). The game's world
   map shows a zone's still-covered areas in gray, as the window does, now
   apart from the world map markers, so it can be on with the markers off.
