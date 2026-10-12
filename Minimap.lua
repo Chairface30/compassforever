@@ -2,7 +2,7 @@
 -- The minimap button (LibDBIcon), also a launcher for any LibDataBroker bar.
 -- Click opens the window; right-click starts or stops this zone's route.
 --
--- Its icon is the compass arrow (Textures\\arrow, 64 turns, as Arrow.lua),
+-- Its icon is the compass arrow (Textures/arrow.tga, 64 turns, as Arrow.lua),
 -- turning to point at the route's next stop, or with no route at the nearest
 -- area still covered in the zone you're in; gold and upright with nothing to
 -- point at. It is turned through the data object's iconCoords and colour, so
