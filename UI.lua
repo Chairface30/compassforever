@@ -915,10 +915,9 @@ DrawMap = function()
     else DrawWorld() end
     DrawRouteStops(used)
     DrawPlayer()
-    -- markers would catch the clicks that draw walls
-    if wallMode then
-        for _, p in ipairs(pins) do p:Hide() end
-    end
+    -- in wall mode the markers stay in sight but let clicks through to the
+    -- map, where they draw walls
+    for _, p in ipairs(pins) do p:EnableMouse(not wallMode) end
     DrawWalls()
     zoomIn:SetEnabled(zoom < ZOOM_MAX)
     zoomOut:SetEnabled(zoom > 1.001 or view.kind ~= "world")
