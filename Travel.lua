@@ -181,35 +181,6 @@ function ns.FlightStops(zone, always)
 end
 
 
--- The flight master nearest you (as the crow flies) whose flight point
--- this character hasn't learned, on your continent: zone and route stop,
--- or nil and why not.
-function ns.NearestNewFlightMaster()
-    ReadFromMaps()
-    if not ns.flightsRead then
-        return nil, nil, "The game hasn't said which flight points you know yet. Open a flight master's map once."
-    end
-    local here = ns.PlayerContinent and ns.PlayerContinent()
-    local cont = here and ns.CONTINENT_YARDS[here]
-    local px, py
-    if cont then px, py = ns.PlayerOn(cont.map) end
-    if not px then return nil, nil, "Can't place you on a continent here." end
-    local bestZone, bestNode, bestD
-    for _, zone in ipairs(ns.ZONES) do
-        if zone.continent == here then
-            for _, node in ipairs(ns.FlightStops(zone, true)) do
-                local x, y = ns.ZoneToContinentPoint(zone, node.points[1] / 10000, node.points[2] / 10000)
-                if x then
-                    local d = ((x - px) * cont.w) ^ 2 + ((y - py) * cont.h) ^ 2
-                    if not bestD or d < bestD then bestZone, bestNode, bestD = zone, node, d end
-                end
-            end
-        end
-    end
-    if not bestZone then return nil, nil, "You know every flight point on this continent." end
-    return bestZone, bestNode
-end
-
 -- A route to it (a one-area route: Route.lua).
 function ns.RouteToFlightMaster()
     local zone, node, why = ns.NearestNewFlightMaster()
@@ -217,6 +188,7 @@ function ns.RouteToFlightMaster()
         ns.Print(why)
         return
     end
+    ns.Print(string.format("%s, about %d min away.", node.name, math.max(1, math.floor(why / 60 + 0.5))))
     ns.RouteVia(zone, node)
 end
 
@@ -279,6 +251,55 @@ local function Flights(continent, side, startCost)
         end
     end
     return best, prev
+end
+
+-- The flight master quickest to reach whose flight point this character
+-- hasn't learned, on your continent: walking there, or flying through known
+-- points and walking from the landing, whichever is quicker (so a far one
+-- by a flight can beat a near one on foot). Zone, route stop and seconds,
+-- or nil, nil and why not.
+function ns.NearestNewFlightMaster()
+    ReadFromMaps()
+    if not ns.flightsRead then
+        return nil, nil, "The game hasn't said which flight points you know yet. Open a flight master's map once."
+    end
+    local here = ns.PlayerContinent and ns.PlayerContinent()
+    local c = here and ns.CONTINENT_YARDS[here]
+    local px, py
+    if c then px, py = ns.PlayerOn(c.map) end
+    if not px then return nil, nil, "Can't place you on a continent here." end
+    local run, side = RunSpeed(), Side()
+    -- flying: every known point's arrival time from here, worked out once
+    local startCost = {}
+    for id in pairs(Known()) do
+        local node = ns.FLIGHT_NODES and ns.FLIGHT_NODES[id]
+        if node and node.continent == here and node.side % (side * 2) >= side then
+            startCost[id] = Yards(c, px, py, node.x, node.y) * WINDING / run + TAKEOFF
+        end
+    end
+    local best, prev = {}, {}
+    if next(startCost) then best, prev = Flights(here, side, startCost) end
+    local bestZone, bestNode, bestT
+    for _, zone in ipairs(ns.ZONES) do
+        if zone.continent == here then
+            for _, node in ipairs(ns.FlightStops(zone, true)) do
+                local x, y = ns.ZoneToContinentPoint(zone, node.points[1] / 10000, node.points[2] / 10000)
+                if x then
+                    local t = Yards(c, px, py, x, y) * WINDING / run
+                    for id, ft in pairs(best) do
+                        if startCost[id] ~= ft or prev[id] then           -- an actual flight
+                            local land = ns.FLIGHT_NODES[id]
+                            local total = ft + Yards(c, land.x, land.y, x, y) * WINDING / run
+                            if total < t then t = total end
+                        end
+                    end
+                    if not bestT or t < bestT then bestZone, bestNode, bestT = zone, node, t end
+                end
+            end
+        end
+    end
+    if not bestZone then return nil, nil, "You know every flight point on this continent." end
+    return bestZone, bestNode, bestT
 end
 
 -- Plan the way to `stop` on `zone`; sets ns.travel to a flight or nil.
