@@ -931,6 +931,21 @@ check("a zone marked done is kept", rt.eval("NS.ZoneMarkedDone(ELWYNN)"))
 rt.execute("NS.SetZoneMarkedDone(ELWYNN, false)")
 check("and unmarked", not rt.eval("NS.ZoneMarkedDone(ELWYNN)"))
 
+print("corpse")
+rt.execute("""NS.StopRoute() PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.42, 0.65
+    GHOST = true
+    function UnitIsGhost() return GHOST end
+    local px, py = NS.PlayerOn(1415)
+    C_DeathInfo = { GetCorpseMapPosition = function(map)
+        if map == 1415 then return { x = px + 0.004, y = py } end end }
+    FIRE('PLAYER_ALIVE') FRAME(0.2)""")
+check("a ghost is led to the corpse", rt.eval("NS.Corpse() ~= nil"))
+check("the arrow says so", "Your corpse" in rt.eval("TEXTS()"))
+check("and the lines start with the way there", rt.eval("NS.RouteGeometry().parts[1].kind") == "corpse")
+check("pointing east, along the way", abs(rt.eval("NS.CorpseVector()")[0] + 1.5708) < 0.3, rt.eval("NS.CorpseVector()"))
+rt.execute("GHOST = false FIRE('PLAYER_UNGHOST') FRAME(0.2)")
+check("alive again, no corpse", rt.eval("NS.Corpse() == nil") and rt.eval("NS.RouteGeometry() == nil"))
+
 print("lua escapes")
 # A path written through a shell heredoc once lost its backslashes; every
 # texture path must read Interface\... in the source.

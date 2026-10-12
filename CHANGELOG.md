@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Dead: as a ghost, the arrow, the minimap button and the route lines
+  (window, world map, minimap) lead back to your corpse along the walking
+  path, in white. Once you're alive the route carries on.
+- The continent map no longer puts a Done badge on fully explored zones.
 - A Done mapping this zone tick box on a zone's map: ticked, the zone gets a
   gold * in the list, ready to be built in. Zones already mapped by hand
   (built in) show their names in purple.
@@ -9,7 +13,7 @@
   can run, and its spots are where the game really gives credit. Built-in
   walls and roads steer paths without being drawn; only your own show and
   can be edited.
-- The minimap button is twice its old size, ring and all.
+- The minimap button is one and a half times its old size, ring and all.
 - After Me, the window's map keeps you in its middle as you move, and opens
   the next map when you cross into one (Me shows blue while it follows).
   Click Me again, drag the map or open another to stop.

@@ -79,7 +79,8 @@ local function HideDots(from)
 end
 
 local function Draw()
-    if not (ns.db and ns.db.minimapRoute ~= false and ns.route and ns.CurrentStop()) then
+    local corpse = ns.Corpse and ns.Corpse()
+    if not (ns.db and ns.db.minimapRoute ~= false and (corpse or ns.route and ns.CurrentStop())) then
         Hide(1)
         HideDots(1)
         return
@@ -88,8 +89,7 @@ local function Draw()
         geometry = ns.RouteGeometry()
         geometryAge = 0
     end
-    local zone = ns.route.zone
-    local cont = ns.CONTINENT_YARDS and ns.CONTINENT_YARDS[zone.continent]
+    local cont = geometry and ns.CONTINENT_YARDS and ns.CONTINENT_YARDS[geometry.c]
     local px, py
     if cont and geometry then
         px, py = ns.PlayerOn(geometry.cont)
@@ -152,7 +152,9 @@ local function Draw()
     -- the stops in reach: gold, the next one larger
     local d = 0
     local _, current = ns.CurrentStop()
-    for i, stop in ipairs(ns.route.stops) do
+    local zone = ns.route and ns.route.zone
+    local stops = zone and zone.continent == geometry.c and ns.route.stops or {}
+    for i, stop in ipairs(stops) do
         local cx, cy = ns.ZoneToContinentPoint(zone, stop.x, stop.y)
         if cx then
             local sx, sy = Screen(cx, cy)

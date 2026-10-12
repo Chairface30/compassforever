@@ -53,22 +53,23 @@ function ns.SetupMinimap()
         OnTooltipShow = Tooltip,
     })
     icon:Register(NAME, ns.launcher, ns.db.minimap)
-    -- Twice the usual size: the button, its ring, background and arrow, each
+    -- One and a half times the usual size: the button, its ring, background and arrow, each
     -- from the size and spot LibDBIcon gave it, so they still line up. (A
-    -- scaled button would sit twice as far out, off the minimap's edge.)
+    -- scaled button would sit farther out, off the minimap's edge.)
+    local GROW = 1.5
     local button = icon:GetMinimapButton(NAME)
-    if button and not button.doubled then
-        button.doubled = true
+    if button and not button.enlarged then
+        button.enlarged = true
         local w, h = button:GetSize()
-        button:SetSize(w * 2, h * 2)
+        button:SetSize(w * GROW, h * GROW)
         for _, region in ipairs({ button.border, button.background, button.icon }) do
             if region then
                 local rw, rh = region:GetSize()
-                region:SetSize(rw * 2, rh * 2)
+                region:SetSize(rw * GROW, rh * GROW)
                 local point, rel, relPoint, x, y = region:GetPoint(1)
                 if point then
                     region:ClearAllPoints()
-                    region:SetPoint(point, rel, relPoint, (x or 0) * 2, (y or 0) * 2)
+                    region:SetPoint(point, rel, relPoint, (x or 0) * GROW, (y or 0) * GROW)
                 end
             end
         end
@@ -79,6 +80,8 @@ end
 -- Where the arrow points, as a bearing (radians counter-clockwise from
 -- north): the route's next stop, else the nearest area still covered here.
 local function Target()
+    local corpse = ns.Corpse and ns.Corpse()
+    if corpse then return ns.CorpseVector(corpse) end
     local stop = ns.CurrentStop()
     if stop then
         local bearing = ns.StopVector(ns.route.zone, stop)
@@ -122,7 +125,8 @@ function ns.TurnMinimapArrow()
     facing = ok and ns.Num(facing) or 0
     local turn = ((bearing - facing) % TWO_PI) / TWO_PI
     local cell = math.floor(turn * FRAMES + 0.5) % FRAMES
-    if ns.CurrentStop() then Show(cell, 0.3, 1, 0.35) else Show(cell, 1, 0.82, 0.1) end
+    if ns.Corpse and ns.Corpse() then Show(cell, 0.9, 0.92, 1)
+    elseif ns.CurrentStop() then Show(cell, 0.3, 1, 0.35) else Show(cell, 1, 0.82, 0.1) end
 end
 
 local ticker = CreateFrame("Frame")

@@ -1042,10 +1042,11 @@ local function DrawContinent(c)
     for _, zone in ipairs(ns.ZONES) do
         if zone.continent == c then
             local x, y = MiddleOn(zone.map)
-            if x then
+            local d, t = ns.ZoneCounts(zone)
+            -- a fully explored zone gets no badge: its map is left clear
+            if x and d < t then
                 n = n + 1
-                local d, t = ns.ZoneCounts(zone)
-                PlaceBadge(Badge(n), d == t and (GREEN .. "Done|r") or (GOLD .. (t - d) .. " left|r"), x, y)
+                PlaceBadge(Badge(n), GOLD .. (t - d) .. " left|r", x, y)
             end
         end
     end

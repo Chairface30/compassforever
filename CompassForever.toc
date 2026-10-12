@@ -24,6 +24,7 @@ Spots.lua
 MapArt.lua
 Pathing.lua
 Travel.lua
+Corpse.lua
 RouteDraw.lua
 MinimapRoute.lua
 Arrow.lua
