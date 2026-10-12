@@ -133,8 +133,11 @@ local function Levels(map, child)
     return explore, top
 end
 
+local drawnFor                -- the map the markers were last drawn for
+
 local function Refresh()
     if not overlay then return end
+    drawnFor = ShownMap()
     for i = 1, used do pins[i]:Hide() end
     used = 0
     grayPool:Begin()
@@ -245,8 +248,15 @@ local function Setup()
         tick = tick + (ns.Num(dt) or 0)
         if tick < 0.2 then return end
         tick = 0
-        if not (ns.route and ns.db and ns.db.mapPins) then return end
         local mapID = ShownMap()
+        -- Not every way of changing the map tells its hooks (backing out of
+        -- a city didn't), which left the last map's markers up: a changed
+        -- map is redrawn from here too.
+        if mapID ~= drawnFor then
+            SafeRefresh()
+            return
+        end
+        if not (ns.route and ns.db and ns.db.mapPins) then return end
         if not mapID then return end
         local okS, scale = pcall(o.GetEffectiveScale, o)
         local inv = (okS and ns.Num(scale) and scale > 0) and (UIParent:GetEffectiveScale() / scale) or 1

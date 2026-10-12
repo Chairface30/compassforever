@@ -946,6 +946,17 @@ check("a zone marked done is kept", rt.eval("NS.ZoneMarkedDone(ELWYNN)"))
 rt.execute("NS.SetZoneMarkedDone(ELWYNN, false)")
 check("and unmarked", not rt.eval("NS.ZoneMarkedDone(ELWYNN)"))
 
+print("world map markers follow the shown map")
+rt.execute("""NS.StopRoute() NS.db.mapPins = true
+    for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = nil end NS.InvalidateProgress()
+    function MAP_DOTS() local n = 0 for _, f in ipairs(FRAMES) do
+        local d = rawget(f, "dot") if d and rawget(f, "_shown") and rawget(d, "_tex") and rawget(d, "_tex"):find("Indicator") then n = n + 1 end end return n end
+    SHOWN_MAP = 1429 WorldMapFrame._scripts.OnShow() BEFORE = MAP_DOTS()
+    SHOWN_MAP = 947 FRAME(0.3)""")
+before, after = rt.eval("BEFORE"), rt.eval("MAP_DOTS()")
+check(f"a zone's markers go when the map changes without telling ({before} -> {after})", before > 0 and after < before, (before, after))
+rt.execute("SHOWN_MAP = 1429")
+
 print("per character")
 rt.execute("""ALT_ONLY = true EXPLORED[1429] = {}
     for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = true end NS.InvalidateProgress()""")

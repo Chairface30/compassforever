@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- World map: backing out of a city no longer leaves its markers on the
+  next map.
 - Uncovered areas are per character: read from your own map, not the
   account-wide Explore achievements, so an alt no longer sees its zones
   as explored because another character did them. Spots, walls and roads
