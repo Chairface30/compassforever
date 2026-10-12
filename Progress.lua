@@ -107,12 +107,28 @@ function ns.ZoneState(zone)
         -- Whatever the criteria left unknown, the map may know.
         local art = ExploredArt(zone.map)
         if art then
+            -- The map's list is trusted only where it matches the data: some
+            -- uncovered art of this zone found at a node's spot.
+            local matches = false
+            for _, node in ipairs(zone.nodes) do
+                if node.ox and art[node.ox .. ":" .. node.oy] then
+                    matches = true
+                    break
+                end
+            end
             for i, node in ipairs(zone.nodes) do
                 if state[i] == nil and node.ox then
                     state[i] = art[node.ox .. ":" .. node.oy] == true
                     source = source or "map"
                 elseif state[i] == false and node.ox and art[node.ox .. ":" .. node.oy] then
                     state[i] = true      -- the map has caught up first
+                elseif state[i] == true and matches and node.ox and not art[node.ox .. ":" .. node.oy] then
+                    -- The criterion is ticked but the map still has the gap:
+                    -- the achievement can name an older overlay with more
+                    -- areas than the map's (Razorwind Canyon ticks Drygulch
+                    -- Ravine), so the area stays on the route until the map
+                    -- shows it.
+                    state[i] = false
                 end
             end
         end

@@ -245,7 +245,15 @@ def main():
         for t, c in leaves:
             o = overlays[c["Asset"]]
             live = new_by_area.get((current.get(ui), o["AreaID_0"]), o)
-            ids = [o[f"AreaID_{i}"] for i in range(4) if o[f"AreaID_{i}"] != "0"]
+            # The spots come from the areas both overlays name: the one the
+            # achievement checks and the one the map shows now. They can differ
+            # (the achievement's Drygulch Ravine also takes Razorwind Canyon, the
+            # map's does not), and a spot in only one ticks the criterion but
+            # leaves the map covered, or the reverse. With none in common, the
+            # achievement's areas.
+            old_ids = [o[f"AreaID_{i}"] for i in range(4) if o[f"AreaID_{i}"] != "0"]
+            live_ids = {live[f"AreaID_{i}"] for i in range(4) if live[f"AreaID_{i}"] != "0"}
+            ids = [x for x in old_ids if x in live_ids] or old_ids
             cells = set()
             for aid in ids:
                 cells |= by_area[mapID].get(int(aid), set())

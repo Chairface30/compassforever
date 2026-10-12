@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- An area counts as uncovered only once the zone map shows it, not just once
+  the achievement ticks it. Forever redrew some zone maps, and the
+  achievement can still check an older map piece covering more ground:
+  Razorwind Canyon ticked Drygulch Ravine but left a gap on Durotar's map.
+  Such an area now stays on the route until the map fills in.
+- Spots for 31 areas are now picked only from ground that counts for both
+  the achievement and the redrawn map (Drygulch Ravine no longer points into
+  Razorwind Canyon).
 - A Me button beside the zoom buttons over the window's map: it opens the
   zone you're in, zoomed in, centered on you.
 - The route is drawn on the minimap too: the same lines as the world map
