@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Tirisfal Glades is mapped by hand: 14 walls, 16 roads and its 14 spots
+  where the game really gives credit.
 - Dead: as a ghost, the arrow, the minimap button and the route lines
   (window, world map, minimap) lead back to your corpse along the walking
   path, in white. Once you're alive the route carries on.
