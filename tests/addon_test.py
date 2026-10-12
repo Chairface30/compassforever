@@ -775,6 +775,30 @@ end)()""")
 check(f"a wall sends the path round it ({walled[0]:.0f} yd, then {walled[1]:.0f} yd)", walled[1] > walled[0] + 100 and not walled[2], walled)
 check("and taking it away brings the old path back", abs(walled[3] - walled[0]) < 1, walled)
 
+circled = rt.eval("""(function()
+    local z = NS.ZoneByMap(1411)
+    local ax, ay, bx, by = 0.45, 0.45, 0.55, 0.45
+    local p1, c1 = NS.FindPathNow(z, ax, ay, bx, by)
+    NS.db.walls = { [z.ach] = { { circle = { 0.5, 0.45, 120 } } } }
+    NS.WallsChanged()
+    local p2, c2 = NS.FindPathNow(z, ax, ay, bx, by)
+    -- nearest the path comes to the middle, in yards, between its corners
+    local near = math.huge
+    for k = 1, #p2 - 1 do
+        local a, b = p2[k], p2[k + 1]
+        for t = 0, 20 do
+            local x = a.x + (b.x - a.x) * t / 20
+            local y = a.y + (b.y - a.y) * t / 20
+            near = math.min(near, math.sqrt(((x - 0.5) * z.w) ^ 2 + ((y - 0.45) * z.h) ^ 2))
+        end
+    end
+    NS.db.walls = nil
+    NS.WallsChanged()
+    return c1, c2, near
+end)()""")
+check(f"a circle sends the path round it ({circled[0]:.0f} yd, then {circled[1]:.0f} yd, nearest {circled[2]:.0f} yd from its middle)",
+      circled[1] > circled[0] and circled[2] >= 120 - 9, circled)
+
 print("replacing the world map")
 rt.execute("NS.db.replaceWorldMap = true NS.ApplyMapKey()")
 check("the world map key opens the window", rt.eval("OVERRIDES.M and OVERRIDES.M.button") == "CompassForeverMapKey")

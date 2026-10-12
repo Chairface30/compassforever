@@ -315,6 +315,7 @@ local playerDot, highlight
 local hasLines
 -- Wall mode: clicks on a zone's map draw walls (Pathing.lua) instead.
 local wallMode, drawing, wallButton = false, nil, nil
+local circleCenter            -- a circle's middle, set by its first Shift-click
 local wallLines = {}
 local WallClick
 
@@ -626,8 +627,9 @@ end
 -- Walls: drawn on a zone's map, no path crosses them
 -------------------------------------------------------------------------------
 -- Left-click adds a corner to the wall being drawn, right-click finishes it
--- (or, with none being drawn, removes the wall under the cursor). A zone's
--- walls become the player's own copy on the first change.
+-- (or, with none being drawn, removes the wall or circle under the cursor).
+-- Shift-click sets a circle's middle, a second Shift-click its edge: no path
+-- enters it. A zone's walls become the player's own copy on the first change.
 
 local WALL_COLOR = { 1, 0.25, 0.2, 0.95 }
 
@@ -652,12 +654,34 @@ local function DrawWalls()
             l:SetColorTexture(r, g, b, a)
         end
     end
+    local zone = view.zone
+    local function Ring(x, y, yards, r, g, b, a)
+        local pts = {}
+        for k = 0, 36 do
+            local t = k / 36 * 2 * math.pi
+            pts[#pts + 1] = x + math.cos(t) * yards / zone.w
+            pts[#pts + 1] = y + math.sin(t) * yards / zone.h
+        end
+        Draw(pts, r, g, b, a)
+    end
     -- shown always while editing; otherwise faintly, so they can be seen
     local c = WALL_COLOR
-    for _, wall in ipairs(ns.ZoneWalls(view.zone)) do
-        Draw(wall, c[1], c[2], c[3], wallMode and c[4] or 0.45)
+    local alpha = wallMode and c[4] or 0.45
+    for _, wall in ipairs(ns.ZoneWalls(zone)) do
+        if wall.circle then
+            Ring(wall.circle[1], wall.circle[2], wall.circle[3], c[1], c[2], c[3], alpha)
+        else
+            Draw(wall, c[1], c[2], c[3], alpha)
+        end
     end
     if wallMode and drawing then Draw(drawing, 1, 0.85, 0.2, 1) end
+    if wallMode and circleCenter then
+        local x, y = CursorOnMap()
+        if x then
+            local yards = math.sqrt(((x - circleCenter[1]) * zone.w) ^ 2 + ((y - circleCenter[2]) * zone.h) ^ 2)
+            Ring(circleCenter[1], circleCenter[2], math.max(1, yards), 1, 0.85, 0.2, 1)
+        end
+    end
 end
 
 -- The zone's own walls, copied from the shipped ones on the first change.
@@ -669,6 +693,7 @@ local function OwnWalls(zone)
         for _, wall in ipairs(ns.ZoneWalls(zone)) do
             local copy = {}
             for k, v in ipairs(wall) do copy[k] = v end
+            if wall.circle then copy.circle = { wall.circle[1], wall.circle[2], wall.circle[3] } end
             mine[#mine + 1] = copy
         end
         ns.db.walls[zone.ach] = mine
@@ -682,6 +707,14 @@ local function Round(v) return math.floor(v * 10000 + 0.5) / 10000 end
 local function WallAt(zone, x, y)
     local best, bestD = nil, 10
     for w, wall in ipairs(ns.ZoneWalls(zone)) do
+        local c = wall.circle
+        if c then
+            -- inside it, or near its edge
+            local yards = math.sqrt(((x - c[1]) * zone.w) ^ 2 + ((y - c[2]) * zone.h) ^ 2)
+            if yards <= c[3] then
+                best, bestD = w, 0
+            end
+        end
         for k = 1, #wall - 3, 2 do
             local ax, ay = wall[k] * CW(), wall[k + 1] * CH()
             local bx, by = wall[k + 2] * CW(), wall[k + 3] * CH()
@@ -700,9 +733,22 @@ WallClick = function(button)
     local zone = view.zone
     local x, y = CursorOnMap()
     if not x then return end
-    if button == "LeftButton" then
+    if button == "LeftButton" and IsShiftKeyDown() then
+        if not circleCenter then
+            circleCenter = { Round(x), Round(y) }
+        else
+            local yards = math.sqrt(((x - circleCenter[1]) * zone.w) ^ 2 + ((y - circleCenter[2]) * zone.h) ^ 2)
+            if yards >= 5 then
+                table.insert(OwnWalls(zone), { circle = { circleCenter[1], circleCenter[2], math.floor(yards + 0.5) } })
+                ns.WallsChanged()
+            end
+            circleCenter = nil
+        end
+    elseif button == "LeftButton" then
         drawing = drawing or {}
         drawing[#drawing + 1], drawing[#drawing + 2] = Round(x), Round(y)
+    elseif circleCenter then
+        circleCenter = nil
     elseif drawing then
         if #drawing >= 4 then
             table.insert(OwnWalls(zone), drawing)
@@ -721,7 +767,7 @@ end
 
 local function SetWallMode(on)
     wallMode = on and true or false
-    drawing = nil
+    drawing, circleCenter = nil, nil
     if wallButton then
         wallButton:SetText(wallMode and "|cffff5544Walls|r" or "Walls")
     end
@@ -750,6 +796,7 @@ local function DrawPlayer()
         if ok and ns.Num(facing) and playerDot.SetRotation then pcall(playerDot.SetRotation, playerDot, facing) end
     end
     DrawRouteLines()
+    if wallMode and circleCenter then DrawWalls() end
 end
 
 -- One pin: an area of the shown zone, or a stop of a route elsewhere.
@@ -1156,7 +1203,9 @@ local function Build()
     wallButton:SetScript("OnClick", function() SetWallMode(not wallMode) end)
     Tip(wallButton, "Draw walls",
         "On a zone's map: left-click to add corners of a wall, right-click to finish it. "
-        .. "Right-click a wall to remove it. Routes never cross a wall. Click Walls again when done.")
+        .. "Shift-click a circle's middle, then Shift-click its edge. "
+        .. "Right-click a wall or circle to remove it. Routes never cross a wall or enter a circle. "
+        .. "Click Walls again when done.")
 
     local border = CreateFrame("Frame", nil, frame, "BackdropTemplate")
     frame.mapBorder = border

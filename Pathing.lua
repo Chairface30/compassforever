@@ -369,7 +369,8 @@ end
 -- Data/Walls.lua) where the terrain says you can walk but you can't: no
 -- path crosses one. A zone's walls are the player's own once edited
 -- (CompassForeverDB.walls), else the shipped ones. Each is a flat list of
--- that zone's map fractions, x1, y1, x2, y2, ...
+-- that zone's map fractions, x1, y1, x2, y2, ... or a circle,
+-- { circle = { x, y, yards } }, that no path enters.
 --
 -- They are kept per continent as the steps of its grid they cut: "i:j:x"
 -- for the step from (i, j) to (i + 1, j), "i:j:y" for (i, j) to (i, j + 1).
@@ -418,6 +419,26 @@ local function WallSteps(c)
     for _, zone in ipairs(ns.ZONES) do
         if zone.continent == c then
             for _, wall in ipairs(ns.ZoneWalls(zone)) do
+              local circle = wall.circle
+              if circle then
+                -- every step to or from a point inside is cut
+                local cx, cy = ns.ZoneToContinentPoint(zone, circle[1], circle[2])
+                if cx then
+                    local gi, gj = GridUnits(cont, cx, cy)
+                    local rg = circle[3] / NODE
+                    for i = math.floor(gi - rg), math.ceil(gi + rg) do
+                        for j = math.floor(gj - rg), math.ceil(gj + rg) do
+                            if (i - gi) ^ 2 + (j - gj) ^ 2 <= rg * rg then
+                                cut[i .. ":" .. j .. ":x"] = true
+                                cut[(i - 1) .. ":" .. j .. ":x"] = true
+                                cut[i .. ":" .. j .. ":y"] = true
+                                cut[i .. ":" .. (j - 1) .. ":y"] = true
+                            end
+                        end
+                    end
+                    segs[#segs + 1] = { circle = true, cx, cy, circle[3] / cont.w, circle[3] / cont.h }
+                end
+              else
                 local pts = {}
                 local fr = {}
                 for k = 1, #wall - 1, 2 do
@@ -446,6 +467,7 @@ local function WallSteps(c)
                         end
                     end
                 end
+              end
             end
         end
     end
@@ -461,9 +483,24 @@ local function Walled(cut, i, j, di, dj)
 end
 
 -- Does a straight run a-b (points with x, y) cross any of `segs`?
+-- Does segment a-b pass through the ellipse at (cx, cy) with radii rx, ry
+-- (a circle in yards, in map fractions)?
+local function Enters(ax, ay, bx, by, cx, cy, rx, ry)
+    ax, ay, bx, by = (ax - cx) / rx, (ay - cy) / ry, (bx - cx) / rx, (by - cy) / ry
+    local dx, dy = bx - ax, by - ay
+    local len2 = dx * dx + dy * dy
+    local t = len2 > 0 and math.max(0, math.min(1, -(ax * dx + ay * dy) / len2)) or 0
+    local px, py = ax + t * dx, ay + t * dy
+    return px * px + py * py < 1
+end
+
 local function CrossesAny(segs, a, b)
     for _, w in ipairs(segs) do
-        if Crosses(a.x, a.y, b.x, b.y, w[1], w[2], w[3], w[4]) then return true end
+        if w.circle then
+            if Enters(a.x, a.y, b.x, b.y, w[1], w[2], w[3], w[4]) then return true end
+        elseif Crosses(a.x, a.y, b.x, b.y, w[1], w[2], w[3], w[4]) then
+            return true
+        end
     end
     return false
 end
@@ -473,7 +510,12 @@ local function WalledZoneSpace(zone, g)
     local sp = ZoneSpace(g)
     local own = {}
     for _, wall in ipairs(ns.ZoneWalls(zone)) do
-        for k = 1, #wall - 3, 2 do own[#own + 1] = { wall[k], wall[k + 1], wall[k + 2], wall[k + 3] } end
+        local c = wall.circle
+        if c then
+            own[#own + 1] = { circle = true, c[1], c[2], c[3] / zone.w, c[3] / zone.h }
+        else
+            for k = 1, #wall - 3, 2 do own[#own + 1] = { wall[k], wall[k + 1], wall[k + 2], wall[k + 3] } end
+        end
     end
     if #own > 0 then sp.Crosses = function(a, b) return CrossesAny(own, a, b) end end
     if not g.gx then return sp end
