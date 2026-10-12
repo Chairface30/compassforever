@@ -25,6 +25,10 @@ CURSOR = { 300, 200 }
 function GetCursorPosition() return CURSOR[1], CURSOR[2] end
 IN_COMBAT = false
 function InCombatLockdown() return IN_COMBAT end
+SHIFT = false
+function IsShiftKeyDown() return SHIFT end
+function IsControlKeyDown() return false end
+function IsAltKeyDown() return false end
 OVERRIDES = {}
 function GetBindingKey(action) if action == "TOGGLEWORLDMAP" then return "M" end end
 function ClearOverrideBindings(owner) for k, v in pairs(OVERRIDES) do if v.owner == owner then OVERRIDES[k] = nil end end end
@@ -843,6 +847,20 @@ check("world map markers sit on their spots when zoomed", off < 1e-6, off)
 rt.execute("PRINTED = {} SlashCmdList.COMPASSFOREVER('probe')")
 out = "\n".join(printed(rt))
 check("probe reports the criteria match", "match the built-in areas" in out, out)
+
+print("drawing walls")
+rt.execute("""NS.ShowZone(ELWYNN) NS.WindowWallMode(true) NS.db.walls = nil
+    NS.WindowWallClick("LeftButton", 0.30, 0.30) NS.WindowWallClick("LeftButton", 0.40, 0.30) NS.WindowWallClick("LeftButton", 0.40, 0.40)
+    NS.WindowWallClick("RightButton", 0.40, 0.40)
+    NS.WindowWallClick("LeftButton", 0.60, 0.60) NS.WindowWallClick("LeftButton", 0.70, 0.60)
+    NS.WindowWallClick("RightButton", 0.70, 0.60)
+    SHIFT = true NS.WindowWallClick("LeftButton", 0.50, 0.80) NS.WindowWallClick("LeftButton", 0.52, 0.80) SHIFT = false""")
+walls = rt.eval("(function() local w = NS.db.walls[ELWYNN.ach] local t = {} for i, x in ipairs(w) do t[i] = x.circle and 'c' or (#x / 2) end return table.concat(t, ',') end)()")
+check(f"right-click ends a wall; the next starts a new one ({walls})", walls == "3,2,c", walls)
+rt.execute("NS.WindowWallClick('RightButton', 0.35, 0.30)")
+walls2 = rt.eval("(function() local w = NS.db.walls[ELWYNN.ach] local t = {} for i, x in ipairs(w) do t[i] = x.circle and 'c' or (#x / 2) end return table.concat(t, ',') end)()")
+check(f"right-click on a wall removes just that one ({walls2})", walls2 == "2,c", walls2)
+rt.execute("NS.WindowWallMode(false) NS.db.walls = nil NS.WallsChanged()")
 
 print("lua escapes")
 # A path written through a shell heredoc once lost its backslashes; every

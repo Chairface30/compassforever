@@ -729,9 +729,10 @@ local function WallAt(zone, x, y)
     return best
 end
 
-WallClick = function(button)
+-- (x, y: where, for the tests; else under the cursor)
+WallClick = function(button, x, y)
     local zone = view.zone
-    local x, y = CursorOnMap()
+    if not x then x, y = CursorOnMap() end
     if not x then return end
     if button == "LeftButton" and IsShiftKeyDown() then
         if not circleCenter then
@@ -750,9 +751,12 @@ WallClick = function(button)
     elseif circleCenter then
         circleCenter = nil
     elseif drawing then
+        -- right-click ends this wall; the next left-click starts another
         if #drawing >= 4 then
-            table.insert(OwnWalls(zone), drawing)
+            local walls = OwnWalls(zone)
+            table.insert(walls, drawing)
             ns.WallsChanged()
+            ns.Print(string.format("Wall added (%d in %s). Left-click to start the next one.", #walls, zone.name))
         end
         drawing = nil
     else
@@ -1368,6 +1372,7 @@ ns.WindowOpen = function(target)
     if target.zone then ShowZoneView(target.zone) else ShowContinentView(target.continent) end
 end
 ns.WindowTarget = Target
+ns.WindowWallClick = function(button, x, y) WallClick(button, x, y) end
 
 -- Through ns.Fire, which reports an error instead of hiding it.
 ns.On("progress", function() Refresh() end)
