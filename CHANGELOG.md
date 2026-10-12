@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- The window opens every map, not only zones with areas to explore: click a
+  city (or any map inside a zone) on the map to open it, right-click goes
+  back up. Opening the window or pressing Me in a city shows that city,
+  with you and any route drawn on it. So it can stand in for the world map.
 - A new fanfare for a finished zone (48 seconds). While it plays, a Stop
   music button near the top of the screen stops it. Options, Display:
   Fanfare turns it off.

@@ -187,10 +187,52 @@ local function ShowWorldView()
     Refresh()
 end
 
+-- Any other map (a city, a map inside a zone): its art, you and the route,
+-- but no areas to explore. The window can open every map the world map can.
+local function MapInfo(mapID)
+    local ok, info = ns.Ask(ns.API("C_Map", "GetMapInfo"), mapID)
+    return ok and type(info) == "table" and info or nil
+end
+
+-- The continent a map is on (0 or 1), from its parents.
+local function ContinentAbove(mapID)
+    for _ = 1, 8 do
+        if not mapID then return nil end
+        local c = ContinentOfMap(mapID)
+        if c then return c end
+        local info = MapInfo(mapID)
+        mapID = info and ns.Num(info.parentMapID)
+    end
+    return nil
+end
+
+local function ShowMapView(mapID)
+    ResetZoom()
+    local info = MapInfo(mapID)
+    view = { kind = "map", map = mapID, name = info and ns.Text(info.name) or "Map" }
+    continent = ContinentAbove(mapID) or continent
+    Refresh()
+end
+
+-- Open whichever view suits a map: a zone, a continent, Azeroth or a map.
+local function OpenMap(mapID)
+    local zone = mapID and ns.ZoneByMap(mapID)
+    if zone then return ShowZoneView(zone) end
+    local c = mapID and ContinentOfMap(mapID)
+    if c then return ShowContinentView(c) end
+    if not mapID or mapID == WORLD then return ShowWorldView() end
+    ShowMapView(mapID)
+end
+
 -- Right-click: one level up.
 local function ZoomOut()
     if view.kind == "zone" then ShowContinentView(view.zone.continent)
-    elseif view.kind == "continent" then ShowWorldView() end
+    elseif view.kind == "continent" then ShowWorldView()
+    elseif view.kind == "map" then
+        local info = MapInfo(view.map)
+        local parent = info and ns.Num(info.parentMapID)
+        if parent and parent > 0 then OpenMap(parent) else ShowContinentView(continent) end
+    end
 end
 
 -------------------------------------------------------------------------------
@@ -415,15 +457,14 @@ end
 
 local function Target(x, y)
     local mapID = MapAt(x, y)
-    if not mapID then return nil end
-    if view.kind == "continent" then
-        local zone = ns.ZoneByMap(mapID)
-        return zone and { zone = zone } or nil
-    elseif view.kind == "world" then
+    if not mapID or mapID == view.map then return nil end
+    if view.kind == "world" then
         local c = ContinentOfMap(mapID)
         return c and { continent = c } or nil
     end
-    return nil
+    local zone = ns.ZoneByMap(mapID)
+    if zone then return { zone = zone } end
+    return { map = mapID }
 end
 
 -- Light up what the cursor is over, as the world map does.
@@ -439,7 +480,7 @@ local function Hover()
     end
     local x, y = CursorOnMap()
     local target = x and Target(x, y)
-    local key = target and (target.zone or target.continent)
+    local key = target and (target.zone or target.continent or target.map)
     if key == hovered then return end
     hovered = key
     highlight:Hide()
@@ -460,6 +501,12 @@ local function Hover()
     if target.zone then
         ZoneTooltip(mapBox, target.zone, "ANCHOR_CURSOR")
         GameTooltip:AddLine("Click to open. Right-click to see Azeroth.", 0.6, 1, 0.6)
+        GameTooltip:Show()
+    elseif target.map then
+        local info = MapInfo(target.map)
+        GameTooltip:SetOwner(mapBox, "ANCHOR_CURSOR")
+        GameTooltip:AddLine(info and ns.Text(info.name) or "Map", 1, 1, 1)
+        GameTooltip:AddLine("Click to open.", 0.6, 1, 0.6)
         GameTooltip:Show()
     else
         local ad, at, zd, zt = ns.Totals(target.continent)
@@ -506,13 +553,20 @@ end
 -- and centered on you.
 local CENTER_ZOOM = 2
 local function CenterOnMe()
-    local zone = ns.CurrentZone()
-    if not zone then
-        ns.Print("You aren't in a zone with areas to explore.")
+    local here = ns.PlayerMap()
+    local zone = here and ns.ZoneByMap(here) or (not here and ns.CurrentZone())
+    local mapID
+    if zone then
+        if not (view.kind == "zone" and view.zone == zone) then ShowZoneView(zone) end
+        mapID = zone.map
+    elseif here then
+        if view.map ~= here then OpenMap(here) end
+        mapID = here
+    else
+        ns.Print("Can't tell where you are.")
         return
     end
-    if not (view.kind == "zone" and view.zone == zone) then ShowZoneView(zone) end
-    local px, py = ns.PlayerOn(zone.map)
+    local px, py = ns.PlayerOn(mapID)
     if not (px and py) then return end
     if zoom < CENTER_ZOOM then zoom = CENTER_ZOOM end
     offX, offY = px * CW() - MAP_W / 2, py * CH() - MAP_H / 2
@@ -564,7 +618,9 @@ local function OnMapClick(_, button)
     hovered = nil
     highlight:Hide()
     GameTooltip:Hide()
-    if target.zone then ShowZoneView(target.zone) else ShowContinentView(target.continent) end
+    if target.zone then ShowZoneView(target.zone)
+    elseif target.map then ShowMapView(target.map)
+    else ShowContinentView(target.continent) end
 end
 
 local function Pin(i)
@@ -987,7 +1043,7 @@ DrawMap = function()
     local used = 0
     if view.kind == "zone" then used = DrawZone(view.zone)
     elseif view.kind == "continent" then DrawContinent(continent)
-    else DrawWorld() end
+    elseif view.kind == "world" then DrawWorld() end
     DrawRouteStops(used)
     DrawPlayer()
     -- in wall mode the markers stay in sight but let clicks through to the
@@ -1009,6 +1065,7 @@ local function RefreshTrail()
         parts[2] = { CONTINENT_NAME[c], function() ShowContinentView(c) end }
     end
     if view.kind == "zone" then parts[3] = { view.zone.name } end
+    if view.kind == "map" then parts[3] = { view.name } end
     -- The strip has room for the Roads, Walls, Me and zoom buttons at its right; the trail
     -- gets the rest, and only the last part (the shown map) is ever cut short.
     local x, room = 0, MAP_W - 254
@@ -1040,6 +1097,7 @@ local HINTS = {
     world = "Click a continent to open it. Scroll or use + and - to zoom.",
     continent = "Click a zone to open it. Scroll to zoom, drag to pan. Right-click: Azeroth.",
     zone = "Click a marker to head there next. Scroll to zoom, drag to pan. Right-click: back.",
+    map = "Scroll to zoom, drag to pan. Right-click: back.",
 }
 
 local function RefreshInfo()
@@ -1058,6 +1116,11 @@ local function RefreshInfo()
         zoneTitle:SetText(CONTINENT_NAME[continent])
         zoneInfo:SetText(string.format("%d of %d areas, %d of %d zones explored.", ad, at, zd, zt))
         nextInfo:SetText(GRAY .. "Pick a zone on the map or in the list to see its areas and route.|r")
+        return
+    end
+    if view.kind == "map" then
+        zoneTitle:SetText(view.name)
+        zoneInfo:SetText(GRAY .. "No areas to explore on this map.|r")
         return
     end
     local zone = view.zone
@@ -1513,8 +1576,16 @@ ns.On("login", function() ns.ApplyMapKey() end)
 -- continent's map.
 function ns.ShowZone(zone)
     Build()
-    zone = zone or (ns.route and ns.route.zone) or ns.CurrentZone()
     frame:Show()
+    if not zone and not ns.route then
+        -- a city or any other map you're on opens as it is
+        local here = ns.PlayerMap()
+        if here and not ns.ZoneByMap(here) and not ContinentOfMap(here) and here ~= WORLD then
+            ShowMapView(here)
+            return
+        end
+    end
+    zone = zone or (ns.route and ns.route.zone) or ns.CurrentZone()
     if zone then ShowZoneView(zone) else ShowContinentView(continent) end
 end
 
@@ -1532,6 +1603,7 @@ ns.WindowOpen = function(target)
 end
 ns.WindowTarget = Target
 ns.WindowWallClick = function(button, x, y) WallClick(button, x, y) end
+ns.WindowCenterOnMe = function() CenterOnMe() end
 
 -- Through ns.Fire, which reports an error instead of hiding it.
 ns.On("progress", function() Refresh() end)

@@ -866,6 +866,16 @@ rt.execute("PRINTED = {} SlashCmdList.COMPASSFOREVER('probe')")
 out = "\n".join(printed(rt))
 check("probe reports the criteria match", "match the built-in areas" in out, out)
 
+print("cities and other maps")
+rt.execute("""PLAYER.map, PLAYER.x, PLAYER.y = 1453, 0.5, 0.5
+    NS.StopRoute() NS.ShowZone()""")
+check("opening in a city shows the city", rt.eval("NS.WindowView().kind") == "map" and rt.eval("NS.WindowView().map") == 1453)
+rt.execute("NS.WindowZoomOut()")
+check("and zooming out leaves it", rt.eval("NS.WindowView().kind") != "map")
+rt.execute("NS.WindowCenterOnMe()")
+check("Me goes back to the city you're in", rt.eval("NS.WindowView().map") == 1453)
+rt.execute("PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.42, 0.65 NS.ShowZone(ELWYNN)")
+
 print("drawing walls")
 rt.execute("""NS.ShowZone(ELWYNN) NS.WindowWallMode(true) NS.db.walls = nil
     NS.WindowWallClick("LeftButton", 0.30, 0.30) NS.WindowWallClick("LeftButton", 0.40, 0.30) NS.WindowWallClick("LeftButton", 0.40, 0.40)
