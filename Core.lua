@@ -21,6 +21,7 @@ local DEFAULTS = {
     mapOnly = false,       -- the window shows its map and nothing else
     autoRoute = false,     -- start a zone's route on entering it
     banner = true,         -- big words for a new route, an uncovered area
+    fanfare = true,        -- music on finishing a zone
     learnFlights = true,   -- route past flight masters not yet learned, when close
     autoFly = false,       -- take the planned flight as soon as the flight map opens
     learnSpots = true,     -- on a route, an area's spot moves to where credit was given

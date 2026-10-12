@@ -55,14 +55,62 @@ function ns.NextStopText()
     return "Next: |cffffd100" .. stop.node.name .. "|r"
 end
 
--- A zone finished: Sounds\fanfare.ogg, the Final Fantasy VII victory
--- fanfare. Anyone can put their own clip there instead. If the file is
--- missing the client says it will not play, and the game's level-up
--- fanfare plays.
+-- A zone finished: Sounds\fanfare.ogg (48 seconds). Anyone can put their
+-- own clip there instead. If the file is missing the client says it will
+-- not play, and the game's level-up fanfare plays. Off with the fanfare
+-- option. While it plays, a speaker button stops it.
 local FANFARE = "Interface\\AddOns\\" .. ns.addonName .. "\\Sounds\\fanfare.ogg"
+local FANFARE_SECONDS = 48
+local mute
+
+local function MuteButton()
+    if mute then return mute end
+    mute = CreateFrame("Button", "CompassForeverFanfareMute", UIParent)
+    mute:SetSize(140, 32)
+    mute:SetPoint("TOP", UIParent, "TOP", 0, -270)
+    mute:SetFrameStrata("HIGH")
+    local bg = mute:CreateTexture(nil, "BACKGROUND")
+    bg:SetAllPoints()
+    bg:SetColorTexture(0, 0, 0, 0.6)
+    local icon = mute:CreateTexture(nil, "ARTWORK")
+    icon:SetSize(24, 24)
+    icon:SetPoint("LEFT", 6, 0)
+    icon:SetTexture("Interface\\Common\\VoiceChat-Speaker")
+    local text = mute:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    text:SetPoint("LEFT", icon, "RIGHT", 6, 0)
+    text:SetText("Stop music")
+    local hl = mute:CreateTexture(nil, "HIGHLIGHT")
+    hl:SetAllPoints()
+    hl:SetColorTexture(1, 0.82, 0, 0.2)
+    mute:SetScript("OnClick", function(self)
+        if self.handle then pcall(StopSound, self.handle) end
+        self:Hide()
+    end)
+    mute:SetScript("OnUpdate", function(self)
+        local ok, now = pcall(GetTime)
+        if ok and now - (self.started or 0) > FANFARE_SECONDS then self:Hide() end
+    end)
+    mute:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+        GameTooltip:AddLine("Stop the fanfare")
+        GameTooltip:AddLine("Turn it off for good in Options, Display.", 0.7, 0.7, 0.7)
+        GameTooltip:Show()
+    end)
+    mute:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    return mute
+end
+
 function ns.Fanfare()
-    local ok, willPlay = pcall(PlaySoundFile, FANFARE, "Master")
-    if ok and willPlay then return end
+    if ns.db and ns.db.fanfare == false then return end
+    local ok, willPlay, handle = pcall(PlaySoundFile, FANFARE, "Master")
+    if ok and willPlay then
+        local b = MuteButton()
+        b.handle = handle
+        local okT, now = pcall(GetTime)
+        b.started = okT and now or 0
+        b:Show()
+        return
+    end
     pcall(PlaySound, 888)
 end
 

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- A new fanfare for a finished zone (48 seconds). While it plays, a Stop
+  music button near the top of the screen stops it. Options, Display:
+  Fanfare turns it off.
 - The minimap button is now a compass arrow that turns as you do: green,
   pointing at the route's next stop while a route runs; gold, pointing at
   the nearest area still covered in your zone otherwise; upright when
