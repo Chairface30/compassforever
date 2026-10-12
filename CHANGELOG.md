@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Options, Display: Walls and roads on the map (on). Off, they're hidden on
+  the window's map except while you draw them; they still steer paths.
 - Spots: the Spots button over the window's map lets you drag an area's
   marker to move its spot; right-click a marker to put it back. A route
   under way there is planned again at once.

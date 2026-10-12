@@ -701,6 +701,8 @@ end
 local function DrawWalls()
     for _, l in ipairs(wallLines) do l:Hide() end
     if not (hasLines and view.kind == "zone") then return end
+    -- hidden by the option, except while drawing them
+    if ns.db.showLines == false and not (wallMode and editKind ~= "spots") then return end
     local n = 0
     local function Draw(pts, r, g, b, a)
         for k = 1, #pts - 3, 2 do
@@ -1131,6 +1133,10 @@ local OPTIONS = {
           .. "so the whole zone shows and what's left stands out.",
       get = function() return ns.db.worldMapGray ~= false end,
       set = function(on) ns.db.worldMapGray = on ns.Fire("settings") end },
+    { label = "Walls and roads on the map", desc = "Show the walls and roads drawn here.",
+      tip = "Off, they're hidden on this window's map except while you draw them. They still steer paths either way.",
+      get = function() return ns.db.showLines ~= false end,
+      set = function(on) ns.db.showLines = on ns.Fire("settings") end },
     { label = "Open instead of the world map", desc = "The world map key opens this window.",
       tip = "Your world map key (M unless you changed it) opens Compass Forever instead. "
           .. "The world map still opens from the minimap, the quest log and its other buttons.",
