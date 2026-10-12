@@ -7,6 +7,8 @@
   the minimap's zoom, turning with it if it rotates and cut off at its edge,
   with a dot on each stop in reach (the next one larger). Options, Display:
   Route on the minimap (on by default).
+- Fixed a Lua error when starting a route ("attempt to perform arithmetic on
+  upvalue 'py'" in MinimapRoute.lua).
 
 ## Compass Forever v1.2 (2026-10-12)
 

@@ -90,8 +90,11 @@ local function Draw()
     end
     local zone = ns.route.zone
     local cont = ns.CONTINENT_YARDS and ns.CONTINENT_YARDS[zone.continent]
-    local px, py = cont and geometry and ns.PlayerOn(geometry.cont)
-    if not px then
+    local px, py
+    if cont and geometry then
+        px, py = ns.PlayerOn(geometry.cont)
+    end
+    if not (px and py) then
         Hide(1)
         HideDots(1)
         return
