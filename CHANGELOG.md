@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Durotar is mapped by hand: walls and roads keep its routes to ground you
+  can run, and its spots are where the game really gives credit. Built-in
+  walls and roads steer paths without being drawn; only your own show and
+  can be edited.
 - The minimap button is twice its old size, ring and all.
 - After Me, the window's map keeps you in its middle as you move, and opens
   the next map when you cross into one (Me shows blue while it follows).

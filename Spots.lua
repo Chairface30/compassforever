@@ -12,11 +12,55 @@
 
 local _, ns = ...
 
--- A moved spot, or nil.
+-- A moved spot: the player's own, else the shipped one (Data/Spots.lua),
+-- else nil.
 function ns.MovedSpot(node)
+    if not node.criteria then return nil end
     local spots = ns.db and ns.db.spots
-    return node.criteria and spots and spots[node.criteria] or nil
+    return spots and spots[node.criteria] or ns.SPOTS and ns.SPOTS[node.criteria] or nil
 end
+
+-- At login: saved walls, roads and spots that are now shipped are dropped,
+-- so what was built in doesn't show as the player's own.
+local function Same(a, b)
+    if a.circle or b.circle then
+        if not (a.circle and b.circle) then return false end
+        a, b = a.circle, b.circle
+    end
+    if #a ~= #b then return false end
+    for i = 1, #a do
+        if math.abs(a[i] - b[i]) > 1e-6 then return false end
+    end
+    return true
+end
+
+local function DropShipped()
+    local db = ns.db
+    for kind, shippedAll in pairs({ walls = ns.WALLS or {}, roads = ns.ROADS or {} }) do
+        local mineAll = db[kind]
+        if mineAll then
+            for ach, mine in pairs(mineAll) do
+                local shipped = shippedAll[ach]
+                if shipped then
+                    for i = #mine, 1, -1 do
+                        for _, s in ipairs(shipped) do
+                            if Same(mine[i], s) then
+                                table.remove(mine, i)
+                                break
+                            end
+                        end
+                    end
+                end
+                if #mine == 0 then mineAll[ach] = nil end
+            end
+        end
+    end
+    for crit, xy in pairs(db.spots or {}) do
+        local s = ns.SPOTS and ns.SPOTS[crit]
+        if s and Same(xy, s) then db.spots[crit] = nil end
+    end
+end
+ns.On("login", function() pcall(DropShipped) end)
 
 -- Where credit for an area was given, or nil.
 function ns.CreditSpot(node)
@@ -48,6 +92,7 @@ function ns.ResetSpot(zone, node)
     ns.Print(node.name .. "'s spot is back where it was.")
     Replan(zone)
 end
+ns.DropShippedEdits = DropShipped
 
 -- Credit: what the zone you're in had uncovered last time, by its ach.
 local seen = {}

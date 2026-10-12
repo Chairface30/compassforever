@@ -313,7 +313,7 @@ def brute(rt, zone_expr, count, sx, sy):
     return best, length
 
 
-for zone in ("ELWYNN", "NS.ZoneByMap(1411)", "NS.ZoneByMap(1434)"):
+for zone in ("ELWYNN", "NS.ZoneByMap(1412)", "NS.ZoneByMap(1434)"):
     best, got = brute(rt, zone, 8, 0.5, 0.5)
     check(f"route over 8 areas of {zone} is the shortest ({got:.0f} vs {best:.0f} yd)", got <= best * 1.0001, (got, best))
 
@@ -760,7 +760,7 @@ rt.execute("NS.StopRoute() PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.42, 0.65")
 
 print("walls")
 walled = rt.eval("""(function()
-    local z = NS.ZoneByMap(1411)
+    local z = NS.ZoneByMap(1412)
     local ax, ay, bx, by = 0.45, 0.45, 0.55, 0.45
     local p1, c1 = NS.FindPathNow(z, ax, ay, bx, by)
     NS.db.walls = { [z.ach] = { { 0.5, 0.35, 0.5, 0.55 } } }
@@ -784,7 +784,7 @@ check(f"a wall sends the path round it ({walled[0]:.0f} yd, then {walled[1]:.0f}
 check("and taking it away brings the old path back", abs(walled[3] - walled[0]) < 1, walled)
 
 circled = rt.eval("""(function()
-    local z = NS.ZoneByMap(1411)
+    local z = NS.ZoneByMap(1412)
     local ax, ay, bx, by = 0.45, 0.45, 0.55, 0.45
     local p1, c1 = NS.FindPathNow(z, ax, ay, bx, by)
     NS.db.walls = { [z.ach] = { { circle = { 0.5, 0.45, 120 } } } }
@@ -808,7 +808,7 @@ check(f"a circle sends the path round it ({circled[0]:.0f} yd, then {circled[1]:
       circled[1] > circled[0] and circled[2] >= 120 - 9, circled)
 
 roaded = rt.eval("""(function()
-    local z = NS.ZoneByMap(1411)
+    local z = NS.ZoneByMap(1412)
     local ax, ay, bx, by = 0.45, 0.45, 0.55, 0.45
     local p1 = NS.FindPathNow(z, ax, ay, bx, by)
     local function lowest(p) local m = 0 for _, q in ipairs(p) do m = math.max(m, q.y) end return m end

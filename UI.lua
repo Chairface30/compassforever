@@ -753,9 +753,10 @@ end
 local WALL_COLOR = { 1, 0.25, 0.2, 0.95 }
 local ROAD_COLOR = { 0.6, 1, 0.05, 1 }       -- bright lime green
 
+-- Only the player's own lines are drawn and edited; shipped ones (Data/)
+-- still steer paths but stay out of sight.
 local function Lines(zone, kind)
-    if kind == "roads" then return ns.ZoneRoads(zone) end
-    return ns.ZoneWalls(zone)
+    return ns.OwnLines(zone, kind) or {}
 end
 
 local function WallLine(i)
@@ -813,20 +814,13 @@ local function DrawWalls()
     end
 end
 
--- The zone's own walls or roads, copied from the shipped ones on the first
--- change.
+-- The zone's own walls or roads (the player's; shipped ones aren't edited).
 local function OwnWalls(zone, kind)
     kind = kind or editKind
     ns.db[kind] = ns.db[kind] or {}
     local mine = ns.db[kind][zone.ach]
     if not mine then
         mine = {}
-        for _, wall in ipairs(Lines(zone, kind)) do
-            local copy = {}
-            for k, v in ipairs(wall) do copy[k] = v end
-            if wall.circle then copy.circle = { wall.circle[1], wall.circle[2], wall.circle[3] } end
-            mine[#mine + 1] = copy
-        end
         ns.db[kind][zone.ach] = mine
     end
     return mine

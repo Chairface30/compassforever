@@ -375,9 +375,9 @@ end
 -------------------------------------------------------------------------------
 -- Lines drawn on a zone's map (in the window's wall mode, or shipped in
 -- Data/Walls.lua) where the terrain says you can walk but you can't: no
--- path crosses one. A zone's walls are the player's own once edited
--- (CompassForeverDB.walls), else the shipped ones. Each is a flat list of
--- that zone's map fractions, x1, y1, x2, y2, ... or a circle,
+-- path crosses one. Paths use both the shipped walls and the player's own
+-- (CompassForeverDB.walls); only the player's own are drawn and edited.
+-- Each is a flat list of that zone's map fractions, x1, y1, x2, y2, ... or a circle,
 -- { circle = { x, y, yards } }, that no path enters.
 --
 -- They are kept per continent as the steps of its grid they cut: "i:j:x"
@@ -389,16 +389,29 @@ local roadPoints = {}
 -- Roads drawn by hand on a zone's map (the window's road mode, or shipped
 -- in Data/Roads.lua): paths keep to them until they have to leave for
 -- where they're going. Same form as walls: lists of map fractions.
+-- A zone's lines of one kind for the paths: the shipped ones (never drawn)
+-- and the player's own (drawn, and the ones edited).
+local function Both(shipped, mine)
+    if not (shipped and #shipped > 0) then return mine or {} end
+    if not (mine and #mine > 0) then return shipped end
+    local all = {}
+    for _, l in ipairs(shipped) do all[#all + 1] = l end
+    for _, l in ipairs(mine) do all[#all + 1] = l end
+    return all
+end
+
+-- The player's own walls or roads in a zone (CompassForeverDB), or nil.
+function ns.OwnLines(zone, kind)
+    local t = ns.db and ns.db[kind]
+    return t and t[zone.ach] or nil
+end
+
 function ns.ZoneRoads(zone)
-    local mine = ns.db and ns.db.roads and ns.db.roads[zone.ach]
-    if mine then return mine end
-    return ns.ROADS and ns.ROADS[zone.ach] or {}
+    return Both(ns.ROADS and ns.ROADS[zone.ach], ns.OwnLines(zone, "roads"))
 end
 
 function ns.ZoneWalls(zone)
-    local mine = ns.db and ns.db.walls and ns.db.walls[zone.ach]
-    if mine then return mine end
-    return ns.WALLS and ns.WALLS[zone.ach] or {}
+    return Both(ns.WALLS and ns.WALLS[zone.ach], ns.OwnLines(zone, "walls"))
 end
 
 -- Forget the cut steps and every path found, after a wall changes.
