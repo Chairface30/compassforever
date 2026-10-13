@@ -1690,11 +1690,11 @@ local function Build()
         .. "but a path coming from or going to another zone may. Use them along the zone's edge "
         .. "where the route must stay in.")
 
-    -- On the map's top-left corner while drawing: clear every line of the
-    -- kind being drawn in this zone.
+    -- Top left, right of the Done mapping box, while drawing: clear every
+    -- line of the kind being drawn in this zone.
     frame.clearButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
     frame.clearButton:SetSize(110, 22)
-    frame.clearButton:SetPoint("TOPLEFT", border, "TOPLEFT", 8, -8)
+    frame.clearButton:SetPoint("LEFT", doneBg, "RIGHT", 6, 0)
     frame.clearButton:SetFrameLevel(mapBox:GetFrameLevel() + 20)
     frame.clearButton:SetScript("OnClick", function() ClearLines(editKind) end)
     frame.clearButton:Hide()
