@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Routes make more of flights. From outside a zone, its route can start
+  where a flight lands (from any known flight point in or by the zone)
+  instead of at the corner nearest you, when that's quicker; the chat line
+  says where you'll land. A flight master you haven't learned in the zone
+  is always a stop now, however far out of the way. Only the zone's own
+  flight masters count, not other zones' that fall on its map (Mulgore's
+  route had Brackenwall Village in it).
 - Kalimdor is mapped by hand: every zone's walls, roads and zone lines
   are built in (Data/Walls.lua, Data/Roads.lua, Data/ZoneLines.lua).
 - Durotar redone from scratch: its built-in lines are the new ones only.

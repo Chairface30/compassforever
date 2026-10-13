@@ -184,7 +184,11 @@ function ns.FlightStops(zone, always)
     if not r then return out end
     local known, side = Known(), Side()
     for id, node in pairs(ns.FLIGHT_NODES) do
-        if node.continent == zone.continent and not known[id] and node.side % (side * 2) >= side then
+        -- in the zone itself, by the zone its name gives ("Thunder Bluff,
+        -- Mulgore"): a zone's map reaches past its edges
+        local where = node.name:match(",%s*(.+)$")
+        local inZone = not where or zone.name:sub(1, #where) == where
+        if inZone and node.continent == zone.continent and not known[id] and node.side % (side * 2) >= side then
             local x = (node.x - r.l) / (r.r - r.l)
             local y = (node.y - r.t) / (r.b - r.t)
             if x >= 0 and x <= 1 and y >= 0 and y <= 1 then
@@ -221,6 +225,9 @@ end
 -------------------------------------------------------------------------------
 
 local function ContinentOf(zone) return ns.CONTINENT_YARDS and ns.CONTINENT_YARDS[zone.continent] end
+
+-- "Orgrimmar" for "Orgrimmar, Durotar".
+local function Short(node) return node.name:match("^([^,]+)") or node.name end
 
 -- A point of a zone, as fractions of its continent's map.
 local function OnContinent(zone, x, y)
@@ -327,6 +334,43 @@ function ns.NearestNewFlightMaster()
     return bestZone, bestNode, bestT
 end
 
+-- Where a flight from here could land for a route through `zone`: every
+-- known flight point on or just by the zone's map that a flight reaches
+-- (walking to a known point, then flying through others known), as
+-- { x, y (the zone's map), yards (the time it takes, as yards of running),
+-- id, name }. Empty when no flight is known or you can't be placed.
+local NEAR_ZONE = 0.05       -- of the zone's map outside its edge
+function ns.FlightLandings(zone)
+    local out = {}
+    if not (zone and ns.FLIGHT_NODES and ns.MapRect) then return out end
+    local c = ContinentOf(zone)
+    local r = c and ns.MapRect(zone.map, c.map)
+    if not r then return out end
+    local px, py = ns.PlayerOn(c.map)
+    if not px then return out end
+    local run, side = RunSpeed(), Side()
+    local startCost = {}
+    for id in pairs(Known()) do
+        local node = ns.FLIGHT_NODES[id]
+        if node and node.continent == zone.continent and node.side % (side * 2) >= side then
+            startCost[id] = Yards(c, px, py, node.x, node.y) * WINDING / run + TAKEOFF
+        end
+    end
+    if not next(startCost) then return out end
+    local best, prev = Flights(zone.continent, side, startCost)
+    for id, t in pairs(best) do
+        if startCost[id] ~= t or prev[id] then          -- an actual flight
+            local node = ns.FLIGHT_NODES[id]
+            local x = (node.x - r.l) / (r.r - r.l)
+            local y = (node.y - r.t) / (r.b - r.t)
+            if x >= -NEAR_ZONE and x <= 1 + NEAR_ZONE and y >= -NEAR_ZONE and y <= 1 + NEAR_ZONE then
+                out[#out + 1] = { x = x, y = y, yards = t * run, id = id, name = Short(node) }
+            end
+        end
+    end
+    return out
+end
+
 -- Plan the way to `stop` on `zone`; sets ns.travel to a flight or nil.
 -- Returns nil, "unplaced" when the player can't be placed on the stop's
 -- continent yet (on a zeppelin or boat, say): worth asking again soon.
@@ -387,7 +431,6 @@ function ns.TravelTarget()
     return c and { map = c.map, x = t.from.x, y = t.from.y, w = c.w, h = c.h } or nil
 end
 
-local function Short(node) return node.name:match("^([^,]+)") or node.name end
 
 function ns.TravelText()
     local t = ns.travel

@@ -1106,6 +1106,21 @@ check("on the zeppelin: no flight yet", rt.eval("UNPLACED == nil"))
 check("off it by Orgrimmar: fly Orgrimmar to Thunder Bluff",
       rt.eval("NS.travel and (NS.travel.fromID .. '>' .. NS.travel.toID)") == "23>22",
       rt.eval("NS.travel and (NS.travel.fromID .. '>' .. NS.travel.toID)"))
+# From Orgrimmar, Mulgore's route starts where the flight lands, not at
+# the corner nearest you; flight masters of other zones on Mulgore's map
+# (Brackenwall Village is Dustwallow Marsh's) aren't stops.
+rt.execute("""NS.StopRoute() NS.travel = nil
+    PLAYER.map, PLAYER.x, PLAYER.y = 1411, 0.45, 0.10
+    NS.StartRoute(MULGORE, { quiet = true })
+    for _ = 1, 3 do FRAME(1.1) end""")
+check("from Orgrimmar, Mulgore's route starts where you land at Thunder Bluff",
+      rt.eval("NS.route.landing and NS.route.landing.name") == "Thunder Bluff", rt.eval("NS.route.landing and NS.route.landing.name"))
+check("and the flight there is planned", rt.eval("NS.travel and NS.travel.toID") == 22)
+check("its first stop is by Thunder Bluff", rt.eval("""(function() local s = NS.CurrentStop()
+    return ((s.x - 0.42) * MULGORE.w) ^ 2 + ((s.y - 0.30) * MULGORE.h) ^ 2 < 1500 ^ 2 end)()"""))
+check("no flight master of another zone is a stop", rt.eval("""(function()
+    for _, s in ipairs(NS.route.stops) do if s.node.fp and not s.node.name:find("Bluff") and s.node.name:find("Brackenwall") then return false end end
+    return true end)()"""))
 rt.execute("""NS.StopRoute() NS.travel = nil NS.Translate = REAL_TRANSLATE UnitFactionGroup = nil
     PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.42, 0.65""")
 

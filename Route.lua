@@ -402,9 +402,10 @@ end
 --   auto    = started on entering the zone; it ends when the player leaves;
 --   skipped = overlay ID -> order skipped: those stay at the end.
 -- A flight master the character hasn't discovered, in the zone being
--- explored, joins the route as a stop when it costs at most this much more
--- walking: learning it now saves a trip later.
-local FLIGHT_DETOUR = 800
+-- explored, is always a stop: learning it now saves a walk every time after.
+-- From outside the zone, the route may start where a flight lands instead of
+-- where you stand, when that saves at least this much (yards of running).
+local LANDING_SAVES = 210
 
 -- One area only, from a click on its marker: the walk there and nothing
 -- after, uncovered or not. It ends on reaching it (or uncovering it).
@@ -462,8 +463,17 @@ function ns.StartRoute(zone, opts)
     end
     table.sort(later, function(a, b) return skipped[a.overlay] < skipped[b.overlay] end)
 
-    local sx, sy = ns.PlayerOn(zone.map)
-    local function Plan(list)
+    local px, py = ns.PlayerOn(zone.map)
+    if not px then
+        -- not placed on the zone's map (another zone, far off): through the
+        -- continent's, so the walk there still counts
+        local c = ns.CONTINENT_YARDS and ns.CONTINENT_YARDS[zone.continent]
+        local cx, cy
+        if c then cx, cy = ns.PlayerOn(c.map) end
+        local r = cx and ns.MapRect and ns.MapRect(zone.map, c.map)
+        if r then px, py = (cx - r.l) / (r.r - r.l), (cy - r.t) / (r.b - r.t) end
+    end
+    local function Plan(list, sx, sy)
         if not first then return ns.PlanRoute(zone, list, sx, sy) end
         -- The chosen area first: its point nearest the player, then the rest
         -- planned on from there.
@@ -477,22 +487,34 @@ function ns.StartRoute(zone, opts)
         for _, stop in ipairs(rest) do stops[#stops + 1] = stop end
         return stops, len + (sx and math.sqrt(bestD) or 0)
     end
-    local stops, yards = Plan(now)
-    if #extra > 0 then
-        local with = {}
-        for _, node in ipairs(now) do with[#with + 1] = node end
-        for _, node in ipairs(extra) do with[#with + 1] = node end
-        local s2, y2 = Plan(with)
-        if y2 - yards <= FLIGHT_DETOUR * #extra then stops, yards = s2, y2 end
+    local list = {}
+    for _, node in ipairs(now) do list[#list + 1] = node end
+    for _, node in ipairs(extra) do list[#list + 1] = node end
+    local stops, yards = Plan(list, px, py)
+    -- From outside the zone: the route from each known flight point in reach
+    -- of it, plus the time to get there by air (Travel.lua), against walking
+    -- in. The flight itself is then planned for the first stop as usual.
+    local landing
+    if not first and ns.FlightLandings and ns.CurrentZone() ~= zone then
+        for _, l in ipairs(ns.FlightLandings(zone)) do
+            local s2, y2 = Plan(list, l.x, l.y)
+            if y2 + l.yards < yards - LANDING_SAVES then stops, yards, landing = s2, y2 + l.yards, l end
+        end
     end
     for _, node in ipairs(later) do
         local p = ns.NodePoints(node)[1]
         stops[#stops + 1] = { node = node, x = p[1], y = p[2] }
     end
-    ns.route = { zone = zone, stops = stops, yards = yards, skipped = skipped, auto = opts.auto or false }
+    ns.route = { zone = zone, stops = stops, yards = yards, skipped = skipped, auto = opts.auto or false,
+                 landing = landing }
     if not opts.quiet then
-        ns.Print(string.format("%s: %d area%s left, about %s on foot.", zone.name,
-            #remaining, #remaining == 1 and "" or "s", ns.Yards(yards)))
+        if landing then
+            ns.Print(string.format("%s: %d area%s left, starting where you land at %s.", zone.name,
+                #remaining, #remaining == 1 and "" or "s", landing.name))
+        else
+            ns.Print(string.format("%s: %d area%s left, about %s on foot.", zone.name,
+                #remaining, #remaining == 1 and "" or "s", ns.Yards(yards)))
+        end
     end
     ns.Fire("route")
     return ns.route
