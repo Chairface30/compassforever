@@ -6,6 +6,9 @@
   are built in (Data/Walls.lua, Data/Roads.lua, Data/ZoneLines.lua).
 - Durotar redone from scratch: its built-in lines are the new ones only.
   Thunder Ridge and Drygulch Ravine's cave can be reached again.
+- Un'Goro Crater is taken back out of the built-in lines to be redrawn:
+  at login its walls and zone lines become yours again to edit (once), and
+  its done mark clears.
 - Drygulch Ravine (Durotar) gives credit only in its cave at 51.5, 27.7:
   the route goes there rather than to the ravine's edge.
 - Rut'theran Village: routes take the portal between Darnassus (Teldrassil

@@ -76,7 +76,34 @@ local function DropShipped()
         end
     end
 end
-ns.On("login", function() pcall(DropShipped) end)
+-- Zones taken back out of the built-in lines (Data/Returned.lua): their
+-- lines become the player's own again, once (CompassForeverDB.returned), so
+-- they can be edited; the zone's done mark goes, to be ticked again.
+local function TakeBack()
+    local db = ns.db
+    db.returned = db.returned or {}
+    for ach, kinds in pairs(ns.RETURNED or {}) do
+        if not db.returned[ach] then
+            for kind, lines in pairs(kinds) do
+                db[kind] = db[kind] or {}
+                local mine = db[kind][ach] or {}
+                for _, line in ipairs(lines) do
+                    local have = false
+                    for _, m in ipairs(mine) do if Same(m, line) then have = true break end end
+                    if not have then mine[#mine + 1] = line end
+                end
+                db[kind][ach] = #mine > 0 and mine or nil
+            end
+            if db.finished then db.finished[ach] = nil end
+            db.returned[ach] = true
+        end
+    end
+end
+
+ns.On("login", function()
+    pcall(TakeBack)
+    pcall(DropShipped)
+end)
 ns.DropShippedEdits = DropShipped
 
 -- Where credit for an area was given, or nil.

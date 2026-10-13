@@ -1008,6 +1008,12 @@ check("the area's route points stay its edge", rt.eval("NS.NodePoints(CREDITED)[
 rt.execute("NS.StopRoute() NS.db.credit = nil NS.db.learnFlights = true")
 
 print("zones mapped by hand")
+check("Un'Goro is back out of the built-in lines", not rt.eval("NS.ZoneHandMapped(NS.ZoneByMap(1449))"))
+rt3 = boot()
+check("its lines are the player's own again, to edit",
+      rt3.eval("#NS.db.walls[854] == 12 and #NS.db.zonelines[854] == 2 and NS.db.returned[854] == true"))
+rt3.execute("table.remove(NS.db.walls[854], 1) FIRE('PLAYER_LOGIN') FLUSH()")
+check("only once: an edit made since isn't undone at the next login", rt3.eval("#NS.db.walls[854]") == 11)
 check("Durotar is built in (hand-mapped)", rt.eval("NS.ZoneHandMapped(NS.ZoneByMap(1411))"))
 check("Elwynn is not", not rt.eval("NS.ZoneHandMapped(ELWYNN)"))
 rt.execute("NS.SetZoneMarkedDone(ELWYNN, true)")
