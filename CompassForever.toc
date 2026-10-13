@@ -20,9 +20,11 @@ Data\Walls.lua
 Data\Roads.lua
 Data\ZoneLines.lua
 Data\Spots.lua
+Data\Areas.lua
 Progress.lua
 Route.lua
 Spots.lua
+Areas.lua
 Share.lua
 MapArt.lua
 Pathing.lua

@@ -198,7 +198,9 @@ ns.On("progress", function()
             if px and py then
                 ns.db.credit = ns.db.credit or {}
                 ns.db.credit[node.criteria] = { Round(px), Round(py) }
+                -- an area with a known outline keeps heading for its edge
                 local learn = ns.db.learnSpots ~= false and ns.route and ns.route.zone == zone
+                    and not (ns.AreaOf and ns.AreaOf(node))
                 if learn then
                     ns.db.spots = ns.db.spots or {}
                     ns.db.spots[node.criteria] = { Round(px), Round(py) }

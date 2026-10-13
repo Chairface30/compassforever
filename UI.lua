@@ -675,7 +675,7 @@ local function Pin(i)
         p:SetScript("OnEnter", function(self)
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
             GameTooltip:AddLine(self.node.name, 1, 1, 1)
-            local pt = ns.NodePoints(self.node)[1]
+            local pt = ns.NodeMarker(self.node)
             GameTooltip:AddLine(string.format("%.1f, %.1f%s", pt[1] * 100, pt[2] * 100,
                 ns.MovedSpot(self.node) and " (moved)" or ""), 0.7, 0.7, 0.7)
             local credit = ns.CreditSpot(self.node)
@@ -1016,6 +1016,41 @@ local function DrawCredit(zone)
     end
 end
 
+-- The outlines of the shown zone's areas still covered (Areas.lua): the
+-- next stop's bright, the rest faint. A route heads for their edges.
+local areaLines = {}
+local AREA_COLOR = { 1, 0.82, 0.1, 0.45 }
+local NEXT_AREA_COLOR = { 0.3, 1, 0.35, 0.9 }
+local function DrawAreas()
+    for _, l in ipairs(areaLines) do l:Hide() end
+    if not (hasLines and view.kind == "zone" and not wallMode) then return end
+    local zone = view.zone
+    local state = ns.ZoneState(zone).state
+    local stop = ns.route and ns.route.zone == zone and ns.CurrentStop()
+    local n = 0
+    for i, node in ipairs(zone.nodes) do
+        local area = state[i] ~= true and ns.AreaOf(node)
+        if area then
+            local c = (stop and stop.node == node) and NEXT_AREA_COLOR or AREA_COLOR
+            for _, r in ipairs(area.rings) do
+                local m = #r
+                for k = 1, m - 1, 2 do
+                    local k2 = k + 2 <= m and k + 2 or 1
+                    n = n + 1
+                    local l = Pool(areaLines, n, function()
+                        local line = canvas:CreateLine(nil, "ARTWORK")
+                        line:SetThickness(1.5)
+                        return line
+                    end)
+                    l:SetStartPoint("TOPLEFT", canvas, r[k] * CW(), -r[k + 1] * CH())
+                    l:SetEndPoint("TOPLEFT", canvas, r[k2] * CW(), -r[k2 + 1] * CH())
+                    l:SetColorTexture(c[1], c[2], c[3], c[4])
+                end
+            end
+        end
+    end
+end
+
 -- The shown zone's areas. Returns how many pins it used.
 local function DrawZone(zone)
     DrawCredit(zone)
@@ -1026,7 +1061,7 @@ local function DrawZone(zone)
     end
     for i, node in ipairs(zone.nodes) do
         local o = order[node]
-        local pt = ns.NodePoints(node)[1]
+        local pt = ns.NodeMarker(node)
         SetPin(Pin(i), zone, node, o and o.x or pt[1], o and o.y or pt[2], state[i] == true, o and o.i)
     end
     local used = #zone.nodes
@@ -1075,6 +1110,7 @@ DrawMap = function()
     if view.kind == "zone" then used = DrawZone(view.zone)
     elseif view.kind == "continent" or view.kind == "world" then DrawHere() end
     DrawRouteStops(used)
+    DrawAreas()
     DrawPlayer()
     -- in wall mode the markers stay in sight but let clicks through to the
     -- map, where they draw walls

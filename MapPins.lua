@@ -191,7 +191,7 @@ local function Refresh()
         p.num:SetText("")
         p:SetSize(PIN, PIN)
         p.dot:SetVertexColor(1, 0.9, 0.3)
-        local pt = ns.NodePoints(node)[1]
+        local pt = ns.NodeMarker(node)
         Place(p, pt[1], pt[2])
     end
 end

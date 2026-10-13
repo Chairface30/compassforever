@@ -316,7 +316,7 @@ def brute(rt, zone_expr, count, sx, sy):
     """Best open walk over the first `count` areas' first points, tried every
     way, against the planner (which may also choose other points: <=)."""
     pts = rt.eval(f'''(function() local z = {zone_expr} local out = {{}}
-        for i = 1, {count} do local p = NS.NodePoints(z.nodes[i]) out[i] = {{ p[1][1], p[1][2] }} end
+        for i = 1, {count} do local p = z.nodes[i].points out[i] = {{ p[1] / 10000, p[2] / 10000 }} end
         return out end)()''')
     w, h = rt.eval(f"{zone_expr}.w"), rt.eval(f"{zone_expr}.h")
     P = [(pts[i][1], pts[i][2]) for i in range(1, count + 1)]
@@ -1170,6 +1170,63 @@ end)()""")
 c1, c2 = map(float, order.split(","))
 check(f"the planner's costs come from the graph ({c1:.0f} yd)", c1 > 0)
 check(f"and a wall in the way raises them ({c1:.0f} -> {c2:.0f} yd)", c2 > c1 + 20, order)
+
+print("area outlines (Mulgore)")
+rt.execute("MULGORE = NS.ZoneByMap(1412)")
+check("every Mulgore area has an outline", rt.eval("""(function()
+    for _, n in ipairs(MULGORE.nodes) do if not NS.AreaOf(n) then return n.name end end return true end)()""") is True)
+check("other zones keep their spots", rt.eval("NS.AreaOf(NS.ZoneByMap(1429).nodes[1]) == nil"))
+inside = rt.eval("""(function()
+    local bad = {}
+    for _, n in ipairs(MULGORE.nodes) do
+        -- the spot picked well inside each area is inside its outline, and
+        -- inside no other area's
+        local x, y = n.points[1] / 10000, n.points[2] / 10000
+        if not NS.InArea(n, x, y) then bad[#bad + 1] = n.name .. " not in its own" end
+        for _, o in ipairs(MULGORE.nodes) do
+            if o ~= n and NS.InArea(o, x, y) then bad[#bad + 1] = n.name .. " in " .. o.name end
+        end
+        for _, p in ipairs(NS.AreaOf(n).edge) do
+            if not NS.InArea(n, p[1], p[2]) then bad[#bad + 1] = n.name .. " edge point outside" end
+        end
+    end
+    return table.concat(bad, "; ")
+end)()""")
+check("outlines hold their own spots and edge points, and no one else's", inside == "", inside)
+legs = rt.eval("""(function()
+    NS.PlanCostsNow(MULGORE)
+    local stops = NS.PlanRoute(MULGORE, MULGORE.nodes, 0.46, 0.62)
+    -- every stop is one of its area's edge points
+    for _, s in ipairs(stops) do
+        local ok = false
+        for _, p in ipairs(NS.AreaOf(s.node).edge) do if p[1] == s.x and p[2] == s.y then ok = true end end
+        if not ok then return "stop off the edge: " .. s.node.name end
+    end
+    return #stops
+end)()""")
+check(f"the route stops at the areas' edges ({legs} stops)", legs == len(rt.eval("MULGORE.nodes")), legs)
+# Red Cloud Mesa is big: from just north of it, the route enters from the
+# north, not at its middle.
+mesa = rt.eval("""(function()
+    local mesa
+    for _, n in ipairs(MULGORE.nodes) do if n.name == "Red Cloud Mesa" then mesa = n end end
+    local stops = NS.PlanRoute(MULGORE, { mesa }, 0.47, 0.74)
+    local mid = mesa.points[2] / 10000
+    return stops[1].y < mid and stops[1].y or -1
+end)()""")
+check(f"a big area is entered from the near side (at y {mesa:.3f})", mesa > 0, mesa)
+rt.execute("""NS.StopRoute()
+    for _, n in ipairs(MULGORE.nodes) do
+        if n.name == "Red Cloud Mesa" then MESA = n end
+        if n.name == "Bloodhoof Village" then VILLAGE = n end
+    end
+    PLAYER.map, PLAYER.x, PLAYER.y = 1412, VILLAGE.points[1] / 10000, VILLAGE.points[2] / 10000
+    NS.RouteVia(MULGORE, MESA) FRAME(0.2)""")
+check("outside the area, the arrow points the way", "Here" not in rt.eval("TEXTS()"))
+rt.execute("""local e = NS.AreaOf(MESA).edge[1]
+    PLAYER.x, PLAYER.y = MESA.points[1] / 10000, MESA.points[2] / 10000 FRAME(0.2)""")
+check("anywhere inside it, a one-area route is done", rt.eval("NS.route == nil"))
+rt.execute("NS.StopRoute() PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.42, 0.65")
 
 print("per character")
 rt.execute("""ALT_ONLY = true EXPLORED[1429] = {}

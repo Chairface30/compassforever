@@ -176,12 +176,15 @@ local function Update()
         distText:SetText("Board the " .. cross.kind:lower())
         return
     end
-    if yards <= CLOSE_YARDS and stop.single then
+    -- at the spot, or anywhere inside an area whose outline is known
+    local arrived = yards <= CLOSE_YARDS
+        or (not cross and ns.PlayerInArea and ns.PlayerInArea(zone, stop.node))
+    if arrived and stop.single then
         -- a one-area route: reached
         ns.SingleReached()
         return
     end
-    if yards <= CLOSE_YARDS then
+    if arrived then
         -- The area is uncovered on entering it, usually before this; if it
         -- has not been by now, the spot needs a look (or /cf skip).
         Point(0)

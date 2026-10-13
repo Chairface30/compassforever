@@ -96,17 +96,29 @@ end
 
 local SCALE = 10000
 
--- A node's standing points as fractions: one moved by hand (Spots.lua), or
--- the ones picked from the terrain.
+-- A node's standing points as fractions: one moved by hand (Spots.lua), the
+-- points just inside its edge when its outline is known (Areas.lua: the
+-- route heads for whichever is nearest on the way), or the ones picked from
+-- the terrain.
 local function Points(node)
     local moved = ns.MovedSpot and ns.MovedSpot(node)
     if moved then return { { moved[1], moved[2] } } end
+    local area = ns.AreaOf and ns.AreaOf(node)
+    if area and #area.edge > 0 then return area.edge end
     local out = {}
     local p = node.points
     for i = 1, #p, 2 do out[#out + 1] = { p[i] / SCALE, p[i + 1] / SCALE } end
     return out
 end
 ns.NodePoints = Points
+
+-- Where a node's marker sits when it isn't a route stop: its moved spot, or
+-- the first spot picked from the terrain (well inside the area).
+function ns.NodeMarker(node)
+    local moved = ns.MovedSpot and ns.MovedSpot(node)
+    if moved then return { moved[1], moved[2] } end
+    return { node.points[1] / SCALE, node.points[2] / SCALE }
+end
 
 -- Plan a route through `nodes` on `zone`, starting at (sx, sy) or, with no
 -- start, wherever makes the walk shortest. Returns { { node, x, y } ... } and
@@ -143,10 +155,11 @@ function ns.PlanRoute(zone, nodes, sx, sy)
     for i, node in ipairs(nodes) do
         pts[i] = {}
         for k, p in ipairs(Points(node)) do
-            -- a moved spot has no terrain costs worked out (the graph's cover it)
-            local moved = ns.MovedSpot and ns.MovedSpot(node)
+            -- a moved spot or an edge point has no terrain costs worked out
+            -- (the graph's cover it)
+            local own = (ns.MovedSpot and ns.MovedSpot(node)) or (ns.AreaOf and ns.AreaOf(node))
             pts[i][k] = { x = p[1], y = p[2], node = true,
-                          id = not moved and ns.PointID and ns.PointID(zone, node, k) or nil }
+                          id = not own and ns.PointID and ns.PointID(zone, node, k) or nil }
         end
     end
 

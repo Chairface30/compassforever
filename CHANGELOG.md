@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Mulgore (a trial run): each map area's real outline comes from the
+  terrain (Data/Areas.lua, built by tools/build_areas.py). The route heads
+  for the nearest point just inside each area's edge, over the waypoint
+  graph and roads, instead of one spot in its middle. You've arrived as
+  soon as you're anywhere inside. The window draws the outlines of the
+  areas still covered, with the next stop's in green. Credit no longer
+  moves a spot for an area with an outline.
 - Walking paths are found over a waypoint graph (Data/Graph.lua, built
   ahead of time from the terrain by tools/build_graph.py: a waypoint every
   200 yards, along roads, at every area's spots, flight masters and docks,

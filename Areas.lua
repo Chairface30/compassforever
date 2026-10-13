@@ -1,0 +1,57 @@
+-- Compass Forever: Areas.lua
+-- Each map area's real outline (Data/Areas.lua, from the terrain; Mulgore so
+-- far). An area is uncovered by stepping anywhere into it, so a route heads
+-- for the nearest point just inside its edge rather than one spot in its
+-- middle, and you're there as soon as you're inside.
+
+local _, ns = ...
+
+local SCALE = 10000
+local decoded = {}
+
+-- An area's outline as fractions of its zone's map: { rings = { { x1, y1,
+-- x2, y2, ... } ... }, edge = { { x, y } ... } }, or nil without one.
+function ns.AreaOf(node)
+    local crit = node.criteria
+    local raw = crit and ns.AREAS and ns.AREAS[crit]
+    if not raw then return nil end
+    local a = decoded[crit]
+    if a then return a end
+    a = { rings = {}, edge = {} }
+    for _, r in ipairs(raw.rings) do
+        local ring = {}
+        for i = 1, #r do ring[i] = r[i] / SCALE end
+        a.rings[#a.rings + 1] = ring
+    end
+    for i = 1, #raw.edge - 1, 2 do
+        a.edge[#a.edge + 1] = { raw.edge[i] / SCALE, raw.edge[i + 1] / SCALE }
+    end
+    decoded[crit] = a
+    return a
+end
+
+-- Is (x, y) on the zone's map inside the area (inside an odd number of its
+-- rings)? nil when it has no outline.
+function ns.InArea(node, x, y)
+    local a = ns.AreaOf(node)
+    if not a then return nil end
+    local inside = false
+    for _, r in ipairs(a.rings) do
+        local jx, jy = r[#r - 1], r[#r]
+        for i = 1, #r - 1, 2 do
+            local ix, iy = r[i], r[i + 1]
+            if (iy > y) ~= (jy > y) and x < (jx - ix) * (y - iy) / (jy - iy) + ix then
+                inside = not inside
+            end
+            jx, jy = ix, iy
+        end
+    end
+    return inside
+end
+
+-- Is the player standing inside the area? false without an outline.
+function ns.PlayerInArea(zone, node)
+    if not ns.AreaOf(node) then return false end
+    local px, py = ns.PlayerOn(zone.map)
+    return (px and ns.InArea(node, px, py)) and true or false
+end
