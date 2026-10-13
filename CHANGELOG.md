@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Rut'theran Village: routes take the portal between Darnassus (Teldrassil
+  23.3, 55.5) and Rut'theran (55.9, 89.3), and the boat from Auberdine,
+  instead of finding no way down or swimming the sea. At the portal or the
+  boat the arrow says to take it. The boat's docks are placed by eye.
 - Spots are gone: the Spots button and mode, Spot here, moving spots by
   hand, learning them from credit (and its option), and the spots built
   into the addon. Routes go by area outlines. Where credit was given is

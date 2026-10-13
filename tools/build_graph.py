@@ -78,7 +78,7 @@ def load_ns():
     rt = lua51.LuaRuntime()
     rt.execute("NS = {} function GetTime() return 0 end function CreateFrame() return setmetatable({}, "
                "{ __index = function() return function() end end }) end")
-    for f in ("Data/Exploration.lua", "Data/Flights.lua", "Data/Spots.lua", "Data/Terrain.lua", "Crossing.lua"):
+    for f in ("Data/Exploration.lua", "Data/Flights.lua", "Data/Terrain.lua", "Crossing.lua"):
         src = open(os.path.join(ADDON, f), encoding="utf-8").read()
         fn = rt.eval("function(s, n) local f, e = loadstring(s, n) if not f then error(e) end return f end")(src, f)
         fn("CompassForever", rt.globals().NS)
@@ -228,13 +228,10 @@ def build_continent(ns, c):
         return int(round((32 * TILE - wy) / NODE)), int(round((32 * TILE - wx) / NODE))
 
     special = 0
-    spots = to_py(ns.SPOTS) or {}
     for z in zones:
         for node in z["nodes"]:
             p = node["points"]
             pts = [(p[k] / 10000, p[k + 1] / 10000) for k in range(0, len(p), 2)]
-            if node.get("criteria") in spots:
-                pts.append(tuple(spots[node["criteria"]]))
             for x, y in pts:
                 q = zone_point(z, x, y)
                 q = q and nearest_walkable(*q)

@@ -164,6 +164,9 @@ local function Update()
         end
     end
     if not bearing then bearing, yards = ns.StopVector(zone, stop) end
+    -- at a portal or a boat on the way: say to take it
+    local ride = not ns.travel and ns.SteerRide and ns.SteerRide()
+    if ride then stepText:SetText(string.format("Take the %s to %s", ride.kind:lower(), ride.to)) end
     if not bearing then
         arrowTex:Hide()
         distText:SetText(yards == "elsewhere" and "Go to " .. zone.name or "Can't place you here")

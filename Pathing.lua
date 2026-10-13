@@ -21,6 +21,7 @@ local _, ns = ...
 local PENALTY = 25
 local ROAD = 0.7              -- a step along a road costs this share of one off it
 local DRAWN_ROAD = 0.25       -- along a road drawn by hand: paths keep to it
+local RUN_YARDS = 7           -- yards a second on foot: what a portal's or boat's time costs
 
 local HEX = {}
 for i = 0, 15 do HEX[string.byte(string.format("%x", i))] = i end
@@ -528,6 +529,8 @@ end
 -- What's laid over continent c's graph: links walls cut, links zone lines
 -- cut (by zone), and the drawn roads' waypoints and links. Worked out again
 -- after any line changes.
+local Attach                 -- (below) a point's way on and off the graph
+
 local function Overlay(c, pause)
     local ov = overlays[c]
     if ov then return ov end
@@ -594,6 +597,7 @@ local function Overlay(c, pause)
             end
         end
     end
+    ov.drawnRoads = #roadNodes > 0
     -- each road waypoint to the graph's near it (and to other roads' near it)
     for _, k in ipairs(roadNodes) do
         local i, j = ov.i[k], ov.j[k]
@@ -610,6 +614,31 @@ local function Overlay(c, pause)
         end
         if pause then pause() end
     end
+    -- portals and boats within the continent (Crossing.lua): a waypoint at
+    -- each end, joined at the cost of the time they take, each end reached
+    -- from the graph as a path's start or end would be
+    ov.ride = {}
+    for _, l in ipairs(ns.LINKS or {}) do
+        local za, zb = ns.ZoneByMap(l.a.map), ns.ZoneByMap(l.b.map)
+        if za and zb and za.continent == c and zb.continent == c then
+            local ends = {}
+            for e, zone in pairs({ a = za, b = zb }) do
+                local cx, cy = ns.ZoneToContinentPoint(zone, l[e].x, l[e].y)
+                if cx then
+                    local i, j = GridUnits(cont, cx, cy)
+                    local k = Add(i, j)
+                    for _, it in ipairs(Attach(c, g, ov, i, j, nil)) do
+                        if it[1] ~= k then Link(k, it[1], it[2]) end
+                    end
+                    ends[e] = k
+                end
+            end
+            if ends.a and ends.b then
+                Link(ends.a, ends.b, l.seconds * RUN_YARDS)
+                ov.ride[ends.a], ov.ride[ends.b] = { link = l, at = "a" }, { link = l, at = "b" }
+            end
+        end
+    end
     overlays[c] = ov
     return ov
 end
@@ -623,7 +652,7 @@ end
 -- walking straight there: those the terrain allows and no wall (nor, for a
 -- path kept in its zone, a zone line) is in the way of. If none is, the
 -- nearest few at a high cost, so a path is still found.
-local function Attach(c, g, ov, i, j, ach)
+Attach = function(c, g, ov, i, j, ach)
     local found, any = {}, {}
     for si = math.floor((i - ATTACH) / CELL), math.floor((i + ATTACH) / CELL) do
         for sj = math.floor((j - ATTACH) / CELL), math.floor((j + ATTACH) / CELL) do
@@ -675,7 +704,7 @@ local function GraphPath(c, fx, fy, tx, ty, localZone, pause)
     for _, it in ipairs(Attach(c, g, ov, ti, tj, ach)) do goals[it[1]] = it[2] end
     if #starts == 0 or not next(goals) then return nil end
     -- the cheapest any yard of the way can be: along a drawn road
-    local hf = next(ov.links) and DRAWN_ROAD or ROAD
+    local hf = ov.drawnRoads and DRAWN_ROAD or ROAD
     local function H(k)
         local ki, kj = PosOf(g, ov, k)
         return math.sqrt((ki - ti) ^ 2 + (kj - tj) ^ 2) * NODE * hf
@@ -736,6 +765,12 @@ local function GraphPath(c, fx, fy, tx, ty, localZone, pause)
             else
                 for b = 1, #bends do path[#path + 1] = { x = bends[b].x, y = bends[b].y } end
             end
+        end
+        -- from one end of a portal or boat to the other: the point before is
+        -- where to take it
+        local from, to = ov.ride[chain[q - 1] or 0], ov.ride[node]
+        if from and to and from.link == to.link and from.at ~= to.at then
+            path[#path].ride = { kind = to.link.kind, to = to.link[to.at].place }
         end
         local ni, nj = PosOf(g, ov, node)
         local x, y = GridPos(cont, ni, nj)
@@ -989,6 +1024,7 @@ end
 -- along the path, so it bends around a cliff instead of pointing through it.
 
 local AHEAD = 40             -- yards along the path to aim at
+local RIDE_NEAR = 40         -- this close to a portal or boat, the arrow says to take it
 local OFF_PATH = 60          -- this far from the path asks for a new one
 local ASK_AGAIN = 3          -- seconds between asks
 
@@ -1063,9 +1099,12 @@ function ns.Steer(c, stop, px, py, localZone)
     local here = { x = cx, y = cy }
     local remaining = off
     local found = false
+    -- a portal or boat to take, here or a few steps on (on it, or at it)
+    e.ride = path[k].ride
     for i = k + 1, #path do
         local d = Seg(cont, here, path[i])
         remaining = remaining + d
+        if path[i].ride and remaining <= RIDE_NEAR and not e.ride then e.ride = path[i].ride end
         if not found then
             if d >= left then
                 local t = left / d
@@ -1078,6 +1117,13 @@ function ns.Steer(c, stop, px, py, localZone)
         here = path[i]
     end
     return aimX, aimY, remaining, path, k, cx, cy
+end
+
+-- The portal or boat the arrow's path takes next, when it's close:
+-- { kind, to }, or nil.
+function ns.SteerRide()
+    local e = steer.last
+    return e and e.path and e.ride or nil
 end
 
 -- What /cf probe says about the arrow's path.

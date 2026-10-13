@@ -13,6 +13,20 @@ local RIDE = 150             -- seconds: waiting for it, and the crossing
 local RUN = 7                -- yards a second on foot
 local WINDING = 1.3
 
+-- Ways across within a continent that walking can't take: the portal
+-- between Darnassus and Rut'theran Village (both ends from the client's
+-- area triggers), and the boat from Auberdine to Rut'theran (its docks by
+-- eye: approximate). Paths take them like any other step (Pathing.lua),
+-- costing `seconds` of running. Both ways; `side` as for the crossings.
+ns.LINKS = {
+    { kind = "Portal", side = 3, seconds = 5,
+      a = { map = 1438, x = 0.2326, y = 0.5551, place = "Darnassus" },
+      b = { map = 1438, x = 0.5587, y = 0.8934, place = "Rut'theran Village" } },
+    { kind = "Boat", side = 3, seconds = RIDE,
+      a = { map = 1439, x = 0.332, y = 0.400, place = "Auberdine" },
+      b = { map = 1438, x = 0.549, y = 0.966, place = "Rut'theran Village" } },
+}
+
 ns.CROSSINGS = {
     { kind = "Zeppelin", side = 2,
       a = { map = 1411, x = 0.509, y = 0.135, place = "Orgrimmar" },

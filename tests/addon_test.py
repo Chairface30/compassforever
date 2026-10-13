@@ -1116,6 +1116,35 @@ rt.execute("NS.ShowZone(ELWYNN) NS.SetEditing(true) NS.WindowWallMode(true, 'zon
 check("drawn with Zone line ticked, it's a zone line", rt.eval("NS.db.zonelines and #NS.db.zonelines[ELWYNN.ach] == 1 and not (NS.db.walls and NS.db.walls[ELWYNN.ach])"))
 rt.execute("NS.WindowWallMode(false) NS.db.zonelines = nil NS.WallsChanged()")
 
+print("portal and boat to Rut'theran")
+ride = rt.eval("""(function()
+    local tel, dark = NS.ZoneByMap(1438), NS.ZoneByMap(1439)
+    local function Ride(path)
+        for _, p in ipairs(path or {}) do if p.ride then return p.ride.kind .. ">" .. p.ride.to end end
+        return "none"
+    end
+    local function Way(za, ax, ay, zb, bx, by)
+        local fx, fy = NS.ZoneToContinentPoint(za, ax, ay)
+        local tx, ty = NS.ZoneToContinentPoint(zb, bx, by)
+        local path, cost = NS.FindContinentPathNow(1, fx, fy, tx, ty)
+        return Ride(path) .. "," .. string.format("%.0f", cost or -1)
+    end
+    return Way(tel, 0.30, 0.50, tel, 0.56, 0.92) .. "|" .. Way(dark, 0.37, 0.44, tel, 0.56, 0.92)
+end)()""")
+portal, boat = ride.split("|")
+check(f"from Darnassus, the portal down ({portal} yd)", portal.startswith("Portal>Rut'theran Village,")
+      and 0 < float(portal.split(",")[1]) < 1000, ride)
+check(f"from Auberdine, the boat across ({boat} yd)", boat.startswith("Boat>Rut'theran Village,")
+      and 0 < float(boat.split(",")[1]) < 2500, ride)
+rt.execute("""NS.StopRoute() TEL = NS.ZoneByMap(1438)
+    for _, n in ipairs(TEL.nodes) do if n.name == "Rut'theran Village" then RUT = n end end
+    PLAYER.map, PLAYER.x, PLAYER.y = 1438, 0.2336, 0.5551
+    NS.RouteVia(TEL, RUT)
+    for _ = 1, 400 do FRAME(0.05) if NS.PathJobs() == 0 then break end end
+    FRAME(0.2)""")
+check("at the portal, the arrow says to take it", "Take the portal to Rut'theran Village" in rt.eval("TEXTS()"))
+rt.execute("NS.StopRoute() PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.42, 0.65 FRAME(0.2)")
+
 print("continent labels")
 rt.execute("for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = nil end NS.InvalidateProgress() PLAYER.map = 1429 NS.WindowOpen({ continent = 0 })")
 shown = rt.eval("""(function()
