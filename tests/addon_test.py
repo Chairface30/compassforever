@@ -933,6 +933,27 @@ check(f"right-click ends a wall; the next starts a new one ({walls})", walls == 
 rt.execute("NS.WindowWallClick('RightButton', 0.35, 0.30)")
 walls2 = rt.eval("(function() local w = NS.db.walls[ELWYNN.ach] local t = {} for i, x in ipairs(w) do t[i] = x.circle and 'c' or (#x / 2) end return table.concat(t, ',') end)()")
 check(f"right-click on a wall removes just that one ({walls2})", walls2 == "2,c", walls2)
+# Ctrl-click a wall's middle segment: it becomes a zone line, the wall split
+# round it, ends meeting exactly; Ctrl-click it again: a wall once more.
+rt.execute("""NS.db.walls = { [ELWYNN.ach] = { { 0.1, 0.5, 0.2, 0.5, 0.3, 0.5, 0.4, 0.5 } } } NS.db.zonelines = nil
+    NS.WindowWallMode(true, "walls")
+    function IsControlKeyDown() return true end
+    NS.WindowWallClick("LeftButton", 0.25, 0.5)
+    function IsControlKeyDown() return false end""")
+swap = rt.eval("""(function()
+    local function S(l) local t = {} for i, v in ipairs(l) do t[i] = v end return table.concat(t, " ") end
+    local w, z = NS.db.walls[ELWYNN.ach], NS.db.zonelines[ELWYNN.ach]
+    local out = {} for _, l in ipairs(w) do out[#out + 1] = S(l) end
+    return table.concat(out, " | ") .. " / " .. S(z[1]) end)()""")
+check(f"Ctrl-click makes one wall segment a zone line ({swap})",
+      swap == "0.1 0.5 0.2 0.5 | 0.3 0.5 0.4 0.5 / 0.2 0.5 0.3 0.5", swap)
+check("not drawing anything new", rt.eval("#NS.db.zonelines[ELWYNN.ach]") == 1)
+rt.execute("""function IsControlKeyDown() return true end
+    NS.WindowWallClick("LeftButton", 0.25, 0.5)
+    function IsControlKeyDown() return false end""")
+check("and back: a wall again, no zone lines left",
+      rt.eval("NS.db.zonelines[ELWYNN.ach] == nil and #NS.db.walls[ELWYNN.ach] == 3"))
+rt.execute("NS.db.walls = { [ELWYNN.ach] = { { 0.1, 0.1, 0.3, 0.3 }, { circle = { 0.5, 0.5, 40 } } } }")
 rt.execute("""NS.db.roads = { [ELWYNN.ach] = { { 0.1, 0.1, 0.2, 0.2 } }, [1411] = { { 0.3, 0.3, 0.4, 0.4 } } }
     NS.WindowWallMode(true, "walls") CLEAR_SHOWN = NS.WindowFrame().clearButton:IsShown()
     NS.ClearLines("walls")""")

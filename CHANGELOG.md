@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Ctrl-click one segment of a wall to make just that segment a zone line;
+  the wall is split round it, so the ends meet exactly. Ctrl-click a zone
+  line's segment to make it a wall again.
 - Area borders show while drawing walls, zone lines or roads, every
   area's, whatever the border options say.
 - A Clear button over the map while drawing walls, zone lines or roads:

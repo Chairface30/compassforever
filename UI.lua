@@ -914,13 +914,58 @@ local function WallAt(zone, x, y)
     return best
 end
 
+-- Ctrl-click: the one segment of a wall nearest the cursor becomes a zone
+-- line (or a zone line's, a wall). The line is split round it, so the new
+-- piece meets what's left of it end to end; pieces of one point are dropped.
+local function SwapSegment(zone, x, y)
+    local bestKind, bestLine, bestK, bestD
+    for _, kind in ipairs({ "walls", "zonelines" }) do
+        for w, line in ipairs(Lines(zone, kind)) do
+            if not line.circle then
+                for k = 1, #line - 3, 2 do
+                    local ax, ay = line[k] * CW(), line[k + 1] * CH()
+                    local bx, by = line[k + 2] * CW(), line[k + 3] * CH()
+                    local px, py = x * CW(), y * CH()
+                    local dx, dy = bx - ax, by - ay
+                    local len2 = dx * dx + dy * dy
+                    local t = len2 > 0 and math.max(0, math.min(1, ((px - ax) * dx + (py - ay) * dy) / len2)) or 0
+                    local d = math.sqrt((px - ax - t * dx) ^ 2 + (py - ay - t * dy) ^ 2)
+                    if d < 10 and (not bestD or d < bestD) then
+                        bestKind, bestLine, bestK, bestD = kind, w, k, d
+                    end
+                end
+            end
+        end
+    end
+    if not bestKind then return false end
+    local from = OwnWalls(zone, bestKind)
+    local line = from[bestLine]
+    local k = bestK
+    local before, after = {}, {}
+    for i = 1, k + 1 do before[#before + 1] = line[i] end
+    for i = k + 2, #line do after[#after + 1] = line[i] end
+    table.remove(from, bestLine)
+    if #after >= 4 then table.insert(from, bestLine, after) end
+    if #before >= 4 then table.insert(from, bestLine, before) end
+    if #from == 0 then ns.db[bestKind][zone.ach] = nil end
+    local toKind = bestKind == "walls" and "zonelines" or "walls"
+    table.insert(OwnWalls(zone, toKind), { line[k], line[k + 1], line[k + 2], line[k + 3] })
+    ns.WallsChanged()
+    ns.Print(toKind == "zonelines" and "That wall segment is a zone line now."
+        or "That zone line segment is a wall now.")
+    return true
+end
+ns.SwapSegment = SwapSegment
+
 -- (x, y: where, for the tests; else under the cursor)
 WallClick = function(button, x, y)
     if editKind == "spots" then return end   -- spots are moved by dragging markers
     local zone = view.zone
     if not x then x, y = CursorOnMap() end
     if not x then return end
-    if button == "LeftButton" and IsShiftKeyDown() and editKind == "walls" then
+    if button == "LeftButton" and IsControlKeyDown() and editKind ~= "roads" and not drawing and not circleCenter then
+        SwapSegment(zone, x, y)
+    elseif button == "LeftButton" and IsShiftKeyDown() and editKind == "walls" then
         if not circleCenter then
             circleCenter = { Round(x), Round(y) }
         else
@@ -1583,7 +1628,9 @@ local function Build()
         "On a zone's map: left-click to add corners of a wall, right-click to finish it. "
         .. "Shift-click a circle's middle, then Shift-click its edge. "
         .. "Right-click a wall or circle to remove it. Routes never cross a wall or enter a circle. "
-        .. "Tick Zone line (on the map) to draw zone lines instead. Click Walls again when done.")
+        .. "Tick Zone line (on the map) to draw zone lines instead. "
+        .. "Ctrl-click one segment of a wall to make just that segment a zone line (or back). "
+        .. "Click Walls again when done.")
     frame.roadButton = CreateFrame("Button", nil, strip, "UIPanelButtonTemplate")
     frame.roadButton:SetSize(48, 22)
     frame.roadButton:SetPoint("RIGHT", wallButton, "LEFT", -4, 0)
@@ -1688,7 +1735,7 @@ local function Build()
     Tip(frame.zoneLineCheck, "Zone line",
         "Draws zone lines (purple) instead of walls: the waypoints inside this zone never cross one, "
         .. "but a path coming from or going to another zone may. Use them along the zone's edge "
-        .. "where the route must stay in.")
+        .. "where the route must stay in. Ctrl-click a wall's segment to turn it into one.")
 
     -- Top left, right of the Done mapping box, while drawing: clear every
     -- line of the kind being drawn in this zone.
