@@ -1110,16 +1110,18 @@ end
 
 -- The outlines of the shown zone's areas (Areas.lua): the next stop's
 -- bright, the rest still covered in gold, uncovered ones faint. A route
--- heads for their edges. The areaBorders option hides them all.
+-- heads for their edges. The areaBorders option hides them all, except
+-- while drawing walls or roads.
 local areaLines = {}
 local AREA_COLOR = { 1, 0.82, 0.1, 0.45 }
 local NEXT_AREA_COLOR = { 0.3, 1, 0.35, 0.9 }
 local DONE_AREA_COLOR = { 0.85, 0.9, 1, 0.3 }
 local function DrawAreas()
     for _, l in ipairs(areaLines) do l:Hide() end
-    if not (hasLines and view.kind == "zone" and not wallMode) then return end
-    if ns.db.areaBorders == false then return end
-    local showDone = ns.db.doneAreaBorders ~= false
+    if not (hasLines and view.kind == "zone") then return end
+    -- while drawing walls or roads every border shows, whatever the options
+    if ns.db.areaBorders == false and not wallMode then return end
+    local showDone = wallMode or ns.db.doneAreaBorders ~= false
     local zone = view.zone
     local state = ns.ZoneState(zone).state
     local stop = ns.route and ns.route.zone == zone and ns.CurrentStop()

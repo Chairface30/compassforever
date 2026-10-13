@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Area borders show while drawing walls, zone lines or roads, every
+  area's, whatever the border options say.
 - A Clear button over the map while drawing walls, zone lines or roads:
   removes all of your lines of that kind in the zone shown (click twice
   to be sure). Lines built into the addon stay.

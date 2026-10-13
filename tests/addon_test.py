@@ -1250,6 +1250,13 @@ rt.execute("NS.db.doneAreaBorders = false NS.Fire('settings')")
 covered_only = area_lines()
 rt.execute("NS.db.areaBorders = false NS.Fire('settings')")
 none = area_lines()
+rt.execute("NS.WindowWallMode(true, 'walls')")
+drawing_walls = area_lines()
+rt.execute("NS.WindowWallMode(true, 'roads')")
+drawing_roads = area_lines()
+rt.execute("NS.WindowWallMode(false)")
+check(f"drawing walls or roads, every border shows, options or not ({drawing_walls}, {drawing_roads} = {all_lines})",
+      drawing_walls == all_lines and drawing_roads == all_lines, (drawing_walls, drawing_roads, all_lines))
 rt.execute("NS.db.areaBorders, NS.db.doneAreaBorders = true, true DONE[MULGORE.nodes[1].criteria] = nil NS.InvalidateProgress() NS.ShowZone(ELWYNN)")
 check(f"borders: uncovered ones drawn, hidden by their option, all hidden by the other ({all_lines} > {covered_only} > {none})",
       all_lines > covered_only > none, (all_lines, covered_only, none))
