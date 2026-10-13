@@ -12,6 +12,12 @@
 - Mulgore's areas have no markers in the window: hovering over an area
   shows its name (and whether it's uncovered or on the route), and a click
   routes to it. Such an area has no spot to move.
+- Every zone now has area outlines (548 areas; Undercity, which has no
+  ground of its own, keeps its marker). Uncovered areas keep a faint
+  outline. Two new options under Display: "Area borders on the map" and
+  "Uncovered area borders".
+- World map markers are off by default now, and turned off once for
+  everyone; the option is still there to turn them back on.
 - Walking paths are found over a waypoint graph (Data/Graph.lua, built
   ahead of time from the terrain by tools/build_graph.py: a waypoint every
   200 yards, along roads, at every area's spots, flight masters and docks,

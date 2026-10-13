@@ -10,7 +10,7 @@ terrain build_data.py reads (the area ID of every 33-yard chunk):
   - edge: standing points just inside the edge, spread out all the way
     round, so the planner can pick whichever is nearest on the way.
 
-Only the zones asked for (Mulgore by default), while this is tried out.
+Every zone, or only the ones named.
 
 Usage: python build_areas.py <cache dir> <addon dir> [zone name ...]
 """
@@ -82,7 +82,7 @@ def edge_points(cells, terrain):
 
 def main():
     cache, addon = sys.argv[1], sys.argv[2]
-    wanted = set(sys.argv[3:]) or {"Mulgore"}
+    wanted = set(sys.argv[3:])
     ach = load(cache, "Achievement")
     crit = {c["ID"]: c for c in load(cache, "Criteria")}
     kids = criteria_children(load(cache, "CriteriaTree"))
@@ -111,7 +111,7 @@ def main():
         first = overlays[leaves[0][1]["Asset"]]
         ui = art_to_map[first["UiMapArtID"]]
         name = uimaps[ui]["Name_lang"]
-        if name not in wanted:
+        if wanted and name not in wanted:
             continue
         if mapID not in terrain:
             terrain[mapID] = load_terrain(cache, mapID)

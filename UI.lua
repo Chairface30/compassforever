@@ -1063,22 +1063,27 @@ local function DrawCredit(zone)
     end
 end
 
--- The outlines of the shown zone's areas still covered (Areas.lua): the
--- next stop's bright, the rest faint. A route heads for their edges.
+-- The outlines of the shown zone's areas (Areas.lua): the next stop's
+-- bright, the rest still covered in gold, uncovered ones faint. A route
+-- heads for their edges. The areaBorders option hides them all.
 local areaLines = {}
 local AREA_COLOR = { 1, 0.82, 0.1, 0.45 }
 local NEXT_AREA_COLOR = { 0.3, 1, 0.35, 0.9 }
+local DONE_AREA_COLOR = { 0.85, 0.9, 1, 0.3 }
 local function DrawAreas()
     for _, l in ipairs(areaLines) do l:Hide() end
     if not (hasLines and view.kind == "zone" and not wallMode) then return end
+    if ns.db.areaBorders == false then return end
+    local showDone = ns.db.doneAreaBorders ~= false
     local zone = view.zone
     local state = ns.ZoneState(zone).state
     local stop = ns.route and ns.route.zone == zone and ns.CurrentStop()
     local n = 0
     for i, node in ipairs(zone.nodes) do
-        local area = state[i] ~= true and ns.AreaOf(node)
-        if area then
-            local c = (stop and stop.node == node) and NEXT_AREA_COLOR or AREA_COLOR
+        local area = ns.AreaOf(node)
+        if area and (showDone or state[i] ~= true) then
+            local c = (stop and stop.node == node) and NEXT_AREA_COLOR
+                or state[i] == true and DONE_AREA_COLOR or AREA_COLOR
             for _, r in ipairs(area.rings) do
                 local m = #r
                 for k = 1, m - 1, 2 do
@@ -1330,6 +1335,15 @@ local OPTIONS = {
           .. "so the whole zone shows and what's left stands out.",
       get = function() return ns.db.worldMapGray ~= false end,
       set = function(on) ns.db.worldMapGray = on ns.Fire("settings") end },
+    { label = "Area borders on the map", desc = "Each area's outline, from the terrain.",
+      tip = "Areas still covered in gold, the next stop's in green, uncovered ones faintly. "
+          .. "Hovering over an area shows its name either way.",
+      get = function() return ns.db.areaBorders ~= false end,
+      set = function(on) ns.db.areaBorders = on ns.Fire("settings") end },
+    { label = "Uncovered area borders", desc = "Outlines of areas already uncovered.",
+      tip = "Off, only the areas still to uncover keep their outlines.",
+      get = function() return ns.db.doneAreaBorders ~= false end,
+      set = function(on) ns.db.doneAreaBorders = on ns.Fire("settings") end },
     { label = "Walls and roads on the map", desc = "Show the walls and roads drawn here.",
       tip = "Off, they're hidden on this window's map except while you draw them. They still steer paths either way.",
       get = function() return ns.db.showLines ~= false end,

@@ -482,6 +482,8 @@ check("a route the player started is kept on entering another zone", rt.eval("NS
 rt.execute("NS.StopRoute() SlashCmdList.COMPASSFOREVER('auto')")
 check("auto can be turned off again", rt.eval("NS.db.autoRoute") is False)
 
+# the old one-spot-per-area behaviour (areas without an outline)
+rt.execute("SAVED_AREAS = NS.AREAS NS.AREAS = nil")
 print("terrain")
 check("every zone has terrain", rt.eval("(function() local n = 0 for _, z in ipairs(NS.ZONES) do if NS.TERRAIN[z.ach] then n = n + 1 end end return n end)()") == 43)
 check("a grid decodes to one digit per point", rt.eval("(function() local z = NS.ZoneByMap(1413) local g = NS.Grid(z) return #g.cells == g.nx * g.ny end)()"))
@@ -569,6 +571,7 @@ legs = rt.eval("""(function()
     return len, sum
 end)()""")
 check("a route's length is its legs' walking costs", abs(legs[0] - legs[1]) < 1, legs)
+rt.execute("NS.AREAS = SAVED_AREAS")
 
 print("the arrow follows the path")
 rt.execute("""TN = NS.ZoneByMap(1441)
@@ -923,6 +926,8 @@ walls2 = rt.eval("(function() local w = NS.db.walls[ELWYNN.ach] local t = {} for
 check(f"right-click on a wall removes just that one ({walls2})", walls2 == "2,c", walls2)
 rt.execute("NS.WindowWallMode(false) NS.db.walls = nil NS.WallsChanged()")
 
+# the old one-spot-per-area behaviour (areas without an outline)
+rt.execute("SAVED_AREAS = NS.AREAS NS.AREAS = nil")
 print("credit and spots")
 rt.execute("""NS.StopRoute() NS.db.credit = nil NS.db.spots = nil NS.db.learnFlights = false
     for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = nil end NS.InvalidateProgress()
@@ -947,6 +952,7 @@ check("right-click puts it back", rt.eval("NS.MovedSpot(CREDITED) == nil"))
 rt.execute("NS.MoveSpot(ELWYNN, ELWYNN.nodes[2], 0.5, 0.5)")
 check("a dragged spot is used for the route", rt.eval("NS.NodePoints(ELWYNN.nodes[2])[1][1] == 0.5"))
 rt.execute("NS.ResetSpot(ELWYNN, ELWYNN.nodes[2]) NS.StopRoute() NS.db.credit = nil NS.db.learnFlights = true")
+rt.execute("NS.AREAS = SAVED_AREAS")
 
 print("zones mapped by hand")
 check("Durotar is built in (hand-mapped)", rt.eval("NS.ZoneHandMapped(NS.ZoneByMap(1411))"))
@@ -967,6 +973,8 @@ before, after = rt.eval("BEFORE"), rt.eval("MAP_DOTS()")
 check(f"a zone's markers go when the map changes without telling ({before} -> {after})", before > 0 and after < before, (before, after))
 rt.execute("SHOWN_MAP = 1429")
 
+# the old one-spot-per-area behaviour (areas without an outline)
+rt.execute("SAVED_AREAS = NS.AREAS NS.AREAS = nil")
 print("spot here")
 rt.execute("""PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.4444, 0.5555 NS.db.spots = nil
     HERE_NODE = ELWYNN.nodes[3]
@@ -978,6 +986,7 @@ check("and says so when you're in none", any("Shift-click" in l for l in printed
 rt.execute("NS.SpotToMe(ELWYNN, ELWYNN.nodes[4])")
 check("Shift-click moves any area's spot to you", rt.eval("NS.MovedSpot(ELWYNN.nodes[4])[2] == 0.5555"))
 rt.execute("NS.db.spots = nil PLAYER.x, PLAYER.y = 0.42, 0.65 function GetSubZoneText() return '' end")
+rt.execute("NS.AREAS = SAVED_AREAS")
 
 print("clicking one area")
 rt.execute("""NS.StopRoute() for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = nil end
@@ -1175,7 +1184,25 @@ print("area outlines (Mulgore)")
 rt.execute("MULGORE = NS.ZoneByMap(1412)")
 check("every Mulgore area has an outline", rt.eval("""(function()
     for _, n in ipairs(MULGORE.nodes) do if not NS.AreaOf(n) then return n.name end end return true end)()""") is True)
-check("other zones keep their spots", rt.eval("NS.AreaOf(NS.ZoneByMap(1429).nodes[1]) == nil"))
+check("548 areas have outlines; Undercity, with no ground, keeps its spot", rt.eval("""(function()
+    local n, without = 0, {}
+    for _, z in ipairs(NS.ZONES) do for _, node in ipairs(z.nodes) do
+        if NS.AreaOf(node) then n = n + 1 else without[#without + 1] = node.name end
+    end end
+    return n .. ":" .. table.concat(without, ",") end)()""") == "548:Undercity")
+check("world map markers are off by default", rt2.eval("NS.db.mapPins == false"))
+def area_lines():
+    return rt.eval("""(function() local n = 0 for _, l in ipairs(LINES) do
+        if rawget(l, "_shown") then n = n + 1 end end return n end)()""")
+rt.execute("NS.ShowZone(MULGORE) local n = MULGORE.nodes[1] DONE[n.criteria] = true NS.InvalidateProgress() NS.ShowZone(MULGORE)")
+all_lines = area_lines()
+rt.execute("NS.db.doneAreaBorders = false NS.Fire('settings')")
+covered_only = area_lines()
+rt.execute("NS.db.areaBorders = false NS.Fire('settings')")
+none = area_lines()
+rt.execute("NS.db.areaBorders, NS.db.doneAreaBorders = true, true DONE[MULGORE.nodes[1].criteria] = nil NS.InvalidateProgress() NS.ShowZone(ELWYNN)")
+check(f"borders: uncovered ones drawn, hidden by their option, all hidden by the other ({all_lines} > {covered_only} > {none})",
+      all_lines > covered_only > none, (all_lines, covered_only, none))
 inside = rt.eval("""(function()
     local bad = {}
     for _, n in ipairs(MULGORE.nodes) do

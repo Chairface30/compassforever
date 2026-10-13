@@ -13,9 +13,11 @@ local DEFAULTS = {
     window = {},           -- the main window's spot
     arrow = {},            -- the arrow's spot
     arrowScale = 1,
-    mapPins = true,        -- markers and the route bar on the world map
+    mapPins = false,       -- markers and the route bar on the world map
     worldMapGray = true,   -- covered areas drawn in gray on the world map
     showLines = true,      -- walls and roads drawn on the window's map
+    areaBorders = true,    -- each area's outline drawn on the window's map
+    doneAreaBorders = true, -- and the outlines of areas already uncovered
     minimapRoute = true,   -- the route drawn on the minimap too
     replaceWorldMap = false, -- the world map key opens this window instead
     mapOnly = false,       -- the window shows its map and nothing else
@@ -87,6 +89,11 @@ function ns.LoadSettings()
         for _, key in ipairs({ "walls", "roads", "zonelines", "spots", "finished" }) do
             if type(db[key]) == "table" and next(db[key]) then db.editing = true end
         end
+    end
+    -- the world map markers went off by default with the area outlines:
+    -- turned off once for everyone, then theirs to turn on again
+    if not db.mapPinsOff then
+        db.mapPins, db.mapPinsOff = false, true
     end
     for key, value in pairs(DEFAULTS) do
         if db[key] == nil then
