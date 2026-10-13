@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- A Clear button over the map while drawing walls, zone lines or roads:
+  removes all of your lines of that kind in the zone shown (click twice
+  to be sure). Lines built into the addon stay.
 - Off a zeppelin or boat, the route flies on when that's quicker (for
   example Orgrimmar to Thunder Bluff for Mulgore). It used to plan the way
   before the game could place you on the new continent, then never look

@@ -956,11 +956,56 @@ WallClick = function(button, x, y)
     DrawWalls()
 end
 
+-- The Clear button: every wall, zone line or road of the kind being drawn
+-- in the shown zone (the player's own), gone at once. The first click only
+-- asks; a second within a few seconds clears.
+local CLEAR_NAMES = { walls = "walls", roads = "roads", zonelines = "zone lines" }
+local clearAsked
+local function ClearLabel()
+    local b = frame and frame.clearButton
+    if not b then return end
+    local name = CLEAR_NAMES[editKind] or "walls"
+    b:SetText(clearAsked and "|cffff5544Sure? Click|r" or "Clear " .. name)
+end
+
+local function ClearLines(kind, now)
+    local zone = view.zone
+    if not (zone and CLEAR_NAMES[kind]) then return end
+    local okT, t = pcall(GetTime)
+    t = okT and t or 0
+    if not now and not (clearAsked and t - clearAsked < 4) then
+        clearAsked = t
+        ClearLabel()
+        C_Timer.After(4, function()
+            if clearAsked == t then
+                clearAsked = nil
+                ClearLabel()
+            end
+        end)
+        return
+    end
+    clearAsked = nil
+    ClearLabel()
+    local mine = ns.db[kind] and ns.db[kind][zone.ach]
+    local n = mine and #mine or 0
+    if ns.db[kind] then ns.db[kind][zone.ach] = nil end
+    drawing, circleCenter = nil, nil
+    if n > 0 then ns.WallsChanged() end
+    ns.Print(string.format("Cleared %d %s in %s.", n, CLEAR_NAMES[kind], zone.name))
+    DrawWalls()
+end
+ns.ClearLines = ClearLines
+
 -- Wall mode on or off; `kind` picks walls or roads (walls by default).
 local function SetWallMode(on, kind)
     wallMode = on and true or false
     editKind = kind or "walls"
     drawing, circleCenter = nil, nil
+    clearAsked = nil
+    if frame and frame.clearButton then
+        frame.clearButton:SetShown(wallMode and editKind ~= "spots")
+        ClearLabel()
+    end
     if wallButton then
         local walling = wallMode and (editKind == "walls" or editKind == "zonelines")
         wallButton:SetText(walling and "|cffff5544Walls|r" or "Walls")
@@ -1642,6 +1687,18 @@ local function Build()
         "Draws zone lines (purple) instead of walls: the waypoints inside this zone never cross one, "
         .. "but a path coming from or going to another zone may. Use them along the zone's edge "
         .. "where the route must stay in.")
+
+    -- On the map's top-left corner while drawing: clear every line of the
+    -- kind being drawn in this zone.
+    frame.clearButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    frame.clearButton:SetSize(110, 22)
+    frame.clearButton:SetPoint("TOPLEFT", border, "TOPLEFT", 8, -8)
+    frame.clearButton:SetFrameLevel(mapBox:GetFrameLevel() + 20)
+    frame.clearButton:SetScript("OnClick", function() ClearLines(editKind) end)
+    frame.clearButton:Hide()
+    Tip(frame.clearButton, "Clear",
+        "Removes every one of your walls (or zone lines, or roads: whichever you're drawing) in this zone. "
+        .. "Click twice to be sure. Lines built into the addon aren't yours to clear.")
 
     -- On the map's other corner, in Spots mode: the area you stand in gets
     -- its spot where you are.

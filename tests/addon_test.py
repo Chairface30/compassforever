@@ -933,7 +933,22 @@ check(f"right-click ends a wall; the next starts a new one ({walls})", walls == 
 rt.execute("NS.WindowWallClick('RightButton', 0.35, 0.30)")
 walls2 = rt.eval("(function() local w = NS.db.walls[ELWYNN.ach] local t = {} for i, x in ipairs(w) do t[i] = x.circle and 'c' or (#x / 2) end return table.concat(t, ',') end)()")
 check(f"right-click on a wall removes just that one ({walls2})", walls2 == "2,c", walls2)
-rt.execute("NS.WindowWallMode(false) NS.db.walls = nil NS.WallsChanged()")
+rt.execute("""NS.db.roads = { [ELWYNN.ach] = { { 0.1, 0.1, 0.2, 0.2 } }, [1411] = { { 0.3, 0.3, 0.4, 0.4 } } }
+    NS.WindowWallMode(true, "walls") CLEAR_SHOWN = NS.WindowFrame().clearButton:IsShown()
+    NS.ClearLines("walls")""")
+check("Clear walls shows while drawing", rt.eval("CLEAR_SHOWN"))
+check("one click only asks", rt.eval("#NS.db.walls[ELWYNN.ach]") == 2)
+rt.execute("NOW = NOW + 1 NS.ClearLines('walls')")
+check("a second click clears this zone's walls, not its roads",
+      rt.eval("NS.db.walls[ELWYNN.ach] == nil and #NS.db.roads[ELWYNN.ach] == 1"))
+rt.execute("NS.WindowWallMode(true, 'roads') NS.ClearLines('roads') NOW = NOW + 10 FLUSH() NS.ClearLines('roads')")
+check("the ask runs out: a click after it only asks again", rt.eval("#NS.db.roads[ELWYNN.ach]") == 1)
+rt.execute("NOW = NOW + 1 NS.ClearLines('roads')")
+check("Clear roads: this zone's roads gone, other zones' kept",
+      rt.eval("NS.db.roads[ELWYNN.ach] == nil and #NS.db.roads[1411] == 1"))
+rt.execute("NS.WindowWallMode(true, 'spots')")
+check("no Clear in Spots mode", not rt.eval("NS.WindowFrame().clearButton:IsShown()"))
+rt.execute("NS.WindowWallMode(false) NS.db.walls = nil NS.db.roads = nil NS.WallsChanged()")
 
 # the old one-spot-per-area behaviour (areas without an outline)
 rt.execute("SAVED_AREAS = NS.AREAS NS.AREAS = nil")
