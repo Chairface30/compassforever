@@ -328,6 +328,8 @@ function ns.NearestNewFlightMaster()
 end
 
 -- Plan the way to `stop` on `zone`; sets ns.travel to a flight or nil.
+-- Returns nil, "unplaced" when the player can't be placed on the stop's
+-- continent yet (on a zeppelin or boat, say): worth asking again soon.
 local lastRead = -60
 function ns.PlanTravel(zone, stop)
     ns.travel = nil
@@ -342,7 +344,7 @@ function ns.PlanTravel(zone, stop)
     if not c then return nil end
     local px, py = ns.PlayerOn(c.map)
     local tx, ty = OnContinent(zone, stop.x, stop.y)
-    if not (px and tx) then return nil end
+    if not (px and tx) then return nil, "unplaced" end
     local run = RunSpeed()
     local walk = Yards(c, px, py, tx, ty) * WINDING / run
 
@@ -420,7 +422,10 @@ local function Reconsider(force)
     if not force and stop == lastStop then return end
     lastStop = stop
     local before = ns.travel
-    ns.PlanTravel(zone, stop)
+    local _, why = ns.PlanTravel(zone, stop)
+    -- coming off a zeppelin the stop changes before the game can place you
+    -- on the new continent: asked again next second, not given up on
+    if why == "unplaced" then lastStop = nil end
     if ns.travel and not (before and before.fromID == ns.travel.fromID and before.toID == ns.travel.toID) then
         ns.Banner("Fly there", ns.TravelText())
         ns.Print(ns.TravelText() .. ".")
@@ -443,9 +448,9 @@ watcher:SetScript("OnUpdate", function(_, dt)
     end
     -- Off a boat or zeppelin, the target is the stop again.
     Reconsider(false)
-    -- Every ten seconds, see whether flying is still worth it.
+    -- Every ten seconds, see whether flying is (still) worth it.
     recheck = recheck + 1
-    if recheck >= 10 and ns.travel then
+    if recheck >= 10 and not flying then
         recheck = 0
         Reconsider(true)
     end

@@ -645,6 +645,15 @@ check("far away with flights known: fly Ironforge to Darkshire",
 check("the flight is said plainly", "Ironforge" in (rt.eval("NS.TravelText()") or "") and "Darkshire" in (rt.eval("NS.TravelText()") or ""))
 rt.execute("NS.PlayerOn = function(map) if map == 1415 then return 0.4900, 0.7600 end return REAL_PLAYERON(map) end NS.PlanTravel(DW, STOP)")
 check("close by: walk", rt.eval("NS.travel == nil"))
+# Off a zeppelin: the stop is the route's again before the game can place
+# you on its continent. The flight is planned once it can.
+rt.execute("""NS.PlayerOn = function(map) if map == 1415 then return nil end return REAL_PLAYERON(map) end
+    NS.PlanTravel(DW, STOP)""")
+check("not placed yet: no flight, and it says why", rt.eval("NS.travel == nil")
+      and rt.eval("select(2, NS.PlanTravel(DW, STOP))") == "unplaced")
+rt.execute("""NS.PlayerOn = function(map) if map == 1415 then return 0.48737, 0.52365 end return REAL_PLAYERON(map) end
+    NS.PlanTravel(DW, STOP)""")
+check("placed: the flight is planned", rt.eval("NS.travel and NS.travel.toID") == 12)
 rt.execute("NS.PlayerOn, NS.Translate = REAL_PLAYERON, REAL_TRANSLATE NS.travel = nil")
 
 print("known flight points")
@@ -1052,6 +1061,32 @@ check("the Alliance takes a boat", (rt.eval("CROSS and CROSS.name") or "").start
 rt.execute("PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.42, 0.65 NOW = NOW + 2")
 check("on the stop's continent there's no crossing", rt.eval("NS.Crossing(ELWYNN, NS.CurrentStop()) == nil"))
 rt.execute("NS.StopRoute() UnitFactionGroup = nil")
+
+# Off the zeppelin to Mulgore: on the transport the game places you nowhere,
+# then by Orgrimmar's tower. Knowing Orgrimmar and Thunder Bluff, the route
+# flies, rather than walking all the way.
+rt.execute("""NS.StopRoute() function UnitFactionGroup() return "Horde" end
+    MULGORE = NS.ZoneByMap(1412)
+    REAL_TRANSLATE = NS.Translate
+    NS.Translate = function(from, x, y, to)
+        local r = RECTS[from .. ":" .. to]
+        if r then return r[1] + x * (r[2] - r[1]), r[3] + y * (r[4] - r[3]) end
+        return REAL_TRANSLATE(from, x, y, to)
+    end
+    local k = NS.KnownFlights() for id in pairs(k) do k[id] = nil end k[22], k[23] = true, true
+    for _, n in ipairs(MULGORE.nodes) do DONE[n.criteria] = nil end NS.InvalidateProgress()
+    PLAYER.map = 9999
+    NS.StartRoute(MULGORE, { quiet = true })
+    for _ = 1, 3 do FRAME(1.1) end
+    UNPLACED = NS.travel
+    PLAYER.map, PLAYER.x, PLAYER.y = 1411, 0.509, 0.135
+    for _ = 1, 3 do FRAME(1.1) end""")
+check("on the zeppelin: no flight yet", rt.eval("UNPLACED == nil"))
+check("off it by Orgrimmar: fly Orgrimmar to Thunder Bluff",
+      rt.eval("NS.travel and (NS.travel.fromID .. '>' .. NS.travel.toID)") == "23>22",
+      rt.eval("NS.travel and (NS.travel.fromID .. '>' .. NS.travel.toID)"))
+rt.execute("""NS.StopRoute() NS.travel = nil NS.Translate = REAL_TRANSLATE UnitFactionGroup = nil
+    PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.42, 0.65""")
 
 print("zone lines")
 zl = rt.eval("""(function()

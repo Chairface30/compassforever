@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Off a zeppelin or boat, the route flies on when that's quicker (for
+  example Orgrimmar to Thunder Bluff for Mulgore). It used to plan the way
+  before the game could place you on the new continent, then never look
+  again, so it walked all the way. Flying is now reconsidered every ten
+  seconds on any route, not only while a flight is planned.
 - Mulgore (a trial run): each map area's real outline comes from the
   terrain (Data/Areas.lua, built by tools/build_areas.py). The route heads
   for the nearest point just inside each area's edge, over the waypoint
