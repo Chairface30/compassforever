@@ -9,6 +9,9 @@
   soon as you're anywhere inside. The window draws the outlines of the
   areas still covered, with the next stop's in green. Credit no longer
   moves a spot for an area with an outline.
+- Mulgore's areas have no markers in the window: hovering over an area
+  shows its name (and whether it's uncovered or on the route), and a click
+  routes to it. Such an area has no spot to move.
 - Walking paths are found over a waypoint graph (Data/Graph.lua, built
   ahead of time from the terrain by tools/build_graph.py: a waypoint every
   200 yards, along roads, at every area's spots, flight masters and docks,

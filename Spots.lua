@@ -113,6 +113,10 @@ local function Round(v) return math.floor(v * 10000 + 0.5) / 10000 end
 
 function ns.MoveSpot(zone, node, x, y)
     if not node.criteria then return end
+    if ns.AreaOf and ns.AreaOf(node) then
+        ns.Print(node.name .. " goes by its outline: it has no spot to move.")
+        return
+    end
     ns.db.spots = ns.db.spots or {}
     ns.db.spots[node.criteria] = { Round(x), Round(y) }
     ns.Print(string.format("%s's spot moved to %.1f, %.1f.", node.name, x * 100, y * 100))

@@ -1227,6 +1227,23 @@ rt.execute("""local e = NS.AreaOf(MESA).edge[1]
     PLAYER.x, PLAYER.y = MESA.points[1] / 10000, MESA.points[2] / 10000 FRAME(0.2)""")
 check("anywhere inside it, a one-area route is done", rt.eval("NS.route == nil"))
 rt.execute("NS.StopRoute() PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.42, 0.65")
+rt.execute("NS.ShowZone(MULGORE)")
+named = rt.eval("""(function()
+    local bad = {}
+    for _, n in ipairs(MULGORE.nodes) do
+        local at = NS.WindowAreaAt(n.points[1] / 10000, n.points[2] / 10000)
+        if at ~= n then bad[#bad + 1] = n.name end
+    end
+    return table.concat(bad, ", ") end)()""")
+check("the window finds the area under the cursor by its outline", named == "", named)
+check("and nothing outside every outline", rt.eval("NS.WindowAreaAt(0.02, 0.02) == nil"))
+check("a moved spot doesn't override an outline", rt.eval("""(function()
+    local n = MULGORE.nodes[1]
+    NS.db.spots = NS.db.spots or {} NS.db.spots[n.criteria] = { 0.5, 0.5 }
+    local p = NS.NodePoints(n)[1]
+    NS.db.spots[n.criteria] = nil
+    return NS.InArea(n, p[1], p[2]) end)()"""))
+rt.execute("NS.ShowZone(ELWYNN)")
 
 print("per character")
 rt.execute("""ALT_ONLY = true EXPLORED[1429] = {}

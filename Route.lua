@@ -96,15 +96,15 @@ end
 
 local SCALE = 10000
 
--- A node's standing points as fractions: one moved by hand (Spots.lua), the
--- points just inside its edge when its outline is known (Areas.lua: the
--- route heads for whichever is nearest on the way), or the ones picked from
--- the terrain.
+-- A node's standing points as fractions: the points just inside its edge
+-- when its outline is known (Areas.lua: the route heads for whichever is
+-- nearest on the way; such an area has no spot to move), one moved by hand
+-- (Spots.lua), or the ones picked from the terrain.
 local function Points(node)
-    local moved = ns.MovedSpot and ns.MovedSpot(node)
-    if moved then return { { moved[1], moved[2] } } end
     local area = ns.AreaOf and ns.AreaOf(node)
     if area and #area.edge > 0 then return area.edge end
+    local moved = ns.MovedSpot and ns.MovedSpot(node)
+    if moved then return { { moved[1], moved[2] } } end
     local out = {}
     local p = node.points
     for i = 1, #p, 2 do out[#out + 1] = { p[i] / SCALE, p[i + 1] / SCALE } end

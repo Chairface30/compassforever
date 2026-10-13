@@ -486,9 +486,49 @@ local function Target(x, y)
     return { map = mapID }
 end
 
+-- The area of the shown zone under a point, by its outline (Areas.lua);
+-- nil outside every outline, or off a zone's map.
+local function AreaAt(x, y)
+    if view.kind ~= "zone" or not x then return nil end
+    for _, node in ipairs(view.zone.nodes) do
+        if ns.InArea(node, x, y) then return node end
+    end
+    return nil
+end
+
+-- On a zone's map, the area under the cursor says its name.
+local function AreaTooltip(node)
+    local zone = view.zone
+    GameTooltip:SetOwner(mapBox, "ANCHOR_CURSOR")
+    GameTooltip:AddLine(node.name, 1, 1, 1)
+    local order
+    if ns.route and ns.route.zone == zone then
+        for i, stop in ipairs(ns.route.stops) do
+            if stop.node == node then order = i end
+        end
+    end
+    local state = ns.ZoneState(zone).state
+    for i, n in ipairs(zone.nodes) do
+        if n == node and state[i] == true then GameTooltip:AddLine("Uncovered.", 0.3, 0.9, 0.3) end
+    end
+    if order then
+        GameTooltip:AddLine(order == 1 and "Your next stop." or "Stop " .. order .. " of the route.", 1, 0.82, 0)
+    end
+    GameTooltip:AddLine("Click to go here.", 0.6, 1, 0.6)
+    GameTooltip:Show()
+end
+
 -- Light up what the cursor is over, as the world map does.
 local hovered
 local function Hover()
+    if view.kind == "zone" and not wallMode and mapBox:IsMouseOver() then
+        local node = AreaAt(CursorOnMap())
+        if node == hovered then return end
+        hovered = node
+        highlight:Hide()
+        if node then AreaTooltip(node) else GameTooltip:Hide() end
+        return
+    end
     if not (view.kind ~= "zone" and mapBox:IsMouseOver()) then
         if hovered then
             hovered = nil
@@ -634,6 +674,13 @@ local function OnMapClick(_, button)
         return
     end
     local x, y = CursorOnMap()
+    -- an area with an outline: a route to it, as its marker's click was
+    local node = AreaAt(x, y)
+    if node then
+        GameTooltip:Hide()
+        ns.RouteVia(view.zone, node)
+        return
+    end
     local target = x and Target(x, y)
     if not target then return end
     hovered = nil
@@ -1059,12 +1106,17 @@ local function DrawZone(zone)
     if ns.route and ns.route.zone == zone then
         for i, stop in ipairs(ns.route.stops) do order[stop.node] = { i = i, x = stop.x, y = stop.y } end
     end
+    -- an area with an outline has no marker: the outline is drawn instead,
+    -- and says its name under the cursor
+    local used = 0
     for i, node in ipairs(zone.nodes) do
-        local o = order[node]
-        local pt = ns.NodeMarker(node)
-        SetPin(Pin(i), zone, node, o and o.x or pt[1], o and o.y or pt[2], state[i] == true, o and o.i)
+        if not ns.AreaOf(node) then
+            local o = order[node]
+            local pt = ns.NodeMarker(node)
+            used = used + 1
+            SetPin(Pin(used), zone, node, o and o.x or pt[1], o and o.y or pt[2], state[i] == true, o and o.i)
+        end
     end
-    local used = #zone.nodes
     if ns.route and ns.route.zone == zone then
         for i, stop in ipairs(ns.route.stops) do
             if stop.node.fp then
@@ -1766,6 +1818,7 @@ ns.WindowOpen = function(target)
     if target.zone then ShowZoneView(target.zone) else ShowContinentView(target.continent) end
 end
 ns.WindowTarget = Target
+ns.WindowAreaAt = AreaAt
 ns.WindowWallClick = function(button, x, y) WallClick(button, x, y) end
 ns.WindowCenterOnMe = function() CenterOnMe() end
 
