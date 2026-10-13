@@ -1,11 +1,12 @@
 """Copy hand-made walls, roads and zone lines from the saved settings into
 the addon's data, for the zones named.
 
-  python tools/bake_edits.py <CompassForever.lua saved variables> <zone ach> [...]
+  python tools/bake_edits.py <CompassForever.lua saved variables> <zone ach> [...] [--replace]
 
 Walls, roads and zone lines go to Data/Walls.lua, Data/Roads.lua and
 Data/ZoneLines.lua, added to what a zone has built in already (the saved
-lines are only the player's own). In the game the saved
+lines are only the player's own); with --replace, in place of them (a
+zone redone from scratch). In the game the saved
 copies of what was baked are dropped at login (Edits.lua), so they don't
 show as the player's own.
 """
@@ -66,7 +67,12 @@ def header_of(path):
 
 
 def main():
-    saved, achs = sys.argv[1], [int(a) for a in sys.argv[2:]]
+    args = sys.argv[1:]
+    # --replace: a zone redone from scratch; its saved lines take the place
+    # of what it has built in, rather than being added to them
+    replace = "--replace" in args
+    args = [a for a in args if a != "--replace"]
+    saved, achs = args[0], [int(a) for a in args[1:]]
     rt = lua51.LuaRuntime()
     db = to_py(lua_table(rt, open(saved, encoding="utf-8").read(), "CompassForeverDB"))
 
@@ -82,7 +88,7 @@ def main():
             # The saved lines are only the player's own: at login the game
             # drops their copies of what's built in. So they're added to a
             # zone's built-in lines, not put in place of them.
-            have = re.findall(r"\n        (\{.*\}),", blocks.get(ach, ""))
+            have = [] if replace else re.findall(r"\n        (\{.*\}),", blocks.get(ach, ""))
             new = [t for t in (fmt_line(l) for l in lines) if t not in have]
             body = "".join("\n        %s," % t for t in have + new)
             blocks[ach] = "\n    [%d] = {%s\n    }," % (ach, body)

@@ -4,6 +4,8 @@
 
 - Kalimdor is mapped by hand: every zone's walls, roads and zone lines
   are built in (Data/Walls.lua, Data/Roads.lua, Data/ZoneLines.lua).
+- Durotar redone from scratch: its built-in lines are the new ones only.
+  Thunder Ridge and Drygulch Ravine's cave can be reached again.
 - Drygulch Ravine (Durotar) gives credit only in its cave at 51.5, 27.7:
   the route goes there rather than to the ravine's edge.
 - Rut'theran Village: routes take the portal between Darnassus (Teldrassil
