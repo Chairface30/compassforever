@@ -4,7 +4,8 @@ the addon's data, for the zones named.
   python tools/bake_edits.py <CompassForever.lua saved variables> <zone ach> [...]
 
 Walls, roads and zone lines go to Data/Walls.lua, Data/Roads.lua and
-Data/ZoneLines.lua. A zone already there is replaced. In the game the saved
+Data/ZoneLines.lua, added to what a zone has built in already (the saved
+lines are only the player's own). In the game the saved
 copies of what was baked are dropped at login (Edits.lua), so they don't
 show as the player's own.
 """
@@ -78,9 +79,14 @@ def main():
             lines = mine.get(ach) or []
             if not lines:
                 continue
-            body = "".join("\n        %s," % fmt_line(l) for l in lines)
+            # The saved lines are only the player's own: at login the game
+            # drops their copies of what's built in. So they're added to a
+            # zone's built-in lines, not put in place of them.
+            have = re.findall(r"\n        (\{.*\}),", blocks.get(ach, ""))
+            new = [t for t in (fmt_line(l) for l in lines) if t not in have]
+            body = "".join("\n        %s," % t for t in have + new)
             blocks[ach] = "\n    [%d] = {%s\n    }," % (ach, body)
-            print(f"{kind}: zone {ach}, {len(lines)}")
+            print(f"{kind}: zone {ach}, {len(have)} built in + {len(new)} new")
         write_lines(path, var, header_of(path), blocks)
 
 

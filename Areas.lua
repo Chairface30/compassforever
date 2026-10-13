@@ -9,6 +9,15 @@ local _, ns = ...
 local SCALE = 10000
 local decoded = {}
 
+-- Areas the game gives credit for at one place only, by their key: the
+-- route goes there rather than to the nearest edge, and only there counts
+-- as arriving.
+--   Drygulch Ravine (Durotar): a cave, reached by the narrow path on the
+--   left of the ravine.
+local ENTRY = {
+    [830] = { { 0.515, 0.277 } },
+}
+
 -- An area's outline as fractions of its zone's map: { rings = { { x1, y1,
 -- x2, y2, ... } ... }, edge = { { x, y } ... } }, or nil without one.
 -- A node's key for what's kept per area (its outline, its credit): its
@@ -33,6 +42,7 @@ function ns.AreaOf(node)
     for i = 1, #raw.edge - 1, 2 do
         a.edge[#a.edge + 1] = { raw.edge[i] / SCALE, raw.edge[i + 1] / SCALE }
     end
+    if ENTRY[crit] then a.edge, a.fixed = ENTRY[crit], true end
     decoded[crit] = a
     return a
 end
@@ -56,9 +66,11 @@ function ns.InArea(node, x, y)
     return inside
 end
 
--- Is the player standing inside the area? false without an outline.
+-- Is the player standing inside the area? false without an outline, and for
+-- an area whose credit is given at one place only.
 function ns.PlayerInArea(zone, node)
-    if not ns.AreaOf(node) then return false end
+    local a = ns.AreaOf(node)
+    if not a or a.fixed then return false end
     local px, py = ns.PlayerOn(zone.map)
     return (px and ns.InArea(node, px, py)) and true or false
 end

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Kalimdor is mapped by hand: every zone's walls, roads and zone lines
+  are built in (Data/Walls.lua, Data/Roads.lua, Data/ZoneLines.lua).
+- Drygulch Ravine (Durotar) gives credit only in its cave at 51.5, 27.7:
+  the route goes there rather than to the ravine's edge.
 - Rut'theran Village: routes take the portal between Darnassus (Teldrassil
   23.3, 55.5) and Rut'theran (55.9, 89.3), and the boat from Auberdine,
   instead of finding no way down or swimming the sea. At the portal or the

@@ -482,8 +482,11 @@ check("a route the player started is kept on entering another zone", rt.eval("NS
 rt.execute("NS.StopRoute() SlashCmdList.COMPASSFOREVER('auto')")
 check("auto can be turned off again", rt.eval("NS.db.autoRoute") is False)
 
-# the old one-spot-per-area behaviour (areas without an outline)
-rt.execute("SAVED_AREAS = NS.AREAS NS.AREAS = nil")
+# the terrain's own costs, against plain ground: no outlines, and none of
+# the lines built into the addon
+rt.execute("""SAVED_AREAS = NS.AREAS NS.AREAS = nil
+    SAVED_LINES = { NS.WALLS, NS.ROADS, NS.ZONELINES } NS.WALLS, NS.ROADS, NS.ZONELINES = {}, {}, {}
+    NS.WallsChanged()""")
 print("terrain")
 check("every zone has terrain", rt.eval("(function() local n = 0 for _, z in ipairs(NS.ZONES) do if NS.TERRAIN[z.ach] then n = n + 1 end end return n end)()") == 43)
 check("a grid decodes to one digit per point", rt.eval("(function() local z = NS.ZoneByMap(1413) local g = NS.Grid(z) return #g.cells == g.nx * g.ny end)()"))
@@ -571,7 +574,8 @@ legs = rt.eval("""(function()
     return len, sum
 end)()""")
 check("a route's length is its legs' walking costs", abs(legs[0] - legs[1]) < 1, legs)
-rt.execute("NS.AREAS = SAVED_AREAS")
+rt.execute("""NS.AREAS = SAVED_AREAS
+    NS.WALLS, NS.ROADS, NS.ZONELINES = SAVED_LINES[1], SAVED_LINES[2], SAVED_LINES[3] NS.WallsChanged()""")
 
 print("the arrow follows the path")
 rt.execute("""TN = NS.ZoneByMap(1441)
@@ -1225,7 +1229,7 @@ check(f"two targets don't throw away each other's path ({both})", both == "3:0",
 
 print("planning over the graph")
 order = rt.eval("""(function()
-    local z = NS.ZoneByMap(1412)
+    local z = NS.ZoneByMap(1429)   -- no lines built in
     NS.PlanCostsNow(z)
     local a, b = z.nodes[1], z.nodes[2]
     local pa, pb = NS.NodePoints(a)[1], NS.NodePoints(b)[1]
@@ -1349,6 +1353,17 @@ named = rt.eval("""(function()
 check("the window finds the area under the cursor by its outline", named == "", named)
 check("and nothing outside every outline", rt.eval("NS.WindowAreaAt(0.02, 0.02) == nil"))
 rt.execute("NS.ShowZone(ELWYNN)")
+
+# Drygulch Ravine gives credit in its cave only: the route goes there, and
+# being elsewhere inside the ravine isn't arriving.
+rt.execute("""DUROTAR = NS.ZoneByMap(1411)
+    for _, n in ipairs(DUROTAR.nodes) do if n.name == "Drygulch Ravine" then DRY = n end end""")
+check("Drygulch Ravine's one way in is its cave", rt.eval("""(function()
+    local p = NS.NodePoints(DRY)
+    return #p == 1 and p[1][1] == 0.515 and p[1][2] == 0.277 end)()"""))
+rt.execute("PLAYER.map, PLAYER.x, PLAYER.y = 1411, DRY.points[1] / 10000, DRY.points[2] / 10000")
+check("inside the ravine but not at the cave isn't arriving", not rt.eval("NS.PlayerInArea(DUROTAR, DRY)"))
+rt.execute("PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.42, 0.65")
 
 print("per character")
 rt.execute("""ALT_ONLY = true EXPLORED[1429] = {}
