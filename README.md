@@ -1,17 +1,17 @@
 # Compass Forever
 
 Uncover every zone map for the Explorer Legacy challenge on WoW Forever: the
-shortest route through each zone, an arrow to every spot, and markers on the
-world map.
+shortest route through each zone, with each area's real outline on the map and
+an arrow to the nearest edge of every area.
 
 Type `/cf` (or `/compassforever`), or click the map icon on the minimap.
 
 ## How it works
 
-- **Open the world map** on any zone. A bar at the top says how many areas are
-  left, with **Start route**. Each area still to find has a marker; click one to
-  head there next. Areas you haven't uncovered yet are drawn in gray, so you
-  see the whole zone.
+- **Open the world map** on any zone. Areas you haven't uncovered yet are drawn
+  in gray, so you see the whole zone. With *World map markers* on (Options,
+  off by default), a bar at the top says how many areas are left, with
+  **Start route**, and each area still to find has a marker.
 - **Or let it run itself.** Tick *Route me automatically* under Options in the window.
   Every time you enter a zone with areas still covered, a route starts and a
   banner tells you where to run: "Duskwood: 7 areas to uncover. Head northwest
@@ -28,8 +28,8 @@ Type `/cf` (or `/compassforever`), or click the map icon on the minimap.
   around it.
   Zones light up as you point at them and show how many areas they have left.
   A zone's own map shows what you have uncovered in color and the rest in
-  gray, a marker on each area still to find, the route as a line, and you.
-  Click a marker to go there next.
+  gray, each area's outline, the route as a line, and you. Point at an area
+  for its name; click it to go there next.
 
 The route is the shortest walk from where you stand: exact for up to 11 areas,
 and very close beyond that.
@@ -62,23 +62,22 @@ map once on each character.
 Finishing a zone on a route plays `Sounds\fanfare.ogg`, the Final Fantasy VII
 victory fanfare. Replace that file with any Ogg clip of your own to change it.
 
-## Where the spots come from
+## Where the areas come from
 
 From the game's own files, not from guesses. Each "Explore <zone>" achievement
 names the map overlays it needs, and each overlay names the areas that uncover
-it. The terrain tags every 33-yard square of ground with the area it belongs
-to, which is what the server checks when you discover a place.
-`tools/build_data.py` reads the terrain of both continents and, for every area,
-picks spots that are:
+it. A few pieces of Forever's redrawn maps aren't in any achievement (the
+middle of Shen'dralas, New Avalon and five more); they're areas too, so a zone
+is done only when its whole map is. The terrain tags every 33-yard square of
+ground with the area it belongs to, which is what the server checks when you
+discover a place. `tools/build_areas.py` traces each area's squares into its
+outline, and picks points just inside the edge all the way round, on flat
+ground: the route enters each area at whichever is nearest on its way.
 
-- inside the area, as far from its edge as the area allows;
-- on flat ground, not a cliff face;
-- spread out, up to five per area, so the route can take whichever is on its way.
-
-All 43 zones and 549 areas are covered, including Riverglades, Mount Hyjal and
+All 43 zones and 556 areas are covered, including Riverglades, Mount Hyjal and
 Shen'dralas. The one exception is **Undercity**, which has no terrain of its own
-(it is all underground building): its spot is the middle of its map art, marked
-"approximate".
+(it is all underground building): it has no outline, and its marker is the
+middle of its map art, marked "approximate".
 
 ## Commands
 
@@ -101,6 +100,7 @@ After a client patch:
 ```
 python tools/fetch_terrain.py <cache dir> --build <new build>
 python tools/build_data.py <cache dir> .
+python tools/build_areas.py <cache dir> .
 python tools/build_terrain.py <cache dir> .
 python tests/addon_test.py
 ```
@@ -109,4 +109,4 @@ python tests/addon_test.py
 
 `fetch_terrain.py` downloads the tables and about 1,700 terrain tiles (around
 800 MB) from wago.tools. `tools/exploration_report.txt` lists every area, how
-many terrain squares it has, and where its first spot is.
+many terrain squares it has, and where its middle point is.

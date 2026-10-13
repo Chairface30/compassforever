@@ -98,13 +98,10 @@ local SCALE = 10000
 
 -- A node's standing points as fractions: the points just inside its edge
 -- when its outline is known (Areas.lua: the route heads for whichever is
--- nearest on the way; such an area has no spot to move), one moved by hand
--- (Spots.lua), or the ones picked from the terrain.
+-- nearest on the way), else the ones picked from the terrain.
 local function Points(node)
     local area = ns.AreaOf and ns.AreaOf(node)
     if area and #area.edge > 0 then return area.edge end
-    local moved = ns.MovedSpot and ns.MovedSpot(node)
-    if moved then return { { moved[1], moved[2] } } end
     local out = {}
     local p = node.points
     for i = 1, #p, 2 do out[#out + 1] = { p[i] / SCALE, p[i + 1] / SCALE } end
@@ -112,11 +109,9 @@ local function Points(node)
 end
 ns.NodePoints = Points
 
--- Where a node's marker sits when it isn't a route stop: its moved spot, or
--- the first spot picked from the terrain (well inside the area).
+-- Where a node's marker sits when it isn't a route stop: the first point
+-- picked from the terrain (well inside the area).
 function ns.NodeMarker(node)
-    local moved = ns.MovedSpot and ns.MovedSpot(node)
-    if moved then return { moved[1], moved[2] } end
     return { node.points[1] / SCALE, node.points[2] / SCALE }
 end
 
@@ -155,9 +150,9 @@ function ns.PlanRoute(zone, nodes, sx, sy)
     for i, node in ipairs(nodes) do
         pts[i] = {}
         for k, p in ipairs(Points(node)) do
-            -- a moved spot or an edge point has no terrain costs worked out
-            -- (the graph's cover it)
-            local own = (ns.MovedSpot and ns.MovedSpot(node)) or (ns.AreaOf and ns.AreaOf(node))
+            -- an edge point has no terrain costs worked out (the graph's
+            -- cover it)
+            local own = ns.AreaOf and ns.AreaOf(node)
             pts[i][k] = { x = p[1], y = p[2], node = true,
                           id = not own and ns.PointID and ns.PointID(zone, node, k) or nil }
         end
@@ -412,7 +407,7 @@ end
 local FLIGHT_DETOUR = 800
 
 -- One area only, from a click on its marker: the walk there and nothing
--- after, uncovered or not. It ends on reaching the spot (or uncovering it).
+-- after, uncovered or not. It ends on reaching it (or uncovering it).
 local function Covered(zone, node)
     for _, n in ipairs(ns.ZoneRemaining(zone)) do
         if n == node then return true end
@@ -470,7 +465,7 @@ function ns.StartRoute(zone, opts)
     local sx, sy = ns.PlayerOn(zone.map)
     local function Plan(list)
         if not first then return ns.PlanRoute(zone, list, sx, sy) end
-        -- The chosen spot first: its point nearest the player, then the rest
+        -- The chosen area first: its point nearest the player, then the rest
         -- planned on from there.
         local best, bestD
         for _, p in ipairs(ns.NodePoints(first)) do
@@ -520,7 +515,7 @@ function ns.StopRoute()
     ns.Fire("route")
 end
 
--- At the spot of a one-area route: the route is done.
+-- At the stop of a one-area route: the route is done.
 function ns.SingleReached()
     local r = ns.route
     if not (r and r.single) then return end
@@ -534,7 +529,7 @@ function ns.CurrentStop()
     return r.stops[1], 1
 end
 
--- Leave the current stop for later (a spot that will not take, or one the
+-- Leave the current stop for later (an area that will not take, or one the
 -- player wants to do another day): it goes to the end of the route and stays
 -- there through every replan.
 local skipCount = 0

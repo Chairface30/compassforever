@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Spots are gone: the Spots button and mode, Spot here, moving spots by
+  hand, learning them from credit (and its option), and the spots built
+  into the addon. Routes go by area outlines. Where credit was given is
+  still recorded, said in chat and shown as a cyan dot.
+- Sharing is gone too: the Share button and window, `/cf share`, and
+  importing a friend's walls and roads.
 - Seven pieces of the redrawn zone maps that no Explore criterion names
   are areas of their own now, so a zone isn't done until its map is: the
   middle of Shen'dralas, New Avalon (Eastern Plaguelands), Krol'dok

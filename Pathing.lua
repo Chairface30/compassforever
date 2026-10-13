@@ -847,7 +847,7 @@ end
 -- Over the graph, walls, roads and the zone's zone lines included, so the
 -- order of the stops agrees with the paths drawn between them. Worked out in
 -- the background the first time a zone is planned (and again after a line
--- or spot changes); until then the planner uses the terrain's own costs.
+-- changes); until then the planner uses the terrain's own costs.
 
 local planCosts = {}
 
@@ -973,7 +973,6 @@ end
 
 -- The graph and its overlay, read ahead (in the background) so the first
 -- path doesn't wait for them.
-ns.On("spots", function() planCosts = {} end)
 
 function ns.WarmGraph(c)
     if graphs[c] ~= nil and overlays[c] then return end

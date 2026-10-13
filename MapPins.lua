@@ -64,7 +64,7 @@ local function Pin()
                 GameTooltip:AddLine("Not uncovered yet.", 1, 0.82, 0)
             end
             if self.node.rough then
-                GameTooltip:AddLine("Approximate spot: this area has no ground of its own.", 1, 0.5, 0.5, true)
+                GameTooltip:AddLine("Approximate: this area has no ground of its own.", 1, 0.5, 0.5, true)
             end
             GameTooltip:AddLine(self.first and "Your next stop." or "Click to go here next.", 0.6, 1, 0.6)
             GameTooltip:Show()

@@ -1,7 +1,7 @@
 -- Compass Forever: Areas.lua
 -- Each map area's real outline (Data/Areas.lua, from the terrain; Mulgore so
 -- far). An area is uncovered by stepping anywhere into it, so a route heads
--- for the nearest point just inside its edge rather than one spot in its
+-- for the nearest point just inside its edge rather than one point in its
 -- middle, and you're there as soon as you're inside.
 
 local _, ns = ...
@@ -11,10 +11,15 @@ local decoded = {}
 
 -- An area's outline as fractions of its zone's map: { rings = { { x1, y1,
 -- x2, y2, ... } ... }, edge = { { x, y } ... } }, or nil without one.
--- Keyed by criteria ID, or "o" .. overlay ID for a piece of the map no
--- criterion names (mapOnly).
+-- A node's key for what's kept per area (its outline, its credit): its
+-- criteria ID, or "o" .. overlay ID for a piece of the map no criterion
+-- names (mapOnly). nil for a flight master or a dock.
+function ns.NodeKey(node)
+    return node.criteria or (node.mapOnly and "o" .. node.overlay) or nil
+end
+
 function ns.AreaOf(node)
-    local crit = node.criteria or (node.mapOnly and "o" .. node.overlay)
+    local crit = ns.NodeKey(node)
     local raw = crit and ns.AREAS and ns.AREAS[crit]
     if not raw then return nil end
     local a = decoded[crit]

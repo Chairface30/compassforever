@@ -150,7 +150,7 @@ function ns.ZoneCounts(zone)
     return done, #zone.nodes, unknown
 end
 
--- The nodes still to uncover. Unknown ones are included: a spot already
+-- The nodes still to uncover. Unknown ones are included: an area already
 -- uncovered costs a walk past, a missed one costs the achievement.
 function ns.ZoneRemaining(zone)
     local s = ns.ZoneState(zone).state

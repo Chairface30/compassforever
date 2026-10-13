@@ -699,24 +699,6 @@ local function Pin(i)
         local p = CreateFrame("Button", nil, canvas)
         p:SetFrameLevel(mapBox:GetFrameLevel() + 5)
         p:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-        -- Spots mode: drag a marker to move the area's spot
-        p:SetMovable(true)
-        p:RegisterForDrag("LeftButton")
-        p:SetScript("OnDragStart", function(self)
-            if wallMode and editKind == "spots" and not self.node.fp then
-                self.moving = true
-                self:StartMoving()
-            end
-        end)
-        p:SetScript("OnDragStop", function(self)
-            if not self.moving then return end
-            self.moving = nil
-            self:StopMovingOrSizing()
-            local cx, cy = self:GetCenter()
-            local x = (cx - canvas:GetLeft()) / canvas:GetWidth()
-            local y = (canvas:GetTop() - cy) / canvas:GetHeight()
-            ns.MoveSpot(self.zone or view.zone, self.node, math.max(0, math.min(1, x)), math.max(0, math.min(1, y)))
-        end)
         p.dot = p:CreateTexture(nil, "ARTWORK")
         p.dot:SetAllPoints()
         p.dot:SetTexture("Interface\\COMMON\\Indicator-Yellow")
@@ -726,15 +708,10 @@ local function Pin(i)
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
             GameTooltip:AddLine(self.node.name, 1, 1, 1)
             local pt = ns.NodeMarker(self.node)
-            GameTooltip:AddLine(string.format("%.1f, %.1f%s", pt[1] * 100, pt[2] * 100,
-                ns.MovedSpot(self.node) and " (moved)" or ""), 0.7, 0.7, 0.7)
-            local credit = ns.CreditSpot(self.node)
+            GameTooltip:AddLine(string.format("%.1f, %.1f", pt[1] * 100, pt[2] * 100), 0.7, 0.7, 0.7)
+            local credit = ns.CreditAt(self.node)
             if credit then
                 GameTooltip:AddLine(string.format("Credit given at %.1f, %.1f", credit[1] * 100, credit[2] * 100), 0.3, 0.9, 1)
-            end
-            if wallMode and editKind == "spots" then
-                GameTooltip:AddLine("Drag to move this spot, or Shift-click to move it to where you stand. "
-                    .. "Right-click to put it back.", 1, 0.82, 0, true)
             end
             if self.done then
                 GameTooltip:AddLine("Uncovered.", 0.3, 0.9, 0.3)
@@ -744,7 +721,7 @@ local function Pin(i)
                 GameTooltip:AddLine(self.order == 1 and "Your next stop." or "Click to go here next.", 1, 0.82, 0)
             else
                 if self.node.rough then
-                    GameTooltip:AddLine("Approximate spot: this area has no ground of its own.", 1, 0.5, 0.5, true)
+                    GameTooltip:AddLine("Approximate: this area has no ground of its own.", 1, 0.5, 0.5, true)
                 end
                 GameTooltip:AddLine(self.order == 1 and "Your next stop." or "Click to go here next.", 1, 0.82, 0)
             end
@@ -752,11 +729,6 @@ local function Pin(i)
         end)
         p:SetScript("OnLeave", function() GameTooltip:Hide() end)
         p:SetScript("OnClick", function(self, button)
-            if wallMode and editKind == "spots" then
-                if button == "RightButton" then ns.ResetSpot(self.zone or view.zone, self.node)
-                elseif IsShiftKeyDown() and not self.node.fp then ns.SpotToMe(self.zone or view.zone, self.node) end
-                return
-            end
             if button == "RightButton" then ZoomOut()
             else ns.RouteVia(self.zone or view.zone, self.node) end
         end)
@@ -835,7 +807,7 @@ local function DrawWalls()
     for _, l in ipairs(wallLines) do l:Hide() end
     if not (hasLines and view.kind == "zone") then return end
     -- hidden by the option, except while drawing them
-    if ns.db.showLines == false and not (wallMode and editKind ~= "spots") then return end
+    if ns.db.showLines == false and not wallMode then return end
     local n = 0
     local function Draw(pts, r, g, b, a)
         for k = 1, #pts - 3, 2 do
@@ -976,7 +948,6 @@ ns.SwapSegment = SwapSegment
 
 -- (x, y: where, for the tests; else under the cursor)
 WallClick = function(button, x, y)
-    if editKind == "spots" then return end   -- spots are moved by dragging markers
     local zone = view.zone
     if not x then x, y = CursorOnMap() end
     if not x then return end
@@ -1074,7 +1045,7 @@ local function SetWallMode(on, kind)
     drawing, circleCenter = nil, nil
     clearAsked = nil
     if frame and frame.clearButton then
-        frame.clearButton:SetShown(wallMode and editKind ~= "spots")
+        frame.clearButton:SetShown(wallMode)
         ClearLabel()
     end
     if wallButton then
@@ -1085,8 +1056,6 @@ local function SetWallMode(on, kind)
     end
     if frame and frame.roadButton then
         frame.roadButton:SetText((wallMode and editKind == "roads") and "|cff99ff0dRoads|r" or "Roads")
-        frame.spotButton:SetText((wallMode and editKind == "spots") and "|cff55ddffSpots|r" or "Spots")
-        frame.spotHere:SetShown(wallMode and editKind == "spots")
     end
     DrawMap()
 end
@@ -1157,13 +1126,13 @@ local function SetPin(p, zone, node, x, y, done, order)
     end
 end
 
--- Where credit was given (Spots.lua): a small cyan dot for each area.
+-- Where credit was given (Edits.lua): a small cyan dot for each area.
 local creditDots = {}
 local function DrawCredit(zone)
     for _, d in ipairs(creditDots) do d:Hide() end
     local n = 0
     for _, node in ipairs(zone.nodes) do
-        local c = ns.CreditSpot(node)
+        local c = ns.CreditAt(node)
         if c then
             n = n + 1
             local d = Pool(creditDots, n, function()
@@ -1289,7 +1258,7 @@ DrawMap = function()
     DrawPlayer()
     -- in wall mode the markers stay in sight but let clicks through to the
     -- map, where they draw walls
-    for _, p in ipairs(pins) do p:EnableMouse(not wallMode or editKind == "spots") end
+    for _, p in ipairs(pins) do p:EnableMouse(not wallMode) end
     DrawWalls()
     zoomIn:SetEnabled(zoom < ZOOM_MAX)
     zoomOut:SetEnabled(zoom > 1.001 or view.kind ~= "world")
@@ -1308,13 +1277,13 @@ local function RefreshTrail()
     if view.kind == "zone" then parts[3] = { view.zone.name } end
     if view.kind == "map" then parts[3] = { view.name } end
     -- The strip has room for the Me and zoom buttons at its right, and while
-    -- editing the Share, Spots, Roads and Walls ones; the trail gets the rest,
-    -- and only the last part (the shown map) is ever cut short.
+    -- editing the Roads and Walls ones; the trail gets the rest, and only the
+    -- last part (the shown map) is ever cut short.
     local editing = ns.db.editing and true or false
-    for _, b in ipairs({ wallButton, frame.roadButton, frame.spotButton, frame.shareButton }) do
+    for _, b in ipairs({ wallButton, frame.roadButton }) do
         b:SetShown(editing)
     end
-    local x, room = 0, editing and MAP_W - 314 or MAP_W - 98
+    local x, room = 0, editing and MAP_W - 206 or MAP_W - 98
     for i, b in ipairs(trail) do
         local part = parts[i]
         if part then
@@ -1426,21 +1395,16 @@ local OPTIONS = {
       tip = "A flight master you haven't met joins the route when it costs at most 800 yards more walking.",
       get = function() return ns.db.learnFlights end,
       set = function(on) ns.SetLearnFlights(on) end },
-    { label = "Learn spots from credit", desc = "Move a spot to where the area was uncovered.",
-      tip = "On a route, when an area is uncovered its spot moves to exactly where you were standing, "
-          .. "so the next route aims there. Where credit was given always shows as a cyan dot.",
-      get = function() return ns.db.learnSpots ~= false end,
-      set = function(on) ns.db.learnSpots = on end },
     { label = "Fly automatically", desc = "Take the planned flight when the map opens.",
       tip = "When the route plans a flight, take it as soon as you open the flight master's map. "
           .. "Off, a button by the flight map takes it in one click.",
       get = function() return ns.db.autoFly end,
       set = function(on) ns.db.autoFly = on ns.Fire("settings") end },
     { section = "Route editing" },
-    { label = "Edit walls, roads and spots", desc = "Make routes better, and share them.",
-      tip = "Shows the Walls, Roads, Spots and Share buttons over the map. Walls keep routes off ground "
-          .. "you can't really cross, roads pull them onto paths, and spots mark where an area is "
-          .. "really uncovered. Share sends yours to friends as text, or takes in theirs.",
+    { label = "Edit walls and roads", desc = "Make routes better.",
+      tip = "Shows the Walls and Roads buttons over the map. Walls keep routes off ground "
+          .. "you can't really cross, zone lines keep them inside a zone, and roads pull them onto paths. "
+          .. "Cyan dots on the map show where the game gave credit for an area.",
       get = function() return ns.db.editing end,
       set = function(on) ns.SetEditing(on) end },
     { section = "Display" },
@@ -1663,22 +1627,6 @@ local function Build()
     frame.roadButton:SetPoint("RIGHT", wallButton, "LEFT", -4, 0)
     frame.roadButton:SetText("Roads")
     frame.roadButton:SetScript("OnClick", function() SetWallMode(not (wallMode and editKind == "roads"), "roads") end)
-    frame.spotButton = CreateFrame("Button", nil, strip, "UIPanelButtonTemplate")
-    frame.spotButton:SetSize(48, 22)
-    frame.spotButton:SetPoint("RIGHT", frame.roadButton, "LEFT", -4, 0)
-    frame.spotButton:SetText("Spots")
-    frame.spotButton:SetScript("OnClick", function() SetWallMode(not (wallMode and editKind == "spots"), "spots") end)
-    frame.shareButton = CreateFrame("Button", nil, strip, "UIPanelButtonTemplate")
-    frame.shareButton:SetSize(52, 22)
-    frame.shareButton:SetPoint("RIGHT", frame.spotButton, "LEFT", -4, 0)
-    frame.shareButton:SetText("Share")
-    frame.shareButton:SetScript("OnClick", function() ns.ShowShare(view.kind == "zone" and view.zone or nil) end)
-    Tip(frame.shareButton, "Share routes",
-        "Your walls, roads and spots as text to send to friends, or paste theirs in to use them.")
-    Tip(frame.spotButton, "Move spots",
-        "On a zone's map: drag an area's marker to move its spot, Shift-click it to move it to where you stand, "
-        .. "or stand in an area and click Spot here; right-click a marker to put it back. "
-        .. "Cyan dots show where the game gave credit for an area. Click Spots again when done.")
     Tip(frame.roadButton, "Draw roads",
         "On a zone's map: left-click to add corners of a road, right-click to finish it. "
         .. "Right-click a road's segment to remove just that segment, Shift-right-click to remove "
@@ -1721,8 +1669,8 @@ local function Build()
     playerDot:SetSize(24, 24)
     playerDot:Hide()
 
-    -- On the map's corner, for a zone: tick when its walls, roads and spots
-    -- are all laid out, ready to be built into the addon.
+    -- On the map's corner, for a zone: tick when its walls, roads and zone
+    -- lines are all laid out, ready to be built into the addon.
     local done = CreateFrame("CheckButton", nil, frame, "UICheckButtonTemplate")
     frame.doneCheck = done
     done:SetSize(24, 24)
@@ -1740,7 +1688,7 @@ local function Build()
         Refresh()
     end)
     Tip(done, "Done mapping",
-        "Tick when this zone's walls, roads and spots are all laid out: it gets a * in the list, "
+        "Tick when this zone's walls, roads and zone lines are all laid out: it gets a * in the list, "
         .. "ready to be built into the addon. Zones already built in show in purple.")
 
     -- On the map's other corner, in Walls mode: draw zone lines instead,
@@ -1776,20 +1724,6 @@ local function Build()
     Tip(frame.clearButton, "Clear",
         "Removes every one of your walls (or zone lines, or roads: whichever you're drawing) in this zone. "
         .. "Click twice to be sure. Lines built into the addon aren't yours to clear.")
-
-    -- On the map's other corner, in Spots mode: the area you stand in gets
-    -- its spot where you are.
-    frame.spotHere = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    frame.spotHere:SetSize(86, 22)
-    frame.spotHere:SetPoint("TOPRIGHT", border, "TOPRIGHT", -8, -8)
-    frame.spotHere:SetFrameLevel(mapBox:GetFrameLevel() + 20)
-    frame.spotHere:SetText("Spot here")
-    frame.spotHere:SetScript("OnClick", function() ns.SpotHere() end)
-    frame.spotHere:Hide()
-    Tip(frame.spotHere, "Spot here",
-        "Moves the spot of the area you're standing in (by its name) to where you are. "
-        .. "Works on any character, whether it has uncovered the area or not. "
-        .. "Shift-click a marker to move that area's spot to you instead.")
 
     -- Under the map: what it shows on the left, the route buttons on the
     -- right, and how to work it along the bottom.

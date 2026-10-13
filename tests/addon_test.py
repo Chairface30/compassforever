@@ -980,14 +980,10 @@ check("the ask runs out: a click after it only asks again", rt.eval("#NS.db.road
 rt.execute("NOW = NOW + 1 NS.ClearLines('roads')")
 check("Clear roads: this zone's roads gone, other zones' kept",
       rt.eval("NS.db.roads[ELWYNN.ach] == nil and #NS.db.roads[1411] == 1"))
-rt.execute("NS.WindowWallMode(true, 'spots')")
-check("no Clear in Spots mode", not rt.eval("NS.WindowFrame().clearButton:IsShown()"))
 rt.execute("NS.WindowWallMode(false) NS.db.walls = nil NS.db.roads = nil NS.WallsChanged()")
 
-# the old one-spot-per-area behaviour (areas without an outline)
-rt.execute("SAVED_AREAS = NS.AREAS NS.AREAS = nil")
-print("credit and spots")
-rt.execute("""NS.StopRoute() NS.db.credit = nil NS.db.spots = nil NS.db.learnFlights = false
+print("credit")
+rt.execute("""NS.StopRoute() NS.db.credit = nil NS.db.learnFlights = false
     for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = nil end NS.InvalidateProgress()
     PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.42, 0.65
     FIRE('CRITERIA_UPDATE') FLUSH()
@@ -1003,14 +999,9 @@ rt.execute("""NS.StopRoute() NS.db.credit = nil NS.db.spots = nil NS.db.learnFli
     FLUSH()""")
 credit = rt.eval("(function() local c = NS.db.credit and NS.db.credit[CREDITED.criteria] return c and (c[1] .. ',' .. c[2]) end)()")
 check(f"where credit was given is kept ({credit})", credit == "0.4321,0.6543", credit)
-moved = rt.eval("(function() local p = NS.NodePoints(CREDITED)[1] return p[1] .. ',' .. p[2] end)()")
-check(f"and on a route the spot moves there ({moved})", moved == "0.4321,0.6543", moved)
-rt.execute("NS.ResetSpot(ELWYNN, CREDITED)")
-check("right-click puts it back", rt.eval("NS.MovedSpot(CREDITED) == nil"))
-rt.execute("NS.MoveSpot(ELWYNN, ELWYNN.nodes[2], 0.5, 0.5)")
-check("a dragged spot is used for the route", rt.eval("NS.NodePoints(ELWYNN.nodes[2])[1][1] == 0.5"))
-rt.execute("NS.ResetSpot(ELWYNN, ELWYNN.nodes[2]) NS.StopRoute() NS.db.credit = nil NS.db.learnFlights = true")
-rt.execute("NS.AREAS = SAVED_AREAS")
+check("and said in chat", any("Credit for " + rt.eval("CREDITED.name") in l for l in printed(rt)))
+check("the area's route points stay its edge", rt.eval("NS.NodePoints(CREDITED)[1] == NS.AreaOf(CREDITED).edge[1]"))
+rt.execute("NS.StopRoute() NS.db.credit = nil NS.db.learnFlights = true")
 
 print("zones mapped by hand")
 check("Durotar is built in (hand-mapped)", rt.eval("NS.ZoneHandMapped(NS.ZoneByMap(1411))"))
@@ -1031,21 +1022,6 @@ before, after = rt.eval("BEFORE"), rt.eval("MAP_DOTS()")
 check(f"a zone's markers go when the map changes without telling ({before} -> {after})", before > 0 and after < before, (before, after))
 rt.execute("SHOWN_MAP = 1429")
 
-# the old one-spot-per-area behaviour (areas without an outline)
-rt.execute("SAVED_AREAS = NS.AREAS NS.AREAS = nil")
-print("spot here")
-rt.execute("""PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.4444, 0.5555 NS.db.spots = nil
-    HERE_NODE = ELWYNN.nodes[3]
-    function GetSubZoneText() return HERE_NODE.name end
-    NS.SpotHere()""")
-check("Spot here moves the area you're in to you", rt.eval("NS.MovedSpot(HERE_NODE) and NS.MovedSpot(HERE_NODE)[1] == 0.4444"))
-rt.execute("function GetSubZoneText() return 'Nowhere Special' end PRINTED = {} NS.SpotHere()")
-check("and says so when you're in none", any("Shift-click" in l for l in printed(rt)))
-rt.execute("NS.SpotToMe(ELWYNN, ELWYNN.nodes[4])")
-check("Shift-click moves any area's spot to you", rt.eval("NS.MovedSpot(ELWYNN.nodes[4])[2] == 0.5555"))
-rt.execute("NS.db.spots = nil PLAYER.x, PLAYER.y = 0.42, 0.65 function GetSubZoneText() return '' end")
-rt.execute("NS.AREAS = SAVED_AREAS")
-
 print("clicking one area")
 rt.execute("""NS.StopRoute() for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = nil end
     PICK = ELWYNN.nodes[5] NS.InvalidateProgress()
@@ -1065,34 +1041,13 @@ rt.execute("PLAYER.x, PLAYER.y = 0.42, 0.65 NS.RouteVia(ELWYNN, PICK) NS.StartRo
 check("Start route then gives the whole zone", rt.eval("NS.ZoneRouted(ELWYNN) and #NS.route.stops > 1"))
 rt.execute("""NS.StopRoute() for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = nil end NS.InvalidateProgress()""")
 
-print("sharing walls, roads and spots")
-rt.execute("""NS.db.walls = { [ELWYNN.ach] = { { 0.1, 0.2, 0.3, 0.4 }, { circle = { 0.5, 0.5, 40 } } } }
-    NS.db.roads = { [ELWYNN.ach] = { { 0.11, 0.22, 0.33, 0.44, 0.55, 0.66 } } }
-    NS.db.spots = { [ELWYNN.nodes[2].criteria] = { 0.1234, 0.5678 } }
-    SHARE = NS.ExportEdits()""")
-share = rt.eval("SHARE")
-check(f"export makes one line of text ({len(share)} chars)", share.startswith("CF1:") and chr(10) not in share, share)
-rt.execute("""PARSED = NS.ParseEdits(SHARE)
-    NS.db.walls, NS.db.roads, NS.db.spots = {}, {}, {}
-    NS.ImportEdits(PARSED, "add")""")
-check("read back, the walls come in", rt.eval("#NS.db.walls[ELWYNN.ach] == 2 and NS.db.walls[ELWYNN.ach][2].circle[3] == 40"))
-check("with the roads", rt.eval("NS.db.roads[ELWYNN.ach][1][5] == 0.55"))
-check("and the spots", rt.eval("NS.db.spots[ELWYNN.nodes[2].criteria][1] == 0.1234"))
-rt.execute("NS.ImportEdits(PARSED, 'add')")
-check("adding again doesn't double them", rt.eval("#NS.db.walls[ELWYNN.ach] == 2"))
-rt.execute("NS.db.walls[ELWYNN.ach][3] = { 0.9, 0.9, 0.8, 0.8 } NS.ImportEdits(PARSED, 'replace')")
-check("replace swaps the zone's own for the shared", rt.eval("#NS.db.walls[ELWYNN.ach] == 2"))
-check("cut-off text is refused", rt.eval("(select(2, NS.ParseEdits(SHARE:sub(1, -8))))") is not None)
-check("other text is refused", rt.eval("NS.ParseEdits('hello') == nil"))
-rt.execute("NS.ShowShare(ELWYNN)")
-check("the Share window opens with this zone's text", rt.eval("CompassForeverShare ~= nil"))
-rt.execute("NS.db.walls, NS.db.roads, NS.db.spots = nil, nil, nil NS.WallsChanged()")
-
 print("editing tools only when turned on")
 rt.execute("NS.ShowZone(ELWYNN) NS.SetEditing(false)")
 check("off: no Walls button", not rt.eval("NS.WindowFrame().roadButton:IsShown()"))
 rt.execute("NS.SetEditing(true)")
-check("on: Walls, Roads, Spots and Share", rt.eval("NS.WindowFrame().roadButton:IsShown() and NS.WindowFrame().shareButton:IsShown()"))
+check("on: Walls and Roads", rt.eval("NS.WindowFrame().roadButton:IsShown()"))
+check("spots and sharing are gone", rt.eval("""NS.ShowShare == nil and NS.ExportEdits == nil and NS.MoveSpot == nil
+    and NS.MovedSpot == nil and NS.SpotHere == nil and NS.SPOTS == nil and NS.db.learnSpots == nil"""))
 
 print("across the sea")
 rt.execute("""NS.StopRoute() function UnitFactionGroup() return "Horde" end
@@ -1157,11 +1112,6 @@ c0, cl, cx, cz, cz0 = map(float, zl.split(","))
 check(f"a path inside the zone goes round a zone line ({c0:.0f} -> {cl:.0f} yd)", cl > c0 + 20, zl)
 check(f"one from another zone crosses it ({cx:.0f} yd)", abs(cx - c0) < 1, zl)
 check(f"the zone's own paths go round it too ({cz0:.0f} -> {cz:.0f})", cz > cz0 + 20, zl)
-rt.execute("""NS.db.zonelines = { [ELWYNN.ach] = { { 0.1, 0.2, 0.3, 0.4 } } }
-    ZSHARE = NS.ExportEdits() NS.db.zonelines = nil
-    NS.ImportEdits(NS.ParseEdits(ZSHARE), "add")""")
-check("zone lines are shared too", rt.eval("NS.db.zonelines and #NS.db.zonelines[ELWYNN.ach] == 1"))
-rt.execute("NS.db.zonelines = nil NS.WallsChanged()")
 rt.execute("NS.ShowZone(ELWYNN) NS.SetEditing(true) NS.WindowWallMode(true, 'zonelines') NS.WindowWallClick('LeftButton', 0.3, 0.3) NS.WindowWallClick('LeftButton', 0.4, 0.3) NS.WindowWallClick('RightButton', 0.4, 0.3)")
 check("drawn with Zone line ticked, it's a zone line", rt.eval("NS.db.zonelines and #NS.db.zonelines[ELWYNN.ach] == 1 and not (NS.db.walls and NS.db.walls[ELWYNN.ach])"))
 rt.execute("NS.WindowWallMode(false) NS.db.zonelines = nil NS.WallsChanged()")
@@ -1369,12 +1319,6 @@ named = rt.eval("""(function()
     return table.concat(bad, ", ") end)()""")
 check("the window finds the area under the cursor by its outline", named == "", named)
 check("and nothing outside every outline", rt.eval("NS.WindowAreaAt(0.02, 0.02) == nil"))
-check("a moved spot doesn't override an outline", rt.eval("""(function()
-    local n = MULGORE.nodes[1]
-    NS.db.spots = NS.db.spots or {} NS.db.spots[n.criteria] = { 0.5, 0.5 }
-    local p = NS.NodePoints(n)[1]
-    NS.db.spots[n.criteria] = nil
-    return NS.InArea(n, p[1], p[2]) end)()"""))
 rt.execute("NS.ShowZone(ELWYNN)")
 
 print("per character")

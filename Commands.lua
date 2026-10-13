@@ -154,8 +154,7 @@ local function Help()
     print("  /cf minimap - the minimap button, shown or hidden")
     print("  /cf arrow <0.5-2> - size of the arrow")
     print("  /cf fp - a route to the nearest flight master you haven't met")
-    print("  /cf edit - the tools for walls, roads and spots, shown or hidden")
-    print("  /cf share - share your walls, roads and spots, or take in a friend's")
+    print("  /cf edit - the tools for walls, roads and zone lines, shown or hidden")
     print("  /cf perf [seconds] - measure what the addon costs (default 10 seconds)")
     print("  /cf probe - what the client says; send this when something looks wrong")
 end
@@ -225,8 +224,6 @@ SlashCmdList.COMPASSFOREVER = function(msg)
     elseif cmd == "edit" then
         ns.SetEditing(not ns.db.editing)
         ns.Print("route editing " .. (ns.db.editing and "on" or "off") .. ".")
-    elseif cmd == "share" then
-        ns.ShowShare(ns.CurrentZone())
     elseif cmd == "perf" then
         Perf(tonumber(rest) or 10)
     elseif cmd == "probe" then

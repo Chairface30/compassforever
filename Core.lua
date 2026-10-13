@@ -26,8 +26,7 @@ local DEFAULTS = {
     fanfare = true,        -- music on finishing a zone
     learnFlights = true,   -- route past flight masters not yet learned, when close
     autoFly = false,       -- take the planned flight as soon as the flight map opens
-    learnSpots = true,     -- on a route, an area's spot moves to where credit was given
-    editing = false,       -- the window's tools for walls, roads and spots, and sharing them
+    editing = false,       -- the window's tools for walls, roads and zone lines
     minimap = {},          -- LibDBIcon's own settings
 }
 
@@ -86,7 +85,7 @@ function ns.LoadSettings()
     local db = CompassForeverDB
     -- whoever already drew or moved something keeps the tools showing
     if db.editing == nil then
-        for _, key in ipairs({ "walls", "roads", "zonelines", "spots", "finished" }) do
+        for _, key in ipairs({ "walls", "roads", "zonelines", "finished" }) do
             if type(db[key]) == "table" and next(db[key]) then db.editing = true end
         end
     end
@@ -191,7 +190,7 @@ local pending = false
 local lastSignature
 function ns.ProgressChanged()
     if pending then return end
-    -- the moment it happened, before the batching delay (Spots.lua)
+    -- the moment it happened, before the batching delay (Edits.lua)
     if ns.OnProgressEvent then pcall(ns.OnProgressEvent) end
     pending = true
     local after = ns.API("C_Timer", "After")

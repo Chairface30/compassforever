@@ -181,7 +181,6 @@ local function Forget() memoAt = -1 end
 ns.On("route", Forget)
 ns.On("path", Forget)
 ns.On("settings", Forget)
-ns.On("spots", Forget)
 ns.On("progress", Forget)
 
 -- A function turning continent fractions into `mapID`'s fractions, or nil

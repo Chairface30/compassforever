@@ -176,7 +176,7 @@ local function Update()
         distText:SetText("Board the " .. cross.kind:lower())
         return
     end
-    -- at the spot, or anywhere inside an area whose outline is known
+    -- at the stop, or anywhere inside an area whose outline is known
     local arrived = yards <= CLOSE_YARDS
         or (not cross and ns.PlayerInArea and ns.PlayerInArea(zone, stop.node))
     if arrived and stop.single then
@@ -186,7 +186,7 @@ local function Update()
     end
     if arrived then
         -- The area is uncovered on entering it, usually before this; if it
-        -- has not been by now, the spot needs a look (or /cf skip).
+        -- has not been by now, the area needs a look (or /cf skip).
         Point(0)
         arrowTex:SetVertexColor(0.2, 1, 0.25, 0.45)
         distText:SetText("Here")
