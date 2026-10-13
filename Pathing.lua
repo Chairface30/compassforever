@@ -84,12 +84,21 @@ end
 local matrices = {}
 
 -- Each node's first point's number among the zone's points, in data order.
+-- The map-only nodes (after the rest) count only if the terrain's costs
+-- were worked out with them; built before they were added, they have none.
 local function Index(zone)
     if zone.pointIndex then return zone.pointIndex end
+    local all = 0
+    for _, node in ipairs(zone.nodes) do all = all + #node.points / 2 end
+    local t = ns.TERRAIN and ns.TERRAIN[zone.ach]
+    local built = t and t.dist and math.floor(math.sqrt(#t.dist / 3) + 0.5)
+    local withMapOnly = built == all
     local n, index = 0, {}
     for _, node in ipairs(zone.nodes) do
-        index[node] = n
-        n = n + #node.points / 2
+        if withMapOnly or not node.mapOnly then
+            index[node] = n
+            n = n + #node.points / 2
+        end
     end
     zone.pointIndex, zone.pointCount = index, n
     return index

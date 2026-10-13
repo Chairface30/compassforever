@@ -11,8 +11,10 @@ local decoded = {}
 
 -- An area's outline as fractions of its zone's map: { rings = { { x1, y1,
 -- x2, y2, ... } ... }, edge = { { x, y } ... } }, or nil without one.
+-- Keyed by criteria ID, or "o" .. overlay ID for a piece of the map no
+-- criterion names (mapOnly).
 function ns.AreaOf(node)
-    local crit = node.criteria
+    local crit = node.criteria or (node.mapOnly and "o" .. node.overlay)
     local raw = crit and ns.AREAS and ns.AREAS[crit]
     if not raw then return nil end
     local a = decoded[crit]

@@ -197,6 +197,7 @@ Eastern Plaguelands    Crown Guard Tower                terrain  chunks=   45 de
 Eastern Plaguelands    The Fungal Vale                  terrain  chunks=  121 depth=4 at  35.5, 42.2
 Eastern Plaguelands    The Noxious Glade                terrain  chunks=  166 depth=6 at  72.7, 35.2
 Eastern Plaguelands    The Infectis Scar                terrain  chunks=   80 depth=3 at  44.0, 58.4
+Eastern Plaguelands    New Avalon                       map only chunks=  506 depth=7 at  87.4, 71.2
 Elwynn Forest          Ridgepoint Tower                 terrain  chunks=   51 depth=3 at  84.1, 79.7
 Elwynn Forest          Eastvale Logging Camp            terrain  chunks=  160 depth=5 at  87.0, 68.1
 Elwynn Forest          Jerod's Landing                  terrain  chunks=   40 depth=3 at  47.6, 85.4
@@ -284,6 +285,7 @@ Mulgore                Thunder Bluff                    terrain  chunks=  160 de
 Mulgore                Windfury Ridge                   terrain  chunks=  135 depth=4 at  50.3, 19.9
 Mulgore                The Venture Co. Mine             terrain  chunks=   40 depth=3 at  57.9, 54.0
 Mulgore                Red Rocks                        terrain  chunks=  130 depth=4 at  56.8, 32.1
+Mulgore                Skywatcher Plateau               map only chunks=  160 depth=5 at  34.6, 16.7
 Redridge Mountains     Lake Everstill                   terrain  chunks=  186 depth=4 at  43.1, 60.4
 Redridge Mountains     Galardell Valley                 terrain  chunks=  165 depth=5 at  73.8, 37.4
 Redridge Mountains     Stonewatch Falls                 terrain  chunks=   69 depth=3 at  72.3, 65.0
@@ -307,6 +309,7 @@ Riverglades            Turner's Logging Camp            terrain  chunks=  105 de
 Riverglades            Twilight's Shroud                terrain  chunks=  167 depth=5 at  25.9, 43.8
 Riverglades            Wheeler's Grange                 terrain  chunks=   49 depth=3 at  54.8, 75.8
 Riverglades            Windstead                        terrain  chunks=  215 depth=5 at  78.9, 37.6
+Riverglades            Krol'dok Stronghold              map only chunks=  769 depth=9 at  55.5, 14.9
 Searing Gorge          Firewatch Ridge                  terrain  chunks=  143 depth=5 at  23.6, 37.0
 Searing Gorge          Dustfire Valley                  terrain  chunks=  131 depth=5 at  75.9, 19.0
 Searing Gorge          Grimesilt Dig Site               terrain  chunks=   32 depth=3 at  65.5, 63.9
@@ -320,12 +323,15 @@ Shen'dralas            Forlorn Gardens                  terrain  chunks=   74 de
 Shen'dralas            Magram Front                     terrain  chunks=   20 depth=2 at  60.6, 54.9
 Shen'dralas            Outcast Hideaway                 terrain  chunks=   21 depth=2 at  32.9, 76.8
 Shen'dralas            Valley of Bones                  terrain  chunks=  276 depth=5 at  50.8, 23.2
+Shen'dralas            Shen'dralas                      map only chunks=  619 depth=7 at  45.9, 57.3
 Silithus               Cenarion Hold                    terrain  chunks=  180 depth=4 at  51.3, 38.4
 Silithus               Valor's Rest                     terrain  chunks=  196 depth=6 at  64.7, 45.6
 Silithus               The Crystal Vale                 terrain  chunks=  107 depth=3 at  21.7, 15.4
 Silithus               The Scarab Wall                  terrain  chunks=   56 depth=2 at  30.3, 91.5
 Silithus               Hive'Zora                        terrain  chunks=  346 depth=8 at  23.6, 61.3
 Silithus               Hive'Regal                       terrain  chunks=  406 depth=9 at  51.3, 78.6
+Silithus               Hive'Ashi                        map only chunks=  454 depth=9 at  36.0, 24.0
+Silithus               Twilight Base Camp               map only chunks=   50 depth=3 at  38.9, 45.6
 Silverpine Forest      North Tide's Hollow              terrain  chunks=   77 depth=3 at  40.5, 28.0
 Silverpine Forest      The Dead Field                   terrain  chunks=   33 depth=3 at  45.2, 22.0
 Silverpine Forest      Deep Elem Mine                   terrain  chunks=   24 depth=2 at  56.3, 47.0
@@ -485,6 +491,7 @@ Tirisfal Glades        Scarlet Watch Post               terrain  chunks=   82 de
 Tirisfal Glades        Venomweb Vale                    terrain  chunks=  304 depth=7 at  88.9, 52.7
 Tirisfal Glades        Stillwater Pond                  terrain  chunks=   93 depth=4 at  49.8, 50.5
 Tirisfal Glades        Undercity                        overlay  chunks=    0 depth=0 at  61.9, 71.6
+Tirisfal Glades        Whispering Forest                map only chunks=  283 depth=6 at  21.0, 59.3
 Un'Goro Crater         Terror Run                       terrain  chunks=  350 depth=6 at  39.2, 72.3
 Un'Goro Crater         Golakka Hot Springs              terrain  chunks=  345 depth=8 at  29.3, 60.1
 Un'Goro Crater         The Slithering Scar              terrain  chunks=  215 depth=7 at  54.5, 84.5

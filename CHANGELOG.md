@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Seven pieces of the redrawn zone maps that no Explore criterion names
+  are areas of their own now, so a zone isn't done until its map is: the
+  middle of Shen'dralas, New Avalon (Eastern Plaguelands), Krol'dok
+  Stronghold (Riverglades), Whispering Forest (Tirisfal Glades), Skywatcher
+  Plateau (Mulgore), Hive'Ashi and Twilight Base Camp (Silithus). They're
+  read off the map only, and their tooltip says the achievement doesn't
+  count them.
 - Right-click a wall, zone line or road to remove just the segment under
   the cursor (the line is split round it). Shift-right-click removes the
   whole line, as right-click used to. Circles still go with a right-click.

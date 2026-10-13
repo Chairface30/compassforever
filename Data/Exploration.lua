@@ -9,6 +9,9 @@
 -- covered area can still be drawn (gray) on the map.
 -- A node whose area has no terrain of its own is marked rough = true: its
 -- point is the middle of the map art, not a checked spot.
+-- A node marked mapOnly = true has no criterion: a piece of the redrawn
+-- map the achievement doesn't name, uncovered on the map all the same.
+-- Those come after a zone's others, so the points before keep their order.
 local _, ns = ...
 ns.ZONES = {
     { ach = 760, map = 1416, name = "Alterac Mountains", continent = 0, w = 2800.0, h = 1866.7, nodes = {
@@ -148,6 +151,7 @@ ns.ZONES = {
         { criteria = 1085, overlay = 890, ox = 203, oy = 186, tw = 273, th = 244, files = { 7997960, 7997961 }, name = "The Fungal Vale", points = { 3550, 4215, 3162, 4564 } },
         { criteria = 1093, overlay = 882, ox = 609, oy = 0, tw = 393, th = 349, files = { 7997965, 7997966, 7997967, 7997968 }, name = "The Noxious Glade", points = { 7269, 3517, 7734, 3169, 7656, 3866, 7346, 2936 } },
         { criteria = 1092, overlay = 883, ox = 534, oy = 247, tw = 207, th = 255, files = { 7997962 }, name = "The Infectis Scar", points = { 4402, 5843, 4789, 5494 } },
+        { overlay = 5058, mapOnly = true, ox = 678, oy = 202, tw = 324, th = 466, files = { 7997944, 7997945, 7997946, 7997947 }, name = "New Avalon", points = { 8741, 7122, 8121, 4331, 8044, 5959, 7966, 8169, 8121, 6890 } },
     } },
     { ach = 776, map = 1429, name = "Elwynn Forest", continent = 0, w = 3470.8, h = 2314.6, nodes = {
         { criteria = 1155, overlay = 130, ox = 696, oy = 435, tw = 306, th = 233, files = { 8061976, 8061977 }, name = "Ridgepoint Tower", points = { 8409, 7966 } },
@@ -216,6 +220,7 @@ ns.ZONES = {
         { criteria = 116888, overlay = 5084, ox = 125, oy = 98, tw = 343, th = 314, files = { 8032458, 8032459, 8032460, 8032461 }, name = "Twilight's Shroud", points = { 2595, 4381, 3213, 4485, 2869, 3866, 2869, 4588 } },
         { criteria = 116890, overlay = 5085, ox = 444, oy = 413, tw = 228, th = 195, files = { 8032462 }, name = "Wheeler's Grange", points = { 5481, 7577 } },
         { criteria = 116894, overlay = 5086, ox = 633, oy = 52, tw = 323, th = 318, files = { 8032463, 8032464, 8032465, 8032466 }, name = "Windstead", points = { 7887, 3763, 7199, 3866, 7543, 3247, 7955, 3144, 7543, 4175 } },
+        { overlay = 5077, mapOnly = true, ox = 309, oy = 0, tw = 334, th = 313, files = { 8032441, 8032442, 8032443, 8032444 }, name = "Krol'dok Stronghold", points = { 5550, 1495, 3832, 4072, 4381, 2320, 4931, 3454, 5344, 2526 } },
     } },
     { ach = 774, map = 1427, name = "Searing Gorge", continent = 0, w = 2231.2, h = 1487.5, nodes = {
         { criteria = 1129, overlay = 721, ox = 85, oy = 30, tw = 512, th = 512, files = { 8064755, 8064756, 8064757, 8064758 }, name = "Firewatch Ridge", points = { 2362, 3697, 2810, 2577, 2213, 2577 } },
@@ -318,6 +323,7 @@ ns.ZONES = {
         { criteria = 1051, overlay = 222, ox = 757, oy = 205, tw = 245, th = 256, files = { 7958262 }, name = "Venomweb Vale", points = { 8889, 5270, 8668, 3831, 8373, 4716, 8373, 5602, 9036, 4495 } },
         { criteria = 1040, overlay = 233, ox = 395, oy = 277, tw = 256, th = 128, files = { 7958248 }, name = "Stillwater Pond", points = { 4979, 5048, 4684, 5270 } },
         { criteria = 1045, overlay = 228, ox = 463, oy = 361, tw = 315, th = 235, files = { 2213428, 2213430 }, name = "Undercity", points = { 6193, 7163 }, rough = true },
+        { overlay = 5013, mapOnly = true, ox = 4, oy = 198, tw = 335, th = 424, files = { 7958263, 7958264, 7958265, 7958266 }, name = "Whispering Forest", points = { 2102, 5934, 1734, 7040, 1291, 5934, 1734, 5159, 1660, 6376 } },
     } },
     { ach = 770, map = 1422, name = "Western Plaguelands", continent = 0, w = 4300.0, h = 2866.7, nodes = {
         { criteria = 1070, overlay = 963, ox = 355, oy = 462, tw = 320, th = 206, files = { 8067740, 8067741 }, name = "Sorrow Hill", points = { 4884, 7849 } },
@@ -519,6 +525,7 @@ ns.ZONES = {
         { criteria = 913, overlay = 208, ox = 416, oy = 50, tw = 190, th = 183, files = { 7938960 }, name = "Windfury Ridge", points = { 5030, 1991, 4651, 1991, 5301, 2235 } },
         { criteria = 907, overlay = 192, ox = 509, oy = 279, tw = 227, th = 214, files = { 7938955 }, name = "The Venture Co. Mine", points = { 5789, 5404 } },
         { criteria = 912, overlay = 206, ox = 496, oy = 119, tw = 180, th = 181, files = { 7938950 }, name = "Red Rocks", points = { 5680, 3210, 5789, 3616, 5897, 3291 } },
+        { overlay = 4987, mapOnly = true, ox = 218, oy = 0, tw = 303, th = 225, files = { 7938951, 7938952 }, name = "Skywatcher Plateau", points = { 3460, 1666, 3731, 1503, 3297, 1422 } },
     } },
     { ach = 63684, map = 2652, name = "Shen'dralas", continent = 1, w = 2050.0, h = 1366.7, nodes = {
         { criteria = 116908, overlay = 5029, ox = 583, oy = 0, tw = 334, th = 415, files = { 7970575, 7970581, 7970582, 7970583 }, name = "Bristleback Retreat", points = { 7195, 3049, 7358, 2073 } },
@@ -527,6 +534,7 @@ ns.ZONES = {
         { criteria = 116911, overlay = 5033, ox = 495, oy = 255, tw = 257, th = 229, files = { 7970592, 7970593 }, name = "Magram Front", points = { 6057, 5488 } },
         { criteria = 116912, overlay = 5034, ox = 125, oy = 362, tw = 344, th = 306, files = { 7970594, 7970595, 7970596, 7970597 }, name = "Outcast Hideaway", points = { 3293, 7683 } },
         { criteria = 116913, overlay = 5035, ox = 81, oy = 0, tw = 620, th = 344, files = { 7970612, 7970613, 7970614, 7970615, 7970616, 7970617 }, name = "Valley of Bones", points = { 5081, 2317, 2480, 2561, 3293, 1341, 3618, 2805, 4431, 3293 } },
+        { overlay = 5030, mapOnly = true, ox = 339, oy = 180, tw = 327, th = 488, files = { 7970620, 7970621, 7970622, 7970623 }, name = "Shen'dralas", points = { 4593, 5732, 7358, 8902, 7358, 5000, 2967, 8659, 5244, 8659 } },
     } },
     { ach = 856, map = 1451, name = "Silithus", continent = 1, w = 3483.3, h = 2322.9, nodes = {
         { criteria = 1463, overlay = 1024, ox = 344, oy = 197, tw = 320, th = 256, files = { 272573, 272545 }, name = "Cenarion Hold", points = { 5132, 3839, 3792, 4413 } },
@@ -535,6 +543,8 @@ ns.ZONES = {
         { criteria = 1470, overlay = 1027, ox = 115, oy = 412, tw = 288, th = 256, files = { 8093964, 8093965 }, name = "The Scarab Wall", points = { 3026, 9148 } },
         { criteria = 1468, overlay = 1025, ox = 96, oy = 143, tw = 384, th = 512, files = { 8093940, 8093941, 8093942, 8093943 }, name = "Hive'Zora", points = { 2356, 6135, 1974, 4556, 3122, 5274, 3026, 6709, 2644, 4556 } },
         { criteria = 1469, overlay = 1026, ox = 244, oy = 284, tw = 512, th = 384, files = { 8093679, 8093771, 8093873, 8093939 }, name = "Hive'Regal", points = { 5132, 7857, 6471, 6709, 6280, 9004, 5993, 7713, 5036, 9004 } },
+        { overlay = 5414, mapOnly = true, ox = 264, oy = 11, tw = 512, th = 320, files = { 8093548, 8093549, 8093550, 8093586 }, name = "Hive'Ashi", points = { 3600, 2404, 5036, 2404, 4270, 3408, 4270, 1399, 3409, 1256 } },
+        { overlay = 5420, mapOnly = true, ox = 343, oy = 196, tw = 320, th = 256, files = { 8093966, 8093967 }, name = "Twilight Base Camp", points = { 3888, 4556 } },
     } },
     { ach = 847, map = 1442, name = "Stonetalon Mountains", continent = 1, w = 4883.3, h = 3256.2, nodes = {
         { criteria = 1351, overlay = 930, ox = 668, oy = 515, tw = 256, th = 128, files = { 8094125 }, name = "Grimtotem Post", points = { 7363, 8599, 7841, 8496 } },

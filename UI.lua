@@ -501,6 +501,9 @@ local function AreaTooltip(node)
     local zone = view.zone
     GameTooltip:SetOwner(mapBox, "ANCHOR_CURSOR")
     GameTooltip:AddLine(node.name, 1, 1, 1)
+    if node.mapOnly then
+        GameTooltip:AddLine("On the map only: the Explore achievement doesn't count it.", 0.7, 0.7, 0.7, true)
+    end
     local order
     if ns.route and ns.route.zone == zone then
         for i, stop in ipairs(ns.route.stops) do

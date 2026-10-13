@@ -182,6 +182,15 @@ def leaf_criteria(tree_id, kids, crit):
     return out
 
 
+def map_only_overlays(overlays, art_id, used_live, art):
+    """The overlays of a zone's current map art that no criterion's overlay
+    matched, with art to show (some have none and never draw), by ID."""
+    out = [o for o in overlays.values()
+           if o["UiMapArtID"] == art_id and o["ID"] not in used_live
+           and int(o["TextureWidth"]) > 0 and art.get(o["ID"])]
+    return sorted(out, key=lambda o: int(o["ID"]))
+
+
 def main():
     cache, addon = sys.argv[1], sys.argv[2]
     ach = {a["ID"]: a for a in load(cache, "Achievement")}
@@ -242,9 +251,17 @@ def main():
             return 0 <= fx <= 1 and 0 <= fy <= 1
 
         nodes = []
+        used_live = set()
         for t, c in leaves:
             o = overlays[c["Asset"]]
             live = new_by_area.get((current.get(ui), o["AreaID_0"]), o)
+            used_live.add(live["ID"])
+            # a piece the redrawn map renamed (Gates of Ironforge is its
+            # Ironforge) sits where the old one did: the same piece, not new
+            for n in overlays.values():
+                if (n["UiMapArtID"] == current.get(ui) and n["OffsetX"] == o["OffsetX"]
+                        and n["OffsetY"] == o["OffsetY"]):
+                    used_live.add(n["ID"])
             # The spots come from the areas both overlays name: the one the
             # achievement checks and the one the map shows now. They can differ
             # (the achievement's Drygulch Ravine also takes Razorwind Canyon, the
@@ -279,6 +296,27 @@ def main():
                           "files": art.get(live["ID"]) or art.get(o["ID"], []), "rough": how != "terrain"})
             report.append(f"{uimaps[ui]['Name_lang']:22} {nodes[-1]['name']:32} {how:8} chunks={count:5} depth={best}"
                           f" at {coords[0][0]*100:5.1f},{coords[0][1]*100:5.1f}")
+        # Pieces of the redrawn map no criterion names (areas Forever added,
+        # Shen'dralas's middle): the map stays covered there until they're
+        # walked too, so they're areas of their own, read off the map only.
+        for o in map_only_overlays(overlays, current.get(ui), used_live, art):
+            ids = [o[f"AreaID_{i}"] for i in range(4) if o[f"AreaID_{i}"] != "0"]
+            cells = set()
+            for aid in ids:
+                cells |= by_area[mapID].get(int(aid), set())
+            picked = pick_points(cells, terrain[mapID], inside) if cells else []
+            if not picked:
+                continue
+            pts, count, best = picked
+            coords = [to_map(p) for p in pts]
+            nodes.append({"overlay": int(o["ID"]), "criteria": None, "mapOnly": True,
+                          "name": areas.get(ids[0], {}).get("AreaName_lang", "?"),
+                          "areas": [int(x) for x in ids], "points": coords,
+                          "ox": int(o["OffsetX"]), "oy": int(o["OffsetY"]),
+                          "tw": int(o["TextureWidth"]), "th": int(o["TextureHeight"]),
+                          "files": art[o["ID"]], "rough": False})
+            report.append(f"{uimaps[ui]['Name_lang']:22} {nodes[-1]['name']:32} map only chunks={count:5} depth={best}"
+                          f" at {coords[0][0]*100:5.1f},{coords[0][1]*100:5.1f}")
         zones.append({"ach": int(a["ID"]), "ui": int(ui), "name": uimaps[ui]["Name_lang"],
                       "continent": mapID, "w": w, "h": h, "nodes": nodes})
 
@@ -303,6 +341,9 @@ def write_exploration(addon, zones):
         "-- covered area can still be drawn (gray) on the map.",
         "-- A node whose area has no terrain of its own is marked rough = true: its",
         "-- point is the middle of the map art, not a checked spot.",
+        "-- A node marked mapOnly = true has no criterion: a piece of the redrawn",
+        "-- map the achievement doesn't name, uncovered on the map all the same.",
+        "-- Those come after a zone's others, so the points before keep their order.",
         "local _, ns = ...",
         "ns.ZONES = {",
     ]
@@ -312,7 +353,9 @@ def write_exploration(addon, zones):
         for n in z["nodes"]:
             pts = ", ".join(f"{round(x * 10000)}, {round(y * 10000)}" for x, y in n["points"])
             rough = ", rough = true" if n["rough"] else ""
-            lines.append(f"        {{ criteria = {n['criteria']}, overlay = {n['overlay']}, "
+            first = (f"criteria = {n['criteria']}, overlay = {n['overlay']}, " if n["criteria"] is not None
+                     else f"overlay = {n['overlay']}, mapOnly = true, ")
+            lines.append(f"        {{ {first}"
                          f"ox = {n['ox']}, oy = {n['oy']}, tw = {n['tw']}, th = {n['th']}, "
                          f"files = {{ {', '.join(str(f) for f in n['files'])} }}, name = {lua_str(n['name'])}, points = {{ {pts} }}{rough} }},")
         lines.append("    } },")

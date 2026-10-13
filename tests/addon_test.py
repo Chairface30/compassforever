@@ -285,7 +285,7 @@ print("data")
 zones = rt.eval("#NS.ZONES")
 nodes = rt.eval("(function() local n = 0 for _, z in ipairs(NS.ZONES) do n = n + #z.nodes end return n end)()")
 check("43 zones", zones == 43, zones)
-check("549 map areas", nodes == 549, nodes)
+check("556 map areas: 549 the achievements name, 7 only the map has", nodes == 556, nodes)
 check("every point on its zone's map", rt.eval('''(function()
     for _, z in ipairs(NS.ZONES) do for _, n in ipairs(z.nodes) do
         if #n.points < 2 or #n.points % 2 ~= 0 then return false end
@@ -1123,7 +1123,7 @@ rt.execute("""NS.StopRoute() function UnitFactionGroup() return "Horde" end
         return REAL_TRANSLATE(from, x, y, to)
     end
     local k = NS.KnownFlights() for id in pairs(k) do k[id] = nil end k[22], k[23] = true, true
-    for _, n in ipairs(MULGORE.nodes) do DONE[n.criteria] = nil end NS.InvalidateProgress()
+    for _, n in ipairs(MULGORE.nodes) do if n.criteria then DONE[n.criteria] = nil end end NS.InvalidateProgress()
     PLAYER.map = 9999
     NS.StartRoute(MULGORE, { quiet = true })
     for _ = 1, 3 do FRAME(1.1) end
@@ -1268,12 +1268,26 @@ print("area outlines (Mulgore)")
 rt.execute("MULGORE = NS.ZoneByMap(1412)")
 check("every Mulgore area has an outline", rt.eval("""(function()
     for _, n in ipairs(MULGORE.nodes) do if not NS.AreaOf(n) then return n.name end end return true end)()""") is True)
-check("548 areas have outlines; Undercity, with no ground, keeps its spot", rt.eval("""(function()
+check("555 areas have outlines; Undercity, with no ground, keeps its spot", rt.eval("""(function()
     local n, without = 0, {}
     for _, z in ipairs(NS.ZONES) do for _, node in ipairs(z.nodes) do
         if NS.AreaOf(node) then n = n + 1 else without[#without + 1] = node.name end
     end end
-    return n .. ":" .. table.concat(without, ",") end)()""") == "548:Undercity")
+    return n .. ":" .. table.concat(without, ",") end)()""") == "555:Undercity")
+# Shen'dralas's middle is on its map but in no criterion: an area of its
+# own, read off the map, and the zone isn't done until it's uncovered.
+rt.execute("""SHEN = NS.ZoneByMap(2652)
+    for _, n in ipairs(SHEN.nodes) do if n.mapOnly then MIDDLE = n end end
+    EXPLORED[2652] = {}
+    for _, n in ipairs(SHEN.nodes) do if not n.mapOnly then table.insert(EXPLORED[2652], { n.ox, n.oy }) end end
+    NS.InvalidateProgress()""")
+check("Shen'dralas has its middle as a map-only area", rt.eval("MIDDLE and MIDDLE.name") == "Shen'dralas"
+      and rt.eval("NS.AreaOf(MIDDLE) ~= nil"))
+check("every criterion's piece uncovered still leaves the middle",
+      rt.eval("#NS.ZoneRemaining(SHEN) == 1 and NS.ZoneRemaining(SHEN)[1] == MIDDLE"))
+rt.execute("table.insert(EXPLORED[2652], { MIDDLE.ox, MIDDLE.oy }) NS.InvalidateProgress()")
+check("uncovered on the map, the zone is done", rt.eval("#NS.ZoneRemaining(SHEN) == 0"))
+rt.execute("EXPLORED[2652] = nil NS.InvalidateProgress()")
 check("world map markers are off by default", rt2.eval("NS.db.mapPins == false"))
 def area_lines():
     return rt.eval("""(function() local n = 0 for _, l in ipairs(LINES) do
