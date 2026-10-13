@@ -1010,14 +1010,17 @@ check("the area's route points stay its edge", rt.eval("NS.NodePoints(CREDITED)[
 rt.execute("NS.StopRoute() NS.db.credit = nil NS.db.learnFlights = true")
 
 print("zones mapped by hand")
-check("Un'Goro is back out of the built-in lines", not rt.eval("NS.ZoneHandMapped(NS.ZoneByMap(1449))"))
+check("Un'Goro and Thousand Needles are built in again", rt.eval("NS.ZoneHandMapped(NS.ZoneByMap(1449)) and NS.ZoneHandMapped(NS.ZoneByMap(1441))"))
+# A zone taken back out (Data/Returned.lua): its lines are the player's own
+# again at login, once.
 rt3 = boot()
-check("its lines are the player's own again, to edit",
-      rt3.eval("#NS.db.walls[854] == 12 and #NS.db.zonelines[854] == 2 and NS.db.returned[854] == true"))
-rt3.execute("table.remove(NS.db.walls[854], 1) FIRE('PLAYER_LOGIN') FLUSH()")
-check("only once: an edit made since isn't undone at the next login", rt3.eval("#NS.db.walls[854]") == 11)
-check("Thousand Needles is back out too", not rt3.eval("NS.ZoneHandMapped(NS.ZoneByMap(1441))")
-      and rt3.eval("#NS.db.walls[846] == 57 and #NS.db.roads[846] == 3 and #NS.db.zonelines[846] == 3"))
+rt3.execute("""NS.RETURNED = { [1429] = { walls = { { 0.1, 0.1, 0.2, 0.2 }, { 0.3, 0.3, 0.4, 0.4 } }, roads = { { 0.5, 0.5, 0.6, 0.6 } } } }
+    NS.db.finished = { [1429] = true } NS.db.returned = nil
+    FIRE('PLAYER_LOGIN') FLUSH()""")
+check("a zone taken back out: its lines are the player's own again, to edit",
+      rt3.eval("#NS.db.walls[1429] == 2 and #NS.db.roads[1429] == 1 and NS.db.returned[1429] == true and not NS.db.finished[1429]"))
+rt3.execute("table.remove(NS.db.walls[1429], 1) FIRE('PLAYER_LOGIN') FLUSH()")
+check("only once: an edit made since isn't undone at the next login", rt3.eval("#NS.db.walls[1429]") == 1)
 check("Durotar is built in (hand-mapped)", rt.eval("NS.ZoneHandMapped(NS.ZoneByMap(1411))"))
 check("Elwynn is not", not rt.eval("NS.ZoneHandMapped(ELWYNN)"))
 rt.execute("NS.SetZoneMarkedDone(ELWYNN, true)")

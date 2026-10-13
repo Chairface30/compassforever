@@ -7,6 +7,8 @@
 - Durotar redone from scratch: its built-in lines are the new ones only.
   Thunder Ridge and Drygulch Ravine's cave can be reached again.
 - Thousand Needles is taken back out of the built-in lines too, the same way.
+- Un'Goro Crater and Thousand Needles redrawn and built in again; Ironstone
+  Plateau can be reached. Every area of Kalimdor now reaches every other.
 - Un'Goro Crater is taken back out of the built-in lines to be redrawn:
   at login its walls and zone lines become yours again to edit (once), and
   its done mark clears.
