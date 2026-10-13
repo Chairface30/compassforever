@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Right-click a wall, zone line or road to remove just the segment under
+  the cursor (the line is split round it). Shift-right-click removes the
+  whole line, as right-click used to. Circles still go with a right-click.
 - Ctrl-click one segment of a wall to make just that segment a zone line;
   the wall is split round it, so the ends meet exactly. Ctrl-click a zone
   line's segment to make it a wall again.

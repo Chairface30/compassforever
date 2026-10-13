@@ -932,7 +932,20 @@ walls = rt.eval("(function() local w = NS.db.walls[ELWYNN.ach] local t = {} for 
 check(f"right-click ends a wall; the next starts a new one ({walls})", walls == "3,2,c", walls)
 rt.execute("NS.WindowWallClick('RightButton', 0.35, 0.30)")
 walls2 = rt.eval("(function() local w = NS.db.walls[ELWYNN.ach] local t = {} for i, x in ipairs(w) do t[i] = x.circle and 'c' or (#x / 2) end return table.concat(t, ',') end)()")
-check(f"right-click on a wall removes just that one ({walls2})", walls2 == "2,c", walls2)
+check(f"right-click on a wall removes just that segment ({walls2})", walls2 == "2,2,c", walls2)
+rt.execute("NS.WindowWallClick('RightButton', 0.40, 0.35)")
+walls3 = rt.eval("(function() local w = NS.db.walls[ELWYNN.ach] local t = {} for i, x in ipairs(w) do t[i] = x.circle and 'c' or (#x / 2) end return table.concat(t, ',') end)()")
+check(f"its last segment too ({walls3})", walls3 == "2,c", walls3)
+# a road of three segments: the middle one goes, the ends stay as they were
+rt.execute("""NS.WindowWallMode(true, "roads")
+    NS.db.roads = { [ELWYNN.ach] = { { 0.1, 0.7, 0.2, 0.7, 0.3, 0.7, 0.4, 0.7 } } }
+    NS.WindowWallClick("RightButton", 0.25, 0.7)""")
+roads = rt.eval("""(function() local out = {} for _, l in ipairs(NS.db.roads[ELWYNN.ach]) do
+    out[#out + 1] = table.concat(l, " ") end return table.concat(out, " | ") end)()""")
+check(f"right-click on a road's middle segment splits it ({roads})", roads == "0.1 0.7 0.2 0.7 | 0.3 0.7 0.4 0.7", roads)
+rt.execute("""SHIFT = true NS.WindowWallClick("RightButton", 0.15, 0.7) SHIFT = false""")
+check("Shift-right-click removes a whole road", rt.eval("#NS.db.roads[ELWYNN.ach]") == 1)
+rt.execute("""NS.db.roads = nil NS.WindowWallMode(true, "walls")""")
 # Ctrl-click a wall's middle segment: it becomes a zone line, the wall split
 # round it, ends meeting exactly; Ctrl-click it again: a wall once more.
 rt.execute("""NS.db.walls = { [ELWYNN.ach] = { { 0.1, 0.5, 0.2, 0.5, 0.3, 0.5, 0.4, 0.5 } } } NS.db.zonelines = nil

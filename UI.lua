@@ -805,7 +805,8 @@ end
 -------------------------------------------------------------------------------
 -- No path crosses a wall; paths keep to a road until they have to leave it.
 -- Left-click adds a corner to the line being drawn, right-click finishes it
--- (or, with none being drawn, removes the one under the cursor). For walls,
+-- (or, with none being drawn, removes the segment under the cursor; with
+-- Shift, its whole line). For walls,
 -- Shift-click sets a circle's middle, a second Shift-click its edge: no path
 -- enters it. A zone's lines become the player's own copy on the first change.
 
@@ -914,12 +915,12 @@ local function WallAt(zone, x, y)
     return best
 end
 
--- Ctrl-click: the one segment of a wall nearest the cursor becomes a zone
--- line (or a zone line's, a wall). The line is split round it, so the new
--- piece meets what's left of it end to end; pieces of one point are dropped.
-local function SwapSegment(zone, x, y)
+-- The segment of a line nearest (x, y), within a few pixels, among the
+-- player's own lines of `kinds`: kind, the line's index, and k, where the
+-- segment starts in the line's flat list. nil when none is that close.
+local function SegmentAt(zone, kinds, x, y)
     local bestKind, bestLine, bestK, bestD
-    for _, kind in ipairs({ "walls", "zonelines" }) do
+    for _, kind in ipairs(kinds) do
         for w, line in ipairs(Lines(zone, kind)) do
             if not line.circle then
                 for k = 1, #line - 3, 2 do
@@ -937,19 +938,32 @@ local function SwapSegment(zone, x, y)
             end
         end
     end
-    if not bestKind then return false end
-    local from = OwnWalls(zone, bestKind)
-    local line = from[bestLine]
-    local k = bestK
+    return bestKind, bestLine, bestK
+end
+
+-- Take segment k out of line w of `kind`: the line is split round it (the
+-- pieces left keep their exact corners; one of a single point is dropped).
+-- Returns the segment's ends, x1, y1, x2, y2.
+local function CutSegment(zone, kind, w, k)
+    local from = OwnWalls(zone, kind)
+    local line = from[w]
     local before, after = {}, {}
     for i = 1, k + 1 do before[#before + 1] = line[i] end
     for i = k + 2, #line do after[#after + 1] = line[i] end
-    table.remove(from, bestLine)
-    if #after >= 4 then table.insert(from, bestLine, after) end
-    if #before >= 4 then table.insert(from, bestLine, before) end
-    if #from == 0 then ns.db[bestKind][zone.ach] = nil end
-    local toKind = bestKind == "walls" and "zonelines" or "walls"
-    table.insert(OwnWalls(zone, toKind), { line[k], line[k + 1], line[k + 2], line[k + 3] })
+    table.remove(from, w)
+    if #after >= 4 then table.insert(from, w, after) end
+    if #before >= 4 then table.insert(from, w, before) end
+    if #from == 0 then ns.db[kind][zone.ach] = nil end
+    return line[k], line[k + 1], line[k + 2], line[k + 3]
+end
+
+-- Ctrl-click: the one segment of a wall nearest the cursor becomes a zone
+-- line (or a zone line's, a wall), meeting what's left of its line end to end.
+local function SwapSegment(zone, x, y)
+    local kind, w, k = SegmentAt(zone, { "walls", "zonelines" }, x, y)
+    if not kind then return false end
+    local toKind = kind == "walls" and "zonelines" or "walls"
+    table.insert(OwnWalls(zone, toKind), { CutSegment(zone, kind, w, k) })
     ns.WallsChanged()
     ns.Print(toKind == "zonelines" and "That wall segment is a zone line now."
         or "That zone line segment is a wall now.")
@@ -992,10 +1006,19 @@ WallClick = function(button, x, y)
         end
         drawing = nil
     else
-        local w = WallAt(zone, x, y)
-        if w then
-            table.remove(OwnWalls(zone), w)
+        -- right-click: the one segment under the cursor (a circle: all of
+        -- it); Shift-right-click: the whole line
+        local kind, w, k = SegmentAt(zone, { editKind }, x, y)
+        if kind and not IsShiftKeyDown() then
+            CutSegment(zone, kind, w, k)
             ns.WallsChanged()
+        else
+            w = WallAt(zone, x, y)
+            if w then
+                table.remove(OwnWalls(zone), w)
+                if #OwnWalls(zone) == 0 then ns.db[editKind][zone.ach] = nil end
+                ns.WallsChanged()
+            end
         end
     end
     DrawWalls()
@@ -1627,7 +1650,8 @@ local function Build()
     Tip(wallButton, "Draw walls",
         "On a zone's map: left-click to add corners of a wall, right-click to finish it. "
         .. "Shift-click a circle's middle, then Shift-click its edge. "
-        .. "Right-click a wall or circle to remove it. Routes never cross a wall or enter a circle. "
+        .. "Right-click a wall's segment to remove just that segment, Shift-right-click to remove "
+        .. "the whole wall; right-click a circle to remove it. Routes never cross a wall or enter a circle. "
         .. "Tick Zone line (on the map) to draw zone lines instead. "
         .. "Ctrl-click one segment of a wall to make just that segment a zone line (or back). "
         .. "Click Walls again when done.")
@@ -1654,7 +1678,8 @@ local function Build()
         .. "Cyan dots show where the game gave credit for an area. Click Spots again when done.")
     Tip(frame.roadButton, "Draw roads",
         "On a zone's map: left-click to add corners of a road, right-click to finish it. "
-        .. "Right-click a road to remove it. Paths keep to roads until they have to leave them. "
+        .. "Right-click a road's segment to remove just that segment, Shift-right-click to remove "
+        .. "the whole road. Paths keep to roads until they have to leave them. "
         .. "Click Roads again when done.")
 
     local border = CreateFrame("Frame", nil, frame, "BackdropTemplate")
