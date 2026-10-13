@@ -95,6 +95,16 @@ def main():
             print(f"{kind}: zone {ach}, {len(have)} built in + {len(new)} new")
         write_lines(path, var, header_of(path), blocks)
 
+    # a zone taken back out to be redrawn (unbake.py) is built in again
+    import unbake
+    rpath = os.path.join(ADDON, "Data", "Returned.lua")
+    returned = unbake.read_returned(rpath)
+    if any(a in returned for a in achs):
+        for a in achs:
+            if returned.pop(a, None):
+                print(f"zone {a}: no longer waiting in Data/Returned.lua")
+        unbake.write_returned(rpath, returned)
+
 
 if __name__ == "__main__":
     main()

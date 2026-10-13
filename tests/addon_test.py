@@ -486,6 +486,7 @@ check("auto can be turned off again", rt.eval("NS.db.autoRoute") is False)
 # the lines built into the addon
 rt.execute("""SAVED_AREAS = NS.AREAS NS.AREAS = nil
     SAVED_LINES = { NS.WALLS, NS.ROADS, NS.ZONELINES } NS.WALLS, NS.ROADS, NS.ZONELINES = {}, {}, {}
+    SAVED_OWN = { NS.db.walls, NS.db.roads, NS.db.zonelines } NS.db.walls, NS.db.roads, NS.db.zonelines = nil, nil, nil
     NS.WallsChanged()""")
 print("terrain")
 check("every zone has terrain", rt.eval("(function() local n = 0 for _, z in ipairs(NS.ZONES) do if NS.TERRAIN[z.ach] then n = n + 1 end end return n end)()") == 43)
@@ -575,7 +576,8 @@ legs = rt.eval("""(function()
 end)()""")
 check("a route's length is its legs' walking costs", abs(legs[0] - legs[1]) < 1, legs)
 rt.execute("""NS.AREAS = SAVED_AREAS
-    NS.WALLS, NS.ROADS, NS.ZONELINES = SAVED_LINES[1], SAVED_LINES[2], SAVED_LINES[3] NS.WallsChanged()""")
+    NS.WALLS, NS.ROADS, NS.ZONELINES = SAVED_LINES[1], SAVED_LINES[2], SAVED_LINES[3]
+    NS.db.walls, NS.db.roads, NS.db.zonelines = SAVED_OWN[1], SAVED_OWN[2], SAVED_OWN[3] NS.WallsChanged()""")
 
 print("the arrow follows the path")
 rt.execute("""TN = NS.ZoneByMap(1441)
@@ -1014,6 +1016,8 @@ check("its lines are the player's own again, to edit",
       rt3.eval("#NS.db.walls[854] == 12 and #NS.db.zonelines[854] == 2 and NS.db.returned[854] == true"))
 rt3.execute("table.remove(NS.db.walls[854], 1) FIRE('PLAYER_LOGIN') FLUSH()")
 check("only once: an edit made since isn't undone at the next login", rt3.eval("#NS.db.walls[854]") == 11)
+check("Thousand Needles is back out too", not rt3.eval("NS.ZoneHandMapped(NS.ZoneByMap(1441))")
+      and rt3.eval("#NS.db.walls[846] == 57 and #NS.db.roads[846] == 3 and #NS.db.zonelines[846] == 3"))
 check("Durotar is built in (hand-mapped)", rt.eval("NS.ZoneHandMapped(NS.ZoneByMap(1411))"))
 check("Elwynn is not", not rt.eval("NS.ZoneHandMapped(ELWYNN)"))
 rt.execute("NS.SetZoneMarkedDone(ELWYNN, true)")
