@@ -92,11 +92,14 @@ end
 -- Read the open flight map: every point the character can fly to, or is at.
 local function ReadTaxiMap()
     local known, seen = Known(), 0
+    local before = 0
+    for _ in pairs(known) do before = before + 1 end
+    -- what the flight map said, kept to be read after a /reload
+    -- (CompassForeverDB.taxiSaid): name, type, state
+    local said = {}
+    ns.db.taxiSaid = said
     local getAll = ns.API("C_TaxiMap", "GetAllTaxiNodes")
     local mapFn = ns.API(nil, "GetTaxiMapID")
-    -- the flight map's own list first; the newer call only without it
-    local okC0, n0 = ns.Ask(ns.API(nil, "NumTaxiNodes"))
-    if okC0 and ns.Num(n0) and n0 > 0 then getAll = nil end
     if getAll then
         local okM, mapID = ns.Ask(mapFn)
         local ok, nodes = ns.Ask(getAll, okM and mapID or nil)
@@ -106,6 +109,7 @@ local function ReadTaxiMap()
                 local id = ns.Num(info.nodeID)
                 if not (id and ns.FLIGHT_NODES[id]) then id = ByName(ns.Text(info.name)) end
                 local state = info.state
+                said[#said + 1] = "all: " .. tostring(ns.Text(info.name)) .. " state=" .. (ns.Secret(state) and "secret" or tostring(state))
                 if id and state ~= nil and (state == states.Current or state == states.Reachable) then
                     known[id] = true
                     seen = seen + 1
@@ -122,6 +126,7 @@ local function ReadTaxiMap()
         for i = 1, n do
             local okN, name = ns.Ask(nameOf, i)
             local okK, kind = ns.Ask(kindOf, i)
+            said[#said + 1] = "map: " .. (okN and tostring(name) or "?") .. " type=" .. (okK and tostring(kind) or "unreadable")
             local id = okN and ByName(ns.Text(name))
             -- a distant point is one not learned yet: it can't be flown to
             if id and (not kindOf or (okK and (kind == "CURRENT" or kind == "REACHABLE"))) then
@@ -136,6 +141,12 @@ local function ReadTaxiMap()
         ns.db.taxiRead = ns.db.taxiRead or {}
         ns.db.taxiRead[CharKey()] = true
         ns.flightsRead = true
+    end
+    local after = 0
+    for _ in pairs(known) do after = after + 1 end
+    if after ~= before or seen == 0 then
+        ns.Print(seen > 0 and string.format("this character knows %d flight point%s.", after, after == 1 and "" or "s")
+            or "couldn't read which flight points this character knows from the flight map.")
     end
     return seen
 end
@@ -458,6 +469,7 @@ end
 ns.OnTaxi = OnTaxi
 
 local lastStop
+local hinted = false
 local function Reconsider(force)
     local stop = ns.CurrentStop()
     if not stop then
@@ -471,6 +483,10 @@ local function Reconsider(force)
     if cross then zone, stop = cross.zone, cross.stop end
     if not force and stop == lastStop then return end
     lastStop = stop
+    if not ns.flightsRead and not hinted then
+        hinted = true
+        ns.Print("doesn't know this character's flight points yet, so routes walk: open any flight master's map once.")
+    end
     local before = ns.travel
     local _, why = ns.PlanTravel(zone, stop)
     -- coming off a zeppelin the stop changes before the game can place you

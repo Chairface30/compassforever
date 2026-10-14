@@ -664,7 +664,7 @@ check("placed: the flight is planned", rt.eval("NS.travel and NS.travel.toID") =
 rt.execute("NS.PlayerOn, NS.Translate = REAL_PLAYERON, REAL_TRANSLATE NS.travel = nil")
 
 print("known flight points")
-rt.execute("""NS.db.taxi = {} NS.db.taxiRead = {}
+rt.execute("""NS.db.taxi = {} NS.db.taxiRead = {} C_TaxiMap.GetAllTaxiNodes = nil
     C_TaxiMap.GetTaxiNodesForMap = function(map)
         if map ~= 1415 then return {} end
         return { { nodeID = 11, name = "Undercity, Tirisfal", isUndiscovered = false },
@@ -681,6 +681,8 @@ rt.execute("""TAXI = { { "Undercity, Tirisfal", "CURRENT" }, { "The Sepulcher, S
 known = rt.eval("(function() local t = {} for id in pairs(NS.KnownFlights()) do t[#t + 1] = id end table.sort(t) return table.concat(t, ',') end)()")
 check(f"the flight map's points are known ({known})", known == "10,11", known)
 check("and the list counts as read", rt.eval("NS.flightsRead") is True)
+check("what the flight map said is kept to be read later", "map: Undercity, Tirisfal type=CURRENT" in rt.eval("NS.db.taxiSaid[1]"))
+check("and how many are known is said", any("knows 2 flight points" in l for l in printed(rt)))
 # Forever's flight map lists the faction's every point: a distant one is
 # not learned yet, and can't be flown to.
 rt.execute("""TAXI = { { "Undercity, Tirisfal", "CURRENT" }, { "The Sepulcher, Silverpine Forest", "DISTANT" },
