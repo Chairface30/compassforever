@@ -32,6 +32,9 @@ route, so paths keep to ground you can really run.
   at the corner nearest you; the chat line says where you'll land. Only the
   zone's own flight points count (Ashenvale's route no longer flies to Sun
   Rock Retreat, which is on Ashenvale's map but in Stonetalon).
+- A flight is taken when it saves running, even if it takes longer than
+  running there would: a minute in the air counts as a quarter of a minute
+  on foot. The flight line says how much running it saves.
 - Opening a flight master's map says how many flight points you know, and
   the flight the route plans or why there's none.
 - The zone's flight masters you haven't met are always stops on its route

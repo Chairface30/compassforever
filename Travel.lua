@@ -16,10 +16,11 @@
 -- the flight map; with "Fly automatically" on, the flight is taken as soon as
 -- the map opens.
 --
--- When the next stop is far, the quickest way there is worked out: walking
--- straight there, or walking to a known flight point, flying (through other
--- known points if need be) and walking from where you land. Flying wins only
--- if it saves a real amount of time. Then the arrow points at the flight
+-- When the next stop is far, the way there with the least running is worked
+-- out: walking straight there, or walking to a known flight point, flying
+-- (through other known points if need be) and walking from where you land,
+-- a second in the air counted as a quarter of one on foot. Flying wins when
+-- it saves a real amount of running, even if it takes longer. Then the arrow points at the flight
 -- master first, and after landing the route carries on from there.
 --
 -- All distances here are on the continent's map (Data/Flights.lua puts every
@@ -30,8 +31,10 @@ local _, ns = ...
 
 local WINDING = 1.3          -- walking is this much longer than a straight line
 local TAKEOFF = 25           -- seconds to talk, mount up and land
-local SAVE_SECONDS = 30      -- flying must save at least this
-local SAVE_SHARE = 0.85      -- and take at most this share of the walk
+local SAVE_SECONDS = 30      -- flying must save at least this much running
+-- A flight is taken for the running it saves, even when it takes longer:
+-- a second in the air counts as this much of a second on foot.
+local FLY_WEIGHT = 0.25
 local RUN = 7                -- yards a second on foot
 
 ns.travel = nil              -- { from = node, to = node, fromID, toID, seconds, walk }
@@ -257,8 +260,9 @@ end
 -- The quickest way to a stop
 -------------------------------------------------------------------------------
 
--- Seconds of flying between every two known points (through others known),
--- from each starting point's walk.
+-- The cost of reaching every known point by air (through others known), from
+-- each starting point's cost, a flight's seconds counted at FLY_WEIGHT; and
+-- the real seconds in the air to each.
 local function Flights(continent, side, startCost)
     local known = Known()
     local edges = {}
@@ -272,8 +276,8 @@ local function Flights(continent, side, startCost)
         end
     end
     -- Dijkstra from every start at once (each begins at its walking time).
-    local best, prev, done = {}, {}, {}
-    for id, cost in pairs(startCost) do best[id], prev[id] = cost, nil end
+    local best, prev, done, air = {}, {}, {}, {}
+    for id, cost in pairs(startCost) do best[id], prev[id], air[id] = cost, nil, 0 end
     while true do
         local cur, cc
         for id, c in pairs(best) do
@@ -282,19 +286,21 @@ local function Flights(continent, side, startCost)
         if not cur then break end
         done[cur] = true
         for _, e in ipairs(edges[cur] or {}) do
-            local c = cc + e[2]
-            if not best[e[1]] or c < best[e[1]] then best[e[1]], prev[e[1]] = c, cur end
+            local c = cc + e[2] * FLY_WEIGHT
+            if not best[e[1]] or c < best[e[1]] then
+                best[e[1]], prev[e[1]], air[e[1]] = c, cur, air[cur] + e[2]
+            end
         end
     end
-    return best, prev
+    return best, prev, air
 end
 
 -- Where a flight from here could land for a route through `zone`: every
 -- known flight point of the zone (Sun Rock Retreat is on Ashenvale's map,
 -- but Stonetalon's) that a flight reaches
 -- (walking to a known point, then flying through others known), as
--- { x, y (the zone's map), yards (the time it takes, as yards of running),
--- id, name }. Empty when no flight is known or you can't be placed.
+-- { x, y (the zone's map), yards (its cost as yards of running: the run to
+-- the flight master, and the flight at FLY_WEIGHT), id, name }. Empty when no flight is known or you can't be placed.
 local NEAR_ZONE = 0.05       -- of the zone's map outside its edge
 function ns.FlightLandings(zone)
     local out = {}
@@ -309,7 +315,7 @@ function ns.FlightLandings(zone)
     for id in pairs(Known()) do
         local node = ns.FLIGHT_NODES[id]
         if node and node.continent == zone.continent and node.side % (side * 2) >= side then
-            startCost[id] = Yards(c, px, py, node.x, node.y) * WINDING / run + TAKEOFF
+            startCost[id] = Yards(c, px, py, node.x, node.y) * WINDING / run + TAKEOFF * FLY_WEIGHT
         end
     end
     if not next(startCost) then return out end
@@ -356,27 +362,35 @@ function ns.PlanTravel(zone, stop)
 
     local side = Side()
     local known = Known()
-    local startCost = {}
+    -- the flight with the least running, a second in the air counting at
+    -- FLY_WEIGHT: taken when it saves real running, even if it takes longer
+    local startCost, toFP = {}, {}
     for id in pairs(known) do
         local node = ns.FLIGHT_NODES[id]
         if node and node.continent == zone.continent and node.side % (side * 2) >= side then
-            startCost[id] = Yards(c, px, py, node.x, node.y) * WINDING / run + TAKEOFF
+            toFP[id] = Yards(c, px, py, node.x, node.y) * WINDING / run
+            startCost[id] = toFP[id] + TAKEOFF * FLY_WEIGHT
         end
     end
     if not next(startCost) then return Why("no known flight point on this continent") end
-    local best, prev = Flights(zone.continent, side, startCost)
-    local bestTotal, bestEnd
+    local best, prev, air = Flights(zone.continent, side, startCost)
+    local bestCost, bestEnd, bestRun
     for id, t in pairs(best) do
         local node = ns.FLIGHT_NODES[id]
-        if startCost[id] ~= t or prev[id] then          -- an actual flight
-            local total = t + Yards(c, node.x, node.y, tx, ty) * WINDING / run
-            if not bestTotal or total < bestTotal then bestTotal, bestEnd = total, id end
+        if prev[id] then                                 -- an actual flight
+            local first = id
+            while prev[first] do first = prev[first] end
+            local fromLanding = Yards(c, node.x, node.y, tx, ty) * WINDING / run
+            local cost = t + fromLanding
+            if not bestCost or cost < bestCost then
+                bestCost, bestEnd, bestRun = cost, id, toFP[first] + fromLanding
+            end
         end
     end
-    if not bestTotal then return Why("no flight from the known points") end
-    if walk - bestTotal < SAVE_SECONDS or bestTotal > walk * SAVE_SHARE then
-        return Why(string.format("walking is quicker: %d s on foot, %d s flying to %s", math.floor(walk), math.floor(bestTotal),
-            Short(ns.FLIGHT_NODES[bestEnd])))
+    if not bestCost then return Why("no flight from the known points") end
+    if walk - bestRun < SAVE_SECONDS then
+        return Why(string.format("running there is shorter: %d s on foot, %d s of running with the flight to %s",
+            math.floor(walk), math.floor(bestRun), Short(ns.FLIGHT_NODES[bestEnd])))
     end
     local first = bestEnd
     while prev[first] do first = prev[first] end
@@ -384,7 +398,7 @@ function ns.PlanTravel(zone, stop)
         zone = zone, stop = stop,
         fromID = first, toID = bestEnd,
         from = ns.FLIGHT_NODES[first], to = ns.FLIGHT_NODES[bestEnd],
-        seconds = bestTotal, walk = walk,
+        seconds = bestRun + TAKEOFF + air[bestEnd], run = bestRun, walk = walk,
     }
     return ns.travel
 end
@@ -401,8 +415,8 @@ end
 function ns.TravelText()
     local t = ns.travel
     if not t then return nil end
-    return string.format("Fly: take the |cffffd100%s|r flight master to |cffffd100%s|r (saves about %d min)",
-        Short(t.from), Short(t.to), math.max(1, math.floor((t.walk - t.seconds) / 60 + 0.5)))
+    return string.format("Fly: take the |cffffd100%s|r flight master to |cffffd100%s|r (about %d min less running)",
+        Short(t.from), Short(t.to), math.max(1, math.floor((t.walk - (t.run or t.seconds)) / 60 + 0.5)))
 end
 
 -------------------------------------------------------------------------------

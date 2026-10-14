@@ -652,7 +652,30 @@ check("far away with flights known: fly Ironforge to Darkshire",
 check("the flight is said plainly", "Ironforge" in (rt.eval("NS.TravelText()") or "") and "Darkshire" in (rt.eval("NS.TravelText()") or ""))
 rt.execute("NS.PlayerOn = function(map) if map == 1415 then return 0.4900, 0.7600 end return REAL_PLAYERON(map) end NS.PlanTravel(DW, STOP)")
 check("close by: walk", rt.eval("NS.travel == nil"))
-check(f"and why ({rt.eval('NS.travelWhy')})", (rt.eval("NS.travelWhy") or "").startswith("walking is quicker"))
+check(f"and why ({rt.eval('NS.travelWhy')})", (rt.eval("NS.travelWhy") or "").startswith("running there is shorter"))
+# A flight that takes longer than running there, but leaves less to run:
+# taken. Two made-up points, one where you stand and one by the stop, with
+# a long way round between them.
+slow = rt.eval("""(function()
+    NS.PlayerOn = function(map) if map == 1415 then return 0.48737, 0.52365 end return REAL_PLAYERON(map) end
+    local c = NS.CONTINENT_YARDS[0]
+    local dx, dy = (0.4920 - 0.48737) * c.w, (0.7680 - 0.52365) * c.h
+    local yards = math.sqrt(dx * dx + dy * dy)
+    NS.FLIGHT_NODES[9001] = { name = "Here Post, Elwynn", continent = 0, side = 3, x = 0.48737, y = 0.52365 }
+    NS.FLIGHT_NODES[9002] = { name = "There Post, Duskwood", continent = 0, side = 3, x = 0.4920, y = 0.7680 }
+    local paths = NS.FLIGHT_PATHS
+    NS.FLIGHT_PATHS = { { 9001, 9002, yards * 8 } }
+    local k = NS.KnownFlights() local saved = {} for id in pairs(k) do saved[id] = true k[id] = nil end
+    k[9001], k[9002] = true, true
+    NS.PlanTravel(DW, STOP)
+    local t = NS.travel
+    local out = t and string.format("%d>%d, %d s flying vs %d s on foot", t.fromID, t.toID, t.seconds, t.walk) or tostring(NS.travelWhy)
+    local longer = t and t.seconds > t.walk
+    NS.FLIGHT_PATHS = paths NS.FLIGHT_NODES[9001], NS.FLIGHT_NODES[9002] = nil, nil
+    for id in pairs(k) do k[id] = nil end for id in pairs(saved) do k[id] = true end
+    NS.travel = nil
+    return (longer and "longer " or "") .. out end)()""")
+check(f"a slower flight with less running is taken ({slow})", slow.startswith("longer 9001>9002"), slow)
 # Off a zeppelin: the stop is the route's again before the game can place
 # you on its continent. The flight is planned once it can.
 rt.execute("""NS.PlayerOn = function(map) if map == 1415 then return nil end return REAL_PLAYERON(map) end

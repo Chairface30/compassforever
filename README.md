@@ -56,7 +56,8 @@ can't really be crossed (fences, rock faces the height data misses), lines
 that keep a route inside its zone, and roads the textures don't show. They
 are built in and steer every route.
 
-When the next stop is far away and a flight would save real time, the arrow
+When the next stop is far away and a flight would save real running, even
+if the flight itself takes longer, the arrow
 takes you to the nearest useful flight master first and tells you where to
 fly; after you land the route carries on. From another zone, a route can start
 where your flight lands rather than at the corner nearest you. Flights only go
