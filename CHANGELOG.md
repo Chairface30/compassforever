@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Westfall redrawn and built in again: Westfall Lighthouse can be reached.
+- Tanaris: 12 more walls and 2 more zone lines built in.
 - Zones on the way (Options, Routes, or /cf ontheway; off by default): a
   route to another zone first uncovers every zone with areas left that you
   cross going there, one after another in the order you reach them, then
