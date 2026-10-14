@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Westfall redrawn and built in again: Westfall Lighthouse can be reached.
 - Zones on the way (Options, Routes, or /cf ontheway; off by default): a
   route to another zone first uncovers every zone with areas left that you
   cross going there, one after another in the order you reach them, then
