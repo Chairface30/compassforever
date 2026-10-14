@@ -356,9 +356,24 @@ check("route starts in the player's zone", rt.eval("NS.route and NS.route.zone =
 n0 = rt.eval("#NS.route.stops")
 check("route skips what is done", n0 == len(rt.eval("ELWYNN.nodes")) - 2, n0)
 first = rt.eval("NS.CurrentStop().node.criteria")
+rt.execute("ORDER = {} for i, s in ipairs(NS.route.stops) do ORDER[i] = s.node end")
 rt.execute(f"DONE[{first}] = true FIRE('CRITERIA_UPDATE') FLUSH()")
-check("uncovering a stop replans without it", rt.eval("#NS.route.stops") == n0 - 1
+check("uncovering a stop drops it from the route", rt.eval("#NS.route.stops") == n0 - 1
       and rt.eval(f"NS.CurrentStop().node.criteria ~= {first}"))
+check("and the rest keep their order", rt.eval("""(function()
+    for i, s in ipairs(NS.route.stops) do if s.node ~= ORDER[i + 1] then return false end end
+    return true end)()"""))
+mid = rt.eval("NS.route.stops[3].node.criteria")
+rt.execute(f"ORDER = {{}} for i, s in ipairs(NS.route.stops) do ORDER[i] = s.node end DONE[{mid}] = true FIRE('CRITERIA_UPDATE') FLUSH()")
+check("an area uncovered out of turn drops out, the order otherwise unchanged", rt.eval("""(function()
+    local j = 1
+    for i = 1, #ORDER do
+        if i ~= 3 then
+            if NS.route.stops[j].node ~= ORDER[i] then return false end
+            j = j + 1
+        end
+    end
+    return j - 1 == #NS.route.stops end)()"""))
 check("the banner says what was uncovered and where next", "Uncovered" in (rt.eval("rawget(BANNER_TITLE(), '_text')") or ""))
 skipped = rt.eval("NS.CurrentStop().node.overlay")
 rt.execute("SlashCmdList.COMPASSFOREVER('skip')")

@@ -571,9 +571,27 @@ function ns.Yards(yards)
     return string.format("%d yd", math.floor(yards + 0.5))
 end
 
--- After any progress: replan from here, so a stop uncovered by walking
--- through it on the way somewhere else drops out and the rest re-orders.
--- "uncovered" tells the banner what was found and what is next.
+-- A route's length in yards, from the player (if given) through its stops.
+local function RouteYards(zone, stops, sx, sy)
+    local total, cx, cy = 0, sx, sy
+    for _, stop in ipairs(stops) do
+        if cx then
+            local c = ns.PlanCost and ns.PlanCost(zone, cx, cy, stop.x, stop.y)
+            if not c then
+                local dx, dy = (stop.x - cx) * zone.w, (stop.y - cy) * zone.h
+                c = math.sqrt(dx * dx + dy * dy)
+            end
+            total = total + c
+        end
+        cx, cy = stop.x, stop.y
+    end
+    return total
+end
+
+-- After any progress: the route keeps its order. A stop uncovered (even by
+-- walking through it on the way somewhere else) drops out and the rest stay
+-- as planned; an area that is somehow still to do and not on the route goes
+-- on the end. "uncovered" tells the banner what was found and what is next.
 ns.On("progress", function()
     local r = ns.route
     if not r then return end
@@ -591,17 +609,37 @@ ns.On("progress", function()
         end
         return
     end
-    local before = {}
-    for _, stop in ipairs(r.stops) do before[#before + 1] = stop.node end
-    ns.StartRoute(r.zone, { quiet = true, skipped = r.skipped, auto = r.auto })
-    local still = {}
-    for _, stop in ipairs(ns.route and ns.route.stops or {}) do still[stop.node] = true end
-    -- A flight master's stop also drops out when it's no longer worth the
-    -- walk; only one now known was actually learned.
+    local remaining = ns.ZoneRemaining(r.zone)
+    local flights = ns.FlightStops and ns.FlightStops(r.zone) or {}
+    local want = {}
+    for _, node in ipairs(remaining) do want[node] = true end
+    for _, node in ipairs(flights) do want[node] = true end
+    -- A flight master's stop drops out once its flight point is learned.
     local known = ns.KnownFlights and ns.KnownFlights() or {}
-    local found = {}
-    for _, node in ipairs(before) do
-        if not still[node] and (not node.fp or known[node.fp]) then found[#found + 1] = node end
+    local stops, have, found = {}, {}, {}
+    for _, stop in ipairs(r.stops) do
+        if want[stop.node] then
+            stops[#stops + 1] = stop
+            have[stop.node] = true
+        elseif not stop.node.fp or known[stop.node.fp] then
+            found[#found + 1] = stop.node
+        end
     end
+    -- New flight masters aren't added mid-route; areas still to do are.
+    for _, node in ipairs(remaining) do
+        if not have[node] then
+            local p = Points(node)[1]
+            stops[#stops + 1] = { node = node, x = p[1], y = p[2] }
+        end
+    end
+    local changed = #found > 0 or #stops ~= #r.stops
+    if #remaining == 0 or #stops == 0 then
+        ns.route = nil
+        changed = true
+    elseif changed then
+        r.stops = stops
+        r.yards = RouteYards(r.zone, stops, ns.PlayerOn(r.zone.map))
+    end
+    if changed then ns.Fire("route") end
     if #found > 0 then ns.Fire("uncovered", r.zone, found) end
 end)
