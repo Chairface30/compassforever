@@ -812,8 +812,8 @@ end
 local function DrawWalls()
     for _, l in ipairs(wallLines) do l:Hide() end
     if not (hasLines and view.kind == "zone") then return end
-    -- hidden by the option, except while drawing them
-    if ns.db.showLines == false and not wallMode then return end
+    -- shown with the editing tools (Edit walls and roads), and while drawing
+    if not (ns.Editing() or wallMode) then return end
     local n = 0
     local function Draw(pts, r, g, b, a)
         for k = 1, #pts - 3, 2 do
@@ -1407,10 +1407,6 @@ local OPTIONS = {
       tip = "Off, only the areas still to uncover keep their outlines.",
       get = function() return ns.db.doneAreaBorders ~= false end,
       set = function(on) ns.db.doneAreaBorders = on ns.Fire("settings") end },
-    { label = "Walls and roads on the map", mapper = true, desc = "Show the walls and roads drawn here.",
-      tip = "Off, they're hidden on this window's map except while you draw them. They still steer paths either way.",
-      get = function() return ns.db.showLines ~= false end,
-      set = function(on) ns.db.showLines = on ns.Fire("settings") end },
     { label = "Open instead of the world map", desc = "The world map key opens this window.",
       tip = "Your world map key (M unless you changed it) opens Compass Forever instead. "
           .. "The world map still opens from the minimap, the quest log and its other buttons.",

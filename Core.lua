@@ -15,7 +15,6 @@ local DEFAULTS = {
     arrowScale = 1,
     mapPins = false,       -- markers and the route bar on the world map
     worldMapGray = true,   -- covered areas drawn in gray on the world map
-    showLines = true,      -- walls and roads drawn on the window's map
     areaBorders = true,    -- each area's outline drawn on the window's map
     doneAreaBorders = true, -- and the outlines of areas already uncovered
     minimapRoute = true,   -- the route drawn on the minimap too
