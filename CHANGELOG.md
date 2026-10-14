@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Maps:
+  - Azshara redrawn.
+
 ## Compass Forever v1.4 (2026-10-14)
 
 - **Steady flights.** On a flight nothing changes until you land: the route
