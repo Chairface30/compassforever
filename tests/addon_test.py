@@ -652,12 +652,14 @@ check("far away with flights known: fly Ironforge to Darkshire",
 check("the flight is said plainly", "Ironforge" in (rt.eval("NS.TravelText()") or "") and "Darkshire" in (rt.eval("NS.TravelText()") or ""))
 rt.execute("NS.PlayerOn = function(map) if map == 1415 then return 0.4900, 0.7600 end return REAL_PLAYERON(map) end NS.PlanTravel(DW, STOP)")
 check("close by: walk", rt.eval("NS.travel == nil"))
+check(f"and why ({rt.eval('NS.travelWhy')})", (rt.eval("NS.travelWhy") or "").startswith("walking is quicker"))
 # Off a zeppelin: the stop is the route's again before the game can place
 # you on its continent. The flight is planned once it can.
 rt.execute("""NS.PlayerOn = function(map) if map == 1415 then return nil end return REAL_PLAYERON(map) end
     NS.PlanTravel(DW, STOP)""")
 check("not placed yet: no flight, and it says why", rt.eval("NS.travel == nil")
       and rt.eval("select(2, NS.PlanTravel(DW, STOP))") == "unplaced")
+check(f"and the reason says who ({rt.eval('NS.travelWhy')})", "can't place you" in (rt.eval("NS.travelWhy") or ""))
 rt.execute("""NS.PlayerOn = function(map) if map == 1415 then return 0.48737, 0.52365 end return REAL_PLAYERON(map) end
     NS.PlanTravel(DW, STOP)""")
 check("placed: the flight is planned", rt.eval("NS.travel and NS.travel.toID") == 12)
@@ -682,7 +684,7 @@ known = rt.eval("(function() local t = {} for id in pairs(NS.KnownFlights()) do 
 check(f"the flight map's points are known ({known})", known == "10,11", known)
 check("and the list counts as read", rt.eval("NS.flightsRead") is True)
 check("what the flight map said is kept to be read later", "map: Undercity, Tirisfal type=CURRENT" in rt.eval("NS.db.taxiSaid[1]"))
-check("and how many are known is said", any("knows 2 flight points" in l for l in printed(rt)))
+check("and how many are known is said at the flight map", any("knows 2 flight points here" in l for l in printed(rt)))
 # Forever's flight map lists the faction's every point: a distant one is
 # not learned yet, and can't be flown to.
 rt.execute("""TAXI = { { "Undercity, Tirisfal", "CURRENT" }, { "The Sepulcher, Silverpine Forest", "DISTANT" },

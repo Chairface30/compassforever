@@ -142,12 +142,6 @@ local function ReadTaxiMap()
         ns.db.taxiRead[CharKey()] = true
         ns.flightsRead = true
     end
-    local after = 0
-    for _ in pairs(known) do after = after + 1 end
-    if after ~= before or seen == 0 then
-        ns.Print(seen > 0 and string.format("this character knows %d flight point%s.", after, after == 1 and "" or "s")
-            or "couldn't read which flight points this character knows from the flight map.")
-    end
     return seen
 end
 ns.ReadTaxiMap = ReadTaxiMap
@@ -332,20 +326,26 @@ end
 -- Returns nil, "unplaced" when the player can't be placed on the stop's
 -- continent yet (on a zeppelin or boat, say): worth asking again soon.
 local lastRead = -60
+local function Why(text) ns.travelWhy = text return nil end
 function ns.PlanTravel(zone, stop)
     ns.travel = nil
+    ns.travelWhy = nil
     local okT, now = pcall(GetTime)
     now = okT and now or 0
     if now - lastRead > 30 then
         lastRead = now
         ReadFromMaps()
     end
-    if not (zone and stop and ns.FLIGHT_NODES) then return nil end
+    if not (zone and stop and ns.FLIGHT_NODES) then return Why("no stop") end
     local c = ContinentOf(zone)
-    if not c then return nil end
+    if not c then return Why("no continent for " .. tostring(zone.name)) end
     local px, py = ns.PlayerOn(c.map)
     local tx, ty = OnContinent(zone, stop.x, stop.y)
-    if not (px and tx) then return nil, "unplaced" end
+    if not (px and tx) then
+        Why(string.format("can't place %s on the continent map %d (you: %s, map %s)", px and "the stop" or "you",
+            c.map, px and string.format("%.3f, %.3f", px, py) or "nowhere", tostring(ns.PlayerMap and ns.PlayerMap())))
+        return nil, "unplaced"
+    end
     local run = RunSpeed()
     local walk = Yards(c, px, py, tx, ty) * WINDING / run
 
@@ -358,7 +358,7 @@ function ns.PlanTravel(zone, stop)
             startCost[id] = Yards(c, px, py, node.x, node.y) * WINDING / run + TAKEOFF
         end
     end
-    if not next(startCost) then return nil end
+    if not next(startCost) then return Why("no known flight point on this continent") end
     local best, prev = Flights(zone.continent, side, startCost)
     local bestTotal, bestEnd
     for id, t in pairs(best) do
@@ -368,7 +368,11 @@ function ns.PlanTravel(zone, stop)
             if not bestTotal or total < bestTotal then bestTotal, bestEnd = total, id end
         end
     end
-    if not bestTotal or walk - bestTotal < SAVE_SECONDS or bestTotal > walk * SAVE_SHARE then return nil end
+    if not bestTotal then return Why("no flight from the known points") end
+    if walk - bestTotal < SAVE_SECONDS or bestTotal > walk * SAVE_SHARE then
+        return Why(string.format("walking is quicker: %d s on foot, %d s flying to %s", math.floor(walk), math.floor(bestTotal),
+            Short(ns.FLIGHT_NODES[bestEnd])))
+    end
     local first = bestEnd
     while prev[first] do first = prev[first] end
     ns.travel = {
@@ -565,12 +569,24 @@ taxi:SetScript("OnEvent", function(_, event)
         end
         return
     end
-    ReadTaxiMap()
+    local seen = ReadTaxiMap()
     ReadFromMaps()
     if ns.route then
         Reconsider(true)
         ns.ProgressChanged()
     end
+    -- what the flight map told, and what the route makes of it, every time
+    local count = 0
+    for _ in pairs(Known()) do count = count + 1 end
+    local text = seen > 0 and string.format("knows %d flight point%s here", count, count == 1 and "" or "s")
+        or "couldn't read which flight points this character knows"
+    if ns.travel then
+        text = text .. "; " .. ns.TravelText()
+    elseif ns.route then
+        text = text .. "; no flight for the route: " .. tostring(ns.travelWhy or "not asked")
+    end
+    ns.db.travelSaid = text
+    ns.Print(text .. ".")
     if not ns.travel then return end
     if ns.db.autoFly and ns.TakePlannedFlight() then return end
     ShowFlyButton()
