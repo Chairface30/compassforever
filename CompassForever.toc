@@ -2,7 +2,7 @@
 ## Title: Compass Forever
 ## Notes: Uncover every zone map for the Explorer Legacy challenge: the shortest route through each zone, an arrow to every spot, and markers on the world map. Type /cf.
 ## Author: Chairface Chippendale
-## Version: 1.3
+## Version: 1.4
 ## SavedVariables: CompassForeverDB
 ## IconTexture: Interface\Icons\INV_Misc_Map_01
 

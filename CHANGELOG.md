@@ -1,18 +1,19 @@
 # Changelog
 
-## Unreleased
+## Compass Forever v1.4 (2026-10-14)
 
-- On a flight nothing changes until you land: the route isn't replanned
-  as you fly over areas, the arrow says where you're flying instead of
-  turning, and the lines and the minimap button hold still. On landing the
-  route is planned again from there.
-- Westfall redrawn and built in again: Westfall Lighthouse can be reached.
-- Tanaris: 12 more walls and 2 more zone lines built in.
-- Thousand Needles: a road standing in for Freewind Post's lifts, so routes
-  go up and down the mesa there.
-- Un'Goro Crater: one more road built in.
-- The Stop at new flight masters option (and /cf flightpoints) is gone:
-  the zone's flight masters you haven't met are always stops on its route.
+- **Steady flights.** On a flight nothing changes until you land: the route
+  isn't replanned as you fly over areas, the arrow says where you're flying
+  instead of turning, and the lines and the minimap button hold still. On
+  landing the route is planned again from where you come down.
+- The zone's flight masters you haven't met are always stops on its route;
+  the Stop at new flight masters option (and /cf flightpoints) is gone.
+- Maps:
+  - Westfall redrawn: Westfall Lighthouse can be reached.
+  - Thousand Needles: routes go up and down Freewind Post's mesa where its
+    lifts are.
+  - Tanaris: more walls and zone lines.
+  - Un'Goro Crater: a new road.
 
 ## Compass Forever v1.3 (2026-10-13)
 
