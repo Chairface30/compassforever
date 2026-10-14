@@ -3,7 +3,9 @@
 ## Unreleased
 
 - Maps:
-  - Azshara: new roads; Ravencrest Monument can be reached again.
+  - Azshara: new roads, and gaps in the shore walls where they meet the
+    beach; every area can be reached again, Tower of Eldara and Temple of
+    Arkkoran included.
 
 ## Compass Forever v1.5 (2026-10-14)
 
