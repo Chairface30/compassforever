@@ -1162,6 +1162,25 @@ check(f"a route starts only where the zone's own flight points are ({landings})"
 rt.execute("""NS.StopRoute() NS.travel = nil NS.Translate = REAL_TRANSLATE UnitFactionGroup = nil
     PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.42, 0.65""")
 
+print("in flight")
+rt.execute("""NS.StopRoute() for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = nil end EXPLORED[1429] = {} NS.InvalidateProgress()
+    PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.42, 0.65
+    NS.StartRoute(ELWYNN, { quiet = true }) FRAME(1.1)
+    ON_TAXI = true function UnitOnTaxi() return ON_TAXI end
+    FRAME(1.1)
+    BEFORE = #NS.route.stops FIRST = NS.CurrentStop().node
+    -- flying over an area uncovers it
+    DONE[FIRST.criteria] = true table.insert(EXPLORED[1429], { FIRST.ox, FIRST.oy })
+    PLAYER.x, PLAYER.y = 0.6, 0.7
+    FIRE('CRITERIA_UPDATE') FLUSH() FRAME(1.1) FRAME(1.1)""")
+check("in the air the route isn't replanned", rt.eval("NS.InFlight() and #NS.route.stops == BEFORE and NS.CurrentStop().node == FIRST"))
+check("nor any path looked for", rt.eval("NS.Steer(0, { x = 0.5, y = 0.5 }, 0.45, 0.75) == nil"))
+check("and the arrow just says you're flying", "In flight" in rt.eval("TEXTS()") or "Flying to" in rt.eval("TEXTS()"))
+rt.execute("ON_TAXI = false FRAME(1.1) FLUSH()")
+check("landed: planned again from there", rt.eval("not NS.InFlight() and #NS.route.stops == BEFORE - 1"))
+rt.execute("""UnitOnTaxi = nil NS.StopRoute() EXPLORED[1429] = nil
+    for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = nil end NS.InvalidateProgress() PLAYER.x, PLAYER.y = 0.42, 0.65""")
+
 print("zone lines")
 zl = rt.eval("""(function()
     local z = NS.ZoneByMap(1412)

@@ -1066,6 +1066,8 @@ end
 local KEEP = 20              -- seconds a target unused is kept
 
 function ns.Steer(c, stop, px, py, localZone)
+    -- no paths looked for in the air
+    if ns.InFlight and ns.InFlight() then return nil end
     local cont = ns.CONTINENT_YARDS and ns.CONTINENT_YARDS[c]
     if not (cont and cont.maxX) then return nil end
     local key = string.format("%d:%.5f:%.5f:%d", c, stop.x, stop.y, localZone and localZone.ach or 0)

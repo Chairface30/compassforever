@@ -577,6 +577,8 @@ end
 ns.On("progress", function()
     local r = ns.route
     if not r then return end
+    -- on a flight: planned again on landing (Travel.lua)
+    if ns.InFlight and ns.InFlight() then return end
     if r.single then
         -- a one-area route ends when its area is uncovered
         local node = r.single

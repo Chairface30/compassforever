@@ -121,6 +121,7 @@ end
 
 function ns.TurnMinimapArrow()
     if not ns.launcher then return end
+    if ns.InFlight and ns.InFlight() then return end     -- held until you land
     local bearing = Target()
     if not bearing then
         Show(0, 1, 0.82, 0.1)          -- nothing to point at: gold, upright

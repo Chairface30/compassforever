@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- On a flight nothing changes until you land: the route isn't replanned
+  as you fly over areas, the arrow says where you're flying instead of
+  turning, and the lines and the minimap button hold still. On landing the
+  route is planned again from there.
 - Westfall redrawn and built in again: Westfall Lighthouse can be reached.
 - Tanaris: 12 more walls and 2 more zone lines built in.
 - Thousand Needles: a road standing in for Freewind Post's lifts, so routes

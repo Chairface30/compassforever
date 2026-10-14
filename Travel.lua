@@ -430,6 +430,13 @@ local function OnTaxi()
 end
 ns.OnTaxi = OnTaxi
 
+-- On a flight: nothing is replanned, steered or redrawn until you land
+-- (the route is planned again from where you come down). ns.flight says
+-- where to, when a planned flight was taken.
+ns.flight = nil
+local inFlight = false
+function ns.InFlight() return inFlight end
+
 local lastStop
 local hinted = false
 local function Reconsider(force)
@@ -470,8 +477,20 @@ watcher:SetScript("OnUpdate", function(_, dt)
     elapsed = elapsed + (ns.Num(dt) or 0)
     if elapsed < 1 then return end
     elapsed = 0
+    local now = OnTaxi()
+    inFlight = now
     if not ns.route then
         flying = false
+        ns.flight = nil
+        return
+    end
+    if now then
+        if not flying then
+            flying = true
+            ns.flight = { to = ns.travel and Short(ns.travel.to) or nil }
+            ns.travel = nil
+            ns.Fire("travel")
+        end
         return
     end
     -- Off a boat or zeppelin, the target is the stop again.
@@ -482,13 +501,9 @@ watcher:SetScript("OnUpdate", function(_, dt)
         recheck = 0
         Reconsider(true)
     end
-    local now = OnTaxi()
-    if now and not flying then
-        flying = true
-        ns.travel = nil
-        ns.Fire("travel")
-    elseif flying and not now then
+    if flying then
         flying = false
+        ns.flight = nil
         ns.InvalidateProgress()
         ns.StartRoute(ns.route.zone, { quiet = true, skipped = ns.route.skipped, auto = ns.route.auto })
         local text = ns.NextStopText()

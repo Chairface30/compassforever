@@ -136,6 +136,14 @@ local function Update()
     end
     local r = ns.route
     local zone = r.zone
+    -- on a flight: where to, and nothing steered until you land
+    if ns.InFlight and ns.InFlight() then
+        arrowTex:Hide()
+        distText:SetText(ns.flight and ns.flight.to and ("Flying to " .. ns.flight.to) or "In flight")
+        nameText:SetText("then " .. stop.node.name)
+        stepText:SetText(zone.name)
+        return
+    end
     nameText:SetText(stop.node.name)
     stepText:SetText(string.format("%s: stop %d of %d", zone.name, index, #r.stops))
     -- on the other continent: the zeppelin or boat across first

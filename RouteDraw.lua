@@ -165,6 +165,8 @@ end
 
 local memoWhere
 function ns.RouteGeometry()
+    -- in the air: the lines as they were at takeoff
+    if ns.InFlight and ns.InFlight() and memoAt >= 0 then return memo end
     local ok, now = pcall(GetTime)
     now = ok and now or 0
     -- the same while you stand still (a moment at most), else worked out again
