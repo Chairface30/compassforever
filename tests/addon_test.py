@@ -1418,6 +1418,20 @@ check("areas another character uncovered stay covered here",
       rt.eval("(select(1, NS.ZoneCounts(ELWYNN)))") == 0, rt.eval("(select(1, NS.ZoneCounts(ELWYNN)))"))
 rt.execute("local n = ELWYNN.nodes[1] EXPLORED[1429] = { { n.ox, n.oy } } NS.InvalidateProgress()")
 check("only this character's map counts", rt.eval("(select(1, NS.ZoneCounts(ELWYNN)))") == 1)
+# A zone this character never set foot in: the map gives back no list.
+rt.execute("""REAL_EXPLORED_FN = C_MapExplorationInfo.GetExploredMapTextures
+    C_MapExplorationInfo.GetExploredMapTextures = function() return nil end NS.InvalidateProgress()""")
+d, t, u = rt.eval("(function() return table.concat({ NS.ZoneCounts(ELWYNN) }, ',') end)()").split(",")
+check(f"a zone never visited, uncovered by another character: none uncovered here ({d} of {t}, {u} unknown)",
+      d == "0" and u == "0", (d, t, u))
+# The map can't be read at all: the account's criteria say only what's not done.
+rt.execute("""C_MapExplorationInfo.GetExploredMapTextures = function() error("no") end NS.InvalidateProgress()""")
+d, t, u = rt.eval("(function() return table.concat({ NS.ZoneCounts(ELWYNN) }, ',') end)()").split(",")
+check(f"map unreadable: another character's areas are unknown, not uncovered ({d} of {t}, {u} unknown)",
+      d == "0" and u == t, (d, t, u))
+rt.execute(f"EARNED[{rt.eval('ELWYNN.ach')}] = true NS.InvalidateProgress()")
+check("unless this character has the achievement itself", rt.eval("(select(1, NS.ZoneCounts(ELWYNN)))") == int(t))
+rt.execute("""EARNED[ELWYNN.ach] = nil C_MapExplorationInfo.GetExploredMapTextures = REAL_EXPLORED_FN NS.InvalidateProgress()""")
 rt.execute("""ALT_ONLY = false EXPLORED[1429] = {}
     for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = nil end NS.InvalidateProgress()""")
 

@@ -50,7 +50,7 @@ local function Perf(seconds)
     end)
 end
 
-local function Probe()
+local function Probe(text)
     ns.Print("probe:")
     local names = {
         { nil, "GetAchievementInfo" }, { nil, "GetAchievementNumCriteria" },
@@ -67,14 +67,14 @@ local function Probe()
     print(string.format("  explored: %d of %d areas, %d of %d zones; auto-route %s", ad, at, zd, zt,
         ns.db.autoRoute and "on" or "off"))
 
-    local zone = ZoneFromText()
+    local zone = ZoneFromText(text)
     print("  player map = " .. tostring(ns.PlayerMap()) .. ", zone = " .. tostring(zone and zone.name))
     if not zone then return end
     local px, py = ns.PlayerOn(zone.map)
     print(string.format("  position = %s", px and string.format("%.1f, %.1f", px * 100, py * 100) or "unknown"))
     local info = ns.AchInfo(zone.ach)
     print(string.format("  achievement %d: %s", zone.ach,
-        info and ((info.name or "?") .. (info.completed and " (complete)" or "")) or "|cffff5555unreadable|r"))
+        info and ((info.name or "?") .. (info.completed and " (complete" .. (info.mine and ", this character)" or ", another character)") or "")) or "|cffff5555unreadable|r"))
     local crit = ns.Criteria(zone.ach)
     if crit then
         local matched = 0
@@ -156,7 +156,7 @@ local function Help()
     print("  /cf fp - a route to the nearest flight master you haven't met")
     if ns.CanEdit() then print("  /cf edit - the tools for walls, roads and zone lines, shown or hidden") end
     print("  /cf perf [seconds] - measure what the addon costs (default 10 seconds)")
-    print("  /cf probe - what the client says; send this when something looks wrong")
+    print("  /cf probe [zone] - what the client says; send this when something looks wrong")
 end
 
 -- Routing past flight masters not yet met; a route already going is planned
@@ -228,7 +228,7 @@ SlashCmdList.COMPASSFOREVER = function(msg)
         Perf(tonumber(rest) or 10)
     elseif cmd == "probe" then
         ns.InvalidateProgress()
-        Probe()
+        Probe(rest)
     else
         Help()
     end

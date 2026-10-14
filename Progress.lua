@@ -2,10 +2,12 @@
 -- Which parts of each zone map are uncovered, read from the client.
 --
 -- Uncovering is per character: the map's own list of uncovered art
--- (C_MapExplorationInfo) is what this character has found. The "Explore
--- <zone>" achievements are account-wide, so their criteria show areas
--- another character uncovered; they are asked only when the map can't be
--- read.
+-- (C_MapExplorationInfo) is what this character has found. A map with
+-- nothing uncovered gives back no list at all, which is "none", not
+-- "unknown". The "Explore <zone>" achievements are account-wide, so their
+-- criteria show areas another character uncovered: they're asked only for
+-- what the map can't answer, and a criterion done counts only once this
+-- character has the achievement itself.
 --
 -- Answers are cached until something that could change them happens
 -- (ns.ProgressChanged in Core.lua).
@@ -76,9 +78,13 @@ end
 -- art's offset, which is how the map hands them back.
 local function ExploredArt(mapID)
     return Cached("m" .. mapID, function()
-        local ok, list = ns.Ask(ns.API("C_MapExplorationInfo", "GetExploredMapTextures"), mapID)
-        if not ok or type(list) ~= "table" then return nil end
+        local fn = ns.API("C_MapExplorationInfo", "GetExploredMapTextures")
+        if not fn then return nil end
+        local ok, list = ns.Ask(fn, mapID)
+        if not ok then return nil end
         local seen = {}
+        -- no list: nothing on this map uncovered yet
+        if type(list) ~= "table" then return seen end
         for _, info in ipairs(list) do
             local x, y = ns.Num(info.offsetX), ns.Num(info.offsetY)
             if x and y then seen[x .. ":" .. y] = true end
@@ -102,6 +108,8 @@ function ns.ZoneState(zone)
         end
         -- Only what the map left unknown from the account-wide criteria.
         local crit = Criteria(zone.ach)
+        local info = AchInfo(zone.ach)
+        local mine = info and info.mine
         if crit then
             local byID = {}
             for _, c in ipairs(crit) do
@@ -112,6 +120,8 @@ function ns.ZoneState(zone)
                 if state[i] == nil then
                     local done = byID[node.criteria]
                     if done == nil then done = byID["o" .. node.overlay] end
+                    -- done by some character of the account, maybe not this one
+                    if done == true and not mine then done = nil end
                     state[i] = done
                     if done ~= nil then source = source or "achievement" end
                 end
