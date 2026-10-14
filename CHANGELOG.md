@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## Compass Forever v1.5 (2026-10-14)
 
 - **The route keeps its order.** Uncovering an area, on the route or on the way
   to another, just drops it; the rest of the route stays as planned instead of
