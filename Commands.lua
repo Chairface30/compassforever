@@ -51,7 +51,16 @@ local function Perf(seconds)
 end
 
 local function Probe(text)
+    -- kept in the saved settings too (CompassForeverDB.probe), to be read
+    -- after a /reload
+    local saved = {}
+    ns.db.probe = saved
+    local function print(s)
+        saved[#saved + 1] = (tostring(s):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
+        _G.print(s)
+    end
     ns.Print("probe:")
+    saved[1] = "probe: " .. tostring(text)
     local names = {
         { nil, "GetAchievementInfo" }, { nil, "GetAchievementNumCriteria" },
         { nil, "GetAchievementCriteriaInfo" }, { "C_MapExplorationInfo", "GetExploredMapTextures" },
@@ -95,14 +104,27 @@ local function Probe(text)
     local ok, list = ns.Ask(ns.API("C_MapExplorationInfo", "GetExploredMapTextures"), zone.map)
     if ok and type(list) == "table" then
         local known = {}
-        for _, node in ipairs(zone.nodes) do known[node.ox .. ":" .. node.oy] = node.name end
+        for _, node in ipairs(zone.nodes) do if node.ox then known[node.ox .. ":" .. node.oy] = node.name end end
         local hit = 0
         for _, t in ipairs(list) do
             if known[tostring(ns.Num(t.offsetX)) .. ":" .. tostring(ns.Num(t.offsetY))] then hit = hit + 1 end
         end
         print(string.format("  map art uncovered: %d pieces, %d match the built-in areas", #list, hit))
+        for _, t in ipairs(list) do
+            print(string.format("    art %s:%s (%sx%s)", tostring(ns.Num(t.offsetX)), tostring(ns.Num(t.offsetY)),
+                tostring(ns.Num(t.textureWidth)), tostring(ns.Num(t.textureHeight))))
+        end
+    elseif ok then
+        print("  map art uncovered: none (" .. type(list) .. ")")
     else
         print("  map art uncovered: |cffff5555unreadable|r")
+    end
+    local state = ns.ZoneState(zone).state
+    for i, node in ipairs(zone.nodes) do
+        local c
+        for _, cc in ipairs(crit or {}) do if cc.id == node.criteria then c = cc break end end
+        print(string.format("    %s: %s (art %s:%s; criterion done=%s by=%s)", node.name, tostring(state[i]),
+            tostring(node.ox), tostring(node.oy), tostring(c and c.done), tostring(c and c.by)))
     end
     local d, t, u = ns.ZoneCounts(zone)
     print(string.format("  result: %d of %d areas uncovered, %d unknown (from %s)", d, t, u,

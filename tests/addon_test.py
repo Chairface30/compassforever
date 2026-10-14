@@ -918,6 +918,10 @@ check("world map markers sit on their spots when zoomed", off < 1e-6, off)
 rt.execute("PRINTED = {} SlashCmdList.COMPASSFOREVER('probe')")
 out = "\n".join(printed(rt))
 check("probe reports the criteria match", "match the built-in areas" in out, out)
+rt.execute("SlashCmdList.COMPASSFOREVER('probe moonglade')")
+saved = rt.eval("table.concat(NS.db.probe, string.char(10))")
+check("probe takes a zone, and is kept in the saved settings, plain", "Moonglade" in saved and "Lake Elune'ara" in saved
+      and "|c" not in saved, saved)
 
 print("cities and other maps")
 rt.execute("""PLAYER.map, PLAYER.x, PLAYER.y = 1453, 0.5, 0.5
