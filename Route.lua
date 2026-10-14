@@ -436,16 +436,8 @@ local function SingleRoute(zone, node, quiet, wasCovered)
     return ns.route
 end
 
-local StartTrip, AdvanceTrip
-
 function ns.StartRoute(zone, opts)
     opts = opts or {}
-    -- the player's own pick: with "Zones on the way" on, a trip through the
-    -- zones between here and there; any trip under way gives way to it
-    if not opts.quiet and not opts.leg then
-        ns.trip = nil
-        if ns.db.onTheWay and StartTrip(zone) then return ns.route end
-    end
     -- a replan keeps a one-area route as it is (from where you are now)
     local r = ns.route
     if opts.quiet and r and r.single and r.zone == zone then return SingleRoute(zone, r.single, true, r.wasCovered) end
@@ -530,24 +522,18 @@ end
 
 -- A click on an area's marker: a route to that one area alone. Start route
 -- gives the whole zone's.
-function ns.RouteVia(zone, node, leg)
-    if not leg then
-        ns.trip = nil
-        if ns.db.onTheWay and StartTrip(zone, node) then return end
-    end
+function ns.RouteVia(zone, node)
     SingleRoute(zone, node, false)
 end
 
 -- A zone's full route is running (not a one-area route).
 function ns.ZoneRouted(zone)
     local r = ns.route
-    if ns.trip and ns.trip.target == zone and not ns.trip.node then return true end
     return r and r.zone == zone and not r.single and true or false
 end
 
 function ns.StopRoute()
     ns.route = nil
-    ns.trip = nil
     ns.Fire("route")
 end
 
@@ -557,7 +543,6 @@ function ns.SingleReached()
     if not (r and r.single) then return end
     ns.route = nil
     ns.Fire("route")
-    AdvanceTrip()
 end
 
 function ns.CurrentStop()
@@ -599,7 +584,6 @@ ns.On("progress", function()
             ns.route = nil
             ns.Fire("route")
             ns.Fire("uncovered", r.zone, { node })
-            AdvanceTrip()
         else
             SingleRoute(r.zone, node, true, r.wasCovered)
         end
@@ -618,110 +602,4 @@ ns.On("progress", function()
         if not still[node] and (not node.fp or known[node.fp]) then found[#found + 1] = node end
     end
     if #found > 0 then ns.Fire("uncovered", r.zone, found) end
-    -- a zone on the way done: on to the next
-    if not ns.route then AdvanceTrip() end
 end)
-
--------------------------------------------------------------------------------
--- Zones on the way
--------------------------------------------------------------------------------
-
--- With "Zones on the way" on (db.onTheWay), a route to another zone of your
--- continent first clears every zone with areas left that you'd pass through
--- going there, in the order you reach them, each with its own zone route
--- (so everything above works as it does for one zone); the zone you picked
--- comes last. ns.trip = { target, node, legs = { zone ... } }: the zones
--- still to come after the one being routed.
---
--- On the way: the straight line from you to the target's nearest area left
--- (or the one picked), looked at every STEP yards; a zone is on it where the
--- line crosses one of its areas' outlines.
-local STEP = 120
-ns.trip = nil
-
-local function ZonesOnTheWay(target, node)
-    local c = ns.CONTINENT_YARDS and ns.CONTINENT_YARDS[target.continent]
-    if not c or ns.PlayerContinent() ~= target.continent then return {} end
-    local px, py = ns.PlayerOn(c.map)
-    if not px then return {} end
-    -- where you're going: the picked area, or the target's nearest left
-    local tx, ty, bestD
-    local nodes = node and { node } or ns.ZoneRemaining(target)
-    for _, n in ipairs(nodes) do
-        for _, p in ipairs(ns.NodePoints(n)) do
-            local cx, cy = ns.ZoneToContinentPoint(target, p[1], p[2])
-            if cx then
-                local d = ((cx - px) * c.w) ^ 2 + ((cy - py) * c.h) ^ 2
-                if not bestD or d < bestD then tx, ty, bestD = cx, cy, d end
-            end
-        end
-    end
-    if not tx then return {} end
-    -- the zones with areas left, and where each sits on the continent
-    local cands = {}
-    for _, z in ipairs(ns.ZONES) do
-        if z ~= target and z.continent == target.continent and #ns.ZoneRemaining(z) > 0 then
-            local r = ns.MapRect(z.map, c.map)
-            if r then cands[#cands + 1] = { zone = z, r = r } end
-        end
-    end
-    local steps = math.max(1, math.ceil(math.sqrt(bestD) / STEP))
-    local found, order = {}, {}
-    for i = 0, steps do
-        local cx, cy = px + (tx - px) * i / steps, py + (ty - py) * i / steps
-        for _, cand in ipairs(cands) do
-            local z, r = cand.zone, cand.r
-            if not found[z] and cx >= r.l and cx <= r.r and cy >= r.t and cy <= r.b then
-                local zx, zy = (cx - r.l) / (r.r - r.l), (cy - r.t) / (r.b - r.t)
-                for _, n in ipairs(z.nodes) do
-                    if ns.InArea(n, zx, zy) then
-                        found[z] = true
-                        order[#order + 1] = z
-                        break
-                    end
-                end
-            end
-        end
-    end
-    return order
-end
-ns.ZonesOnTheWay = ZonesOnTheWay
-
--- Route the next zone of the trip, skipping any finished meanwhile; the
--- target last, as picked (its whole route, or the one area).
-AdvanceTrip = function()
-    local trip = ns.trip
-    if not trip then return end
-    while #trip.legs > 0 do
-        local zone = table.remove(trip.legs, 1)
-        local last = #trip.legs == 0
-        if last and trip.node then
-            ns.trip = nil
-            ns.RouteVia(zone, trip.node, true)
-            return
-        end
-        if last then ns.trip = nil end
-        if ns.StartRoute(zone, { quiet = true, leg = true }) then
-            local d, t = ns.ZoneCounts(zone)
-            ns.Print(string.format("%s %s: %d area%s left.", last and "Now" or "On the way,", zone.name,
-                t - d, t - d == 1 and "" or "s"))
-            return
-        end
-    end
-    ns.trip = nil
-end
-
--- A trip to `zone` (or the one area `node` of it), when there's a zone on
--- the way; false when there isn't, for an ordinary route.
-StartTrip = function(zone, node)
-    local way = ZonesOnTheWay(zone, node)
-    if #way == 0 then return false end
-    local legs, names = {}, {}
-    for _, z in ipairs(way) do legs[#legs + 1] = z names[#names + 1] = z.name end
-    legs[#legs + 1] = zone
-    ns.trip = { target = zone, node = node, legs = legs }
-    ns.Print(string.format("On the way to %s: %s, then %s.", node and node.name or zone.name,
-        table.concat(names, ", "), zone.name))
-    AdvanceTrip()
-    return ns.route ~= nil
-end

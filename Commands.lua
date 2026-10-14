@@ -170,7 +170,6 @@ local function Help()
     print("  /cf - open or close the window")
     print("  /cf route [zone] - walk the shortest route through the zone's covered areas (default: this zone)")
     print("  /cf auto - route automatically on entering a zone, on or off")
-    print("  /cf ontheway - routes to another zone uncover the zones on the way first, on or off")
     print("  /cf next - say the next stop in chat")
     print("  /cf skip - leave the current stop for the end of the route")
     print("  /cf stop - stop the route")
@@ -224,10 +223,6 @@ SlashCmdList.COMPASSFOREVER = function(msg)
     elseif cmd == "auto" then
         ns.SetAutoRoute(not ns.db.autoRoute)
         ns.Print("automatic routes " .. (ns.db.autoRoute and "on" or "off") .. ".")
-    elseif cmd == "ontheway" then
-        ns.db.onTheWay = not ns.db.onTheWay
-        ns.Fire("settings")
-        ns.Print("zones on the way " .. (ns.db.onTheWay and "on" or "off") .. ".")
     elseif cmd == "flightpoints" then
         ns.SetLearnFlights(not ns.db.learnFlights)
         ns.Print("routing past new flight masters " .. (ns.db.learnFlights and "on" or "off") .. ".")

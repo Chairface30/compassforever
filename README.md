@@ -31,10 +31,6 @@ Type `/cf` (or `/compassforever`), or click the map icon on the minimap.
   gray, each area's outline, the route as a line, and you. Point at an area
   for its name; click it to go there next.
 
-With *Zones on the way* on (Options), a route to another zone first takes
-every zone with areas left that you'd cross getting there, in order, then the
-zone you picked.
-
 The route is the shortest walk from where you stand: exact for up to 11 areas,
 and very close beyond that.
 
