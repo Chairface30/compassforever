@@ -1,15 +1,20 @@
 -- Compass Forever: Progress.lua
 -- Which parts of each zone map are uncovered, read from the client.
 --
--- Uncovering is per character: the map's own list of uncovered art
--- (C_MapExplorationInfo) is what this character has found. A map with
--- nothing uncovered gives back no list at all, which is "none", not
--- "unknown". The "Explore <zone>" achievements are account-wide, so their
--- criteria show areas another character uncovered: they're asked only for
--- what the map can't answer, and a criterion done counts as this
--- character's the way the Legacy window counts it: the achievement earned
--- by this character (wasEarnedByMe), or the criterion completed by it (the
--- character's name it gives).
+-- Uncovering is per character, and the Legacy challenge is the word on it:
+-- the "Explore <zone>" achievement's criteria are this character's (on
+-- Forever an achievement another character completed still has this one's
+-- criteria undone), and they're what the Legacy window shows. The client
+-- gives them without IDs, so they're matched to areas by name.
+--
+-- The map's list of uncovered art (C_MapExplorationInfo) can show an area
+-- the criteria don't (Moonglade's lake, on a character that never went
+-- there), and the criteria can tick an area the redrawn map still has a gap
+-- in (Razorwind Canyon ticks Drygulch Ravine). So an area is uncovered when
+-- its criterion is done and the map, where it can say, shows it too. The
+-- map alone answers only for areas without a criterion, or when the
+-- criteria can't be read. A map with nothing uncovered gives back no list
+-- at all, which is "none", not "unknown".
 --
 -- Answers are cached until something that could change them happens
 -- (ns.ProgressChanged in Core.lua).
@@ -79,15 +84,6 @@ end
 
 -- Overlays the map shows as uncovered on this character, keyed "x:y" by the
 -- art's offset, which is how the map hands them back.
--- A criterion completed by this character: its name as the client gives it,
--- "First" or "First Last" (Forever's surnames).
-local function ByMe(by)
-    if type(by) ~= "string" or by == "" then return false end
-    local ok, first, last = ns.Ask(_G.UnitName, "player")
-    if not ok or type(first) ~= "string" then return false end
-    return by == first or (type(last) == "string" and by == first .. " " .. last)
-end
-
 local function ExploredArt(mapID)
     return Cached("m" .. mapID, function()
         local fn = ns.API("C_MapExplorationInfo", "GetExploredMapTextures")
@@ -107,39 +103,29 @@ end
 
 -- Per node of a zone: true (uncovered), false (still to do) or nil (unknown).
 -- Returns the table and where the answer came from.
+local function Key(name) return type(name) == "string" and name:lower() or nil end
 function ns.ZoneState(zone)
     return Cached("z" .. zone.ach, function()
         local state, source = {}, nil
-        -- This character's map first: every node with art is answered by it.
         local art = ExploredArt(zone.map)
-        if art then
-            for i, node in ipairs(zone.nodes) do
-                if node.ox then state[i] = art[node.ox .. ":" .. node.oy] == true end
-            end
-            source = "map"
-        end
-        -- Only what the map left unknown from the account-wide criteria.
         local crit = Criteria(zone.ach)
-        local info = AchInfo(zone.ach)
-        local mine = info and info.mine
-        if crit then
-            -- done: true (this character's), false, or "other" (the account's)
-            local byID = {}
-            for _, c in ipairs(crit) do
-                local done = c.done
-                if done and not (mine or ByMe(c.by)) then done = "other" end
-                if c.id then byID[c.id] = done end
-                if c.asset then byID["o" .. c.asset] = done end
-            end
-            for i, node in ipairs(zone.nodes) do
-                if state[i] == nil then
-                    local done = byID[node.criteria]
-                    if done == nil then done = byID["o" .. node.overlay] end
-                    -- done by some other character of the account, maybe this one too
-                    if done == "other" then done = nil end
-                    state[i] = done
-                    if done ~= nil then source = source or "achievement" end
-                end
+        local byID, byName = {}, {}
+        for _, c in ipairs(crit or {}) do
+            if c.id then byID[c.id] = c end
+            if c.asset then byID["o" .. c.asset] = c end
+            if Key(c.name) then byName[Key(c.name)] = c end
+        end
+        for i, node in ipairs(zone.nodes) do
+            local onMap
+            if art and node.ox then onMap = art[node.ox .. ":" .. node.oy] == true end
+            local c = not node.mapOnly and (byID[node.criteria] or byID["o" .. tostring(node.overlay)]
+                or byName[Key(node.name)]) or nil
+            if c then
+                state[i] = c.done and onMap ~= false
+                source = source or "legacy"
+            else
+                state[i] = onMap
+                if onMap ~= nil then source = source or "map" end
             end
         end
         return { state = state, source = source }

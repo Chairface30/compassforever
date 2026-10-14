@@ -59,12 +59,10 @@ route, so paths keep to ground you can really run.
 - The route is drawn on the minimap too (Options, Display: Route on the
   minimap).
 - The minimap button is a compass arrow pointing at the next stop.
-- Uncovered areas are per character, read from your own map. A zone a
-  character never set foot in no longer shows another character's areas
-  as uncovered (the map gives back nothing there, and the account-wide
-  Explore achievement was asked instead). Where the map can't answer, an
-  area counts the way the Legacy window counts it: done by this character
-  (the challenge earned here, or the area completed under its name).
+- Uncovered areas are per character, as the Legacy window has them: an
+  area counts once this character's Explore challenge has it, and its
+  piece of the map shows. Another character's exploration no longer shows
+  as uncovered (Moonglade on a character that never went there).
 - World map markers are off by default (the option is still there); still
   covered areas show gray on the world map on their own option.
 - A new 48-second fanfare for a finished zone, with a Stop music button

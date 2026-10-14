@@ -1313,7 +1313,8 @@ check("555 areas have outlines; Undercity, with no ground, keeps its spot", rt.e
 rt.execute("""SHEN = NS.ZoneByMap(2652)
     for _, n in ipairs(SHEN.nodes) do if n.mapOnly then MIDDLE = n end end
     EXPLORED[2652] = {}
-    for _, n in ipairs(SHEN.nodes) do if not n.mapOnly then table.insert(EXPLORED[2652], { n.ox, n.oy }) end end
+    for _, n in ipairs(SHEN.nodes) do if not n.mapOnly then
+        table.insert(EXPLORED[2652], { n.ox, n.oy }) DONE[n.criteria] = true end end
     NS.InvalidateProgress()""")
 check("Shen'dralas has its middle as a map-only area", rt.eval("MIDDLE and MIDDLE.name") == "Shen'dralas"
       and rt.eval("NS.AreaOf(MIDDLE) ~= nil"))
@@ -1321,7 +1322,7 @@ check("every criterion's piece uncovered still leaves the middle",
       rt.eval("#NS.ZoneRemaining(SHEN) == 1 and NS.ZoneRemaining(SHEN)[1] == MIDDLE"))
 rt.execute("table.insert(EXPLORED[2652], { MIDDLE.ox, MIDDLE.oy }) NS.InvalidateProgress()")
 check("uncovered on the map, the zone is done", rt.eval("#NS.ZoneRemaining(SHEN) == 0"))
-rt.execute("EXPLORED[2652] = nil NS.InvalidateProgress()")
+rt.execute("EXPLORED[2652] = nil for _, n in ipairs(SHEN.nodes) do if n.criteria then DONE[n.criteria] = nil end end NS.InvalidateProgress()")
 check("world map markers are off by default", rt2.eval("NS.db.mapPins == false"))
 def area_lines():
     return rt.eval("""(function() local n = 0 for _, l in ipairs(LINES) do
@@ -1427,21 +1428,28 @@ check("only this character's map counts", rt.eval("(select(1, NS.ZoneCounts(ELWY
 rt.execute("""REAL_EXPLORED_FN = C_MapExplorationInfo.GetExploredMapTextures
     C_MapExplorationInfo.GetExploredMapTextures = function() return nil end NS.InvalidateProgress()""")
 d, t, u = rt.eval("(function() return table.concat({ NS.ZoneCounts(ELWYNN) }, ',') end)()").split(",")
-check(f"a zone never visited, uncovered by another character: none uncovered here ({d} of {t}, {u} unknown)",
-      d == "0" and u == "0", (d, t, u))
-# The map can't be read at all: the account's criteria say only what's not done.
+check(f"a zone never visited: none uncovered here ({d} of {t}, {u} unknown)", d == "0" and u == "0", (d, t, u))
+# The map can't be read at all: the Legacy criteria are this character's.
 rt.execute("""C_MapExplorationInfo.GetExploredMapTextures = function() error("no") end NS.InvalidateProgress()""")
 d, t, u = rt.eval("(function() return table.concat({ NS.ZoneCounts(ELWYNN) }, ',') end)()").split(",")
-check(f"map unreadable: another character's areas are unknown, not uncovered ({d} of {t}, {u} unknown)",
-      d == "0" and u == t, (d, t, u))
-rt.execute(f"EARNED[{rt.eval('ELWYNN.ach')}] = true NS.InvalidateProgress()")
-check("unless this character has the achievement itself", rt.eval("(select(1, NS.ZoneCounts(ELWYNN)))") == int(t))
-rt.execute("""EARNED[ELWYNN.ach] = nil OLD_UNITNAME = UnitName function UnitName() return 'Beefstrokin', 'Goff' end
-    DONE_BY[ELWYNN.nodes[1].criteria] = 'Beefstrokin Goff' DONE_BY[ELWYNN.nodes[2].criteria] = 'Notte Sure' NS.InvalidateProgress()""")
+check(f"map unreadable: the Legacy criteria answer ({d} of {t}, {u} unknown)", d == t and u == "0", (d, t, u))
+rt.execute("C_MapExplorationInfo.GetExploredMapTextures = REAL_EXPLORED_FN")
+# Moonglade on the user's warrior: the map shows the lake, the Legacy
+# challenge says not done on this character; and the client gives the
+# criteria without IDs, so they're matched by name.
+rt.execute("""ALT_ONLY = false for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = nil end
+    EXPLORED[1429] = {} for _, n in ipairs(ELWYNN.nodes) do table.insert(EXPLORED[1429], { n.ox, n.oy }) end
+    DONE[ELWYNN.nodes[1].criteria] = true
+    REAL_CRIT_FN = GetAchievementCriteriaInfo
+    function GetAchievementCriteriaInfo(id, i)
+        local name, kind, done, q, r, by, flags = REAL_CRIT_FN(id, i)
+        return name, kind, done, q, r, by, flags
+    end
+    NS.InvalidateProgress()""")
 d, t, u = rt.eval("(function() return table.concat({ NS.ZoneCounts(ELWYNN) }, ',') end)()").split(",")
-check(f"or the criterion was completed by this character, by name ({d} of {t}, {u} unknown)", d == "1" and int(u) == int(t) - 1, (d, t, u))
-rt.execute("UnitName = OLD_UNITNAME DONE_BY = {}")
-rt.execute("""EARNED[ELWYNN.ach] = nil C_MapExplorationInfo.GetExploredMapTextures = REAL_EXPLORED_FN NS.InvalidateProgress()""")
+check(f"the map showing an area the Legacy challenge hasn't: still to do ({d} of {t})", d == "1", (d, t, u))
+check("the one done is the one the Legacy criterion names", rt.eval("NS.ZoneState(ELWYNN).state[1] == true and NS.ZoneState(ELWYNN).state[2] == false"))
+rt.execute("GetAchievementCriteriaInfo = REAL_CRIT_FN EXPLORED[1429] = {} NS.InvalidateProgress()")
 rt.execute("""ALT_ONLY = false EXPLORED[1429] = {}
     for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = nil end NS.InvalidateProgress()""")
 

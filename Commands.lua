@@ -89,7 +89,8 @@ local function Probe(text)
         local matched = 0
         for _, c in ipairs(crit) do
             for _, node in ipairs(zone.nodes) do
-                if node.criteria == c.id or node.overlay == c.asset then matched = matched + 1 break end
+                if node.criteria == c.id or node.overlay == c.asset
+                        or (c.name and node.name:lower() == c.name:lower()) then matched = matched + 1 break end
             end
         end
         print(string.format("  criteria: %d read, %d match the built-in areas (of %d)", #crit, matched, #zone.nodes))
@@ -122,7 +123,9 @@ local function Probe(text)
     local state = ns.ZoneState(zone).state
     for i, node in ipairs(zone.nodes) do
         local c
-        for _, cc in ipairs(crit or {}) do if cc.id == node.criteria then c = cc break end end
+        for _, cc in ipairs(crit or {}) do
+            if cc.id == node.criteria or (cc.name and cc.name:lower() == node.name:lower()) then c = cc break end
+        end
         print(string.format("    %s: %s (art %s:%s; criterion done=%s by=%s)", node.name, tostring(state[i]),
             tostring(node.ox), tostring(node.oy), tostring(c and c.done), tostring(c and c.by)))
     end

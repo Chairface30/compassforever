@@ -408,12 +408,22 @@ local function DrawArt(mapID, zone)
         end
     end
     local okE, explored = ns.Ask(ns.API("C_MapExplorationInfo", "GetExploredMapTextures"), mapID)
+    -- art the map shows for an area the Legacy challenge hasn't on this
+    -- character stays gray (Progress.lua)
+    local notYet = {}
+    if zone then
+        local state = ns.ZoneState(zone).state
+        for i, node in ipairs(zone.nodes) do
+            if node.ox and state[i] ~= true then notYet[node.ox .. ":" .. node.oy] = true end
+        end
+    end
     if okE and type(explored) == "table" then
         for _, info in ipairs(explored) do
             local ids = info.fileDataIDs
             local texW, texH = ns.Num(info.textureWidth), ns.Num(info.textureHeight)
             local ox, oy = ns.Num(info.offsetX), ns.Num(info.offsetY)
-            if type(ids) == "table" and texW and texH and ox and oy and not info.isShownByMouseOver then
+            if type(ids) == "table" and texW and texH and ox and oy and not info.isShownByMouseOver
+                    and not notYet[ox .. ":" .. oy] then
                 ns.EachTile(ox, oy, texW, texH, ids, tw, th, function(file, x, y, w, h, u, v)
                     local t = colorArt:Next()
                     t:SetTexture(file)
