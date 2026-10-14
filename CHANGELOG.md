@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Maps:
+  - Azshara: new roads; Ravencrest Monument can be reached again.
+
 ## Compass Forever v1.5 (2026-10-14)
 
 - **The route keeps its order.** Uncovering an area, on the route or on the way
