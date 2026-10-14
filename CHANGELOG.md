@@ -6,6 +6,7 @@
 - Tanaris: 12 more walls and 2 more zone lines built in.
 - Thousand Needles: a road standing in for Freewind Post's lifts, so routes
   go up and down the mesa there.
+- Un'Goro Crater: one more road built in.
 
 ## Compass Forever v1.3 (2026-10-13)
 
