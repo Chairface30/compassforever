@@ -32,8 +32,6 @@ route, so paths keep to ground you can really run.
   at the corner nearest you; the chat line says where you'll land.
 - The zone's flight masters you haven't met are always stops on its route
   (Stop at new flight masters), and only the zone's own.
-- New flight master (under the window's map, or /cf fp): a route to the
-  quickest flight master to reach whose point you haven't learned.
 - Off a zeppelin or boat, the route flies on when that's quicker, instead of
   walking all the way.
 - A stop on the other continent: the arrow, the lines and the flight planner

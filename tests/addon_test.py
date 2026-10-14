@@ -1195,52 +1195,6 @@ shown = rt.eval("""(function()
 end)()""")
 check(f"the continent shows only I'm here! ({shown})", "I'm here!" in shown and "left" not in shown and "zones" not in shown, shown)
 
-print("nearest new flight master")
-rt.execute("""NS.StopRoute() function UnitFactionGroup() return "Alliance" end
-    PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.42, 0.65
-    NS.flightsRead = true for k in pairs(NS.KnownFlights()) do NS.KnownFlights()[k] = nil end
-    NS.RouteToFlightMaster()""")
-fp = rt.eval("NS.CurrentStop() and NS.CurrentStop().node.name")
-check(f"routes to the nearest flight master not yet learned ({fp})", (fp or "").startswith("Flight master: "), fp)
-check("and only there", rt.eval("NS.route and #NS.route.stops == 1"))
-# known points far away make a far unknown one reachable by air: it can win
-far = rt.eval("""(function()
-    local here = NS.PlayerContinent()
-    local c = NS.CONTINENT_YARDS[here]
-    local px, py = NS.PlayerOn(c.map)
-    -- the farthest unknown Alliance flight master, and a known pair to fly next to it
-    local _, _, t0 = NS.NearestNewFlightMaster()
-    return t0
-end)()""")
-check(f"its time counts walking or flying ({far and int(far)} s)", far is not None and far > 0)
-flew = rt.eval("""(function()
-    local known = NS.KnownFlights()
-    local px, py = NS.PlayerOn(1415)
-    local ids = {}
-    for id, n in pairs(NS.FLIGHT_NODES) do
-        if n.continent == 0 and n.side % 2 == 1 then ids[#ids + 1] = id end
-    end
-    local function D(id) local n = NS.FLIGHT_NODES[id] return (n.x - px) ^ 2 + (n.y - py) ^ 2 end
-    -- every point known but two: does a flight ever make the farther one the pick?
-    for _, near in ipairs(ids) do
-        for _, far in ipairs(ids) do
-            if near ~= far and D(far) > D(near) then
-                for k in pairs(known) do known[k] = nil end
-                for _, id in ipairs(ids) do if id ~= near and id ~= far then known[id] = true end end
-                local _, pick = NS.NearestNewFlightMaster()
-                if pick and pick.fp == far then
-                    for k in pairs(known) do known[k] = nil end
-                    return NS.FLIGHT_NODES[far].name .. " over " .. NS.FLIGHT_NODES[near].name
-                end
-            end
-        end
-    end
-    for k in pairs(known) do known[k] = nil end
-    return nil
-end)()""")
-check(f"a flight can make a farther flight master the quickest ({flew})", flew is not None)
-rt.execute("NS.StopRoute() UnitFactionGroup = nil NS.flightsRead = false")
-
 print("paths kept per target")
 both = rt.eval("""(function()
     local z = NS.ZoneByMap(1412)
