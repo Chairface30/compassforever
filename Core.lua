@@ -212,8 +212,6 @@ local pending = false
 local lastSignature
 function ns.ProgressChanged()
     if pending then return end
-    -- the moment it happened, before the batching delay (Edits.lua)
-    if ns.OnProgressEvent then pcall(ns.OnProgressEvent) end
     pending = true
     local after = ns.API("C_Timer", "After")
     local function run()

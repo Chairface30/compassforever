@@ -63,8 +63,10 @@ route, so paths keep to ground you can really run.
   area counts once this character's Explore challenge has it, and its
   piece of the map shows. Another character's exploration no longer shows
   as uncovered (Moonglade on a character that never went there).
-- World map markers are off by default (the option is still there); still
-  covered areas show gray on the world map on their own option.
+- No more spots: areas have no markers on the world map or dots in the
+  window; their outlines show where they are. World map markers (off by
+  default) are now the route bar and the route's numbered stops while it
+  runs. Still-covered areas show gray on the world map on their own option.
 - A new 48-second fanfare for a finished zone, with a Stop music button
   (Options, Display: Fanfare turns it off).
 - /cf perf [seconds] measures what the addon costs, for reporting lag.

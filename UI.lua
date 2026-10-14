@@ -6,9 +6,9 @@
 --   continent  - its zones, each with what is left; hover one to light it up,
 --                click it to open it. Right-click goes back to Azeroth.
 --   zone       - the zone's own map: what you have uncovered in color, what is
---                still covered in gray, a marker on every area still to find,
---                the route as a line, and you. Click a marker to go there
---                next. Right-click goes back to the continent.
+--                still covered in gray, each area's outline, the route as a
+--                line, and you. Click an area to go there next. Right-click
+--                goes back to the continent.
 --
 -- The mouse wheel zooms any of them in and out around the cursor (out past
 -- full size goes up a level), and a zoomed map can be dragged around.
@@ -719,10 +719,6 @@ local function Pin(i)
             GameTooltip:AddLine(self.node.name, 1, 1, 1)
             local pt = ns.NodeMarker(self.node)
             GameTooltip:AddLine(string.format("%.1f, %.1f", pt[1] * 100, pt[2] * 100), 0.7, 0.7, 0.7)
-            local credit = ns.CreditAt(self.node)
-            if credit then
-                GameTooltip:AddLine(string.format("Credit given at %.1f, %.1f", credit[1] * 100, credit[2] * 100), 0.3, 0.9, 1)
-            end
             if self.done then
                 GameTooltip:AddLine("Uncovered.", 0.3, 0.9, 0.3)
                 GameTooltip:AddLine(self.order == 1 and "Your next stop." or "Click to go here.", 1, 0.82, 0)
@@ -1136,28 +1132,6 @@ local function SetPin(p, zone, node, x, y, done, order)
     end
 end
 
--- Where credit was given (Edits.lua): a small cyan dot for each area.
-local creditDots = {}
-local function DrawCredit(zone)
-    for _, d in ipairs(creditDots) do d:Hide() end
-    local n = 0
-    for _, node in ipairs(zone.nodes) do
-        local c = ns.CreditAt(node)
-        if c then
-            n = n + 1
-            local d = Pool(creditDots, n, function()
-                local t = canvas:CreateTexture(nil, "OVERLAY", nil, 6)
-                t:SetTexture("Interface\\COMMON\\Indicator-Gray")
-                t:SetVertexColor(0.3, 0.9, 1, 1)
-                t:SetSize(9, 9)
-                return t
-            end)
-            d:ClearAllPoints()
-            d:SetPoint("CENTER", canvas, "TOPLEFT", c[1] * CW(), -c[2] * CH())
-        end
-    end
-end
-
 -- The outlines of the shown zone's areas (Areas.lua): the next stop's
 -- bright, the rest still covered in gold, uncovered ones faint. A route
 -- heads for their edges. The areaBorders option hides them all, except
@@ -1202,7 +1176,6 @@ end
 
 -- The shown zone's areas. Returns how many pins it used.
 local function DrawZone(zone)
-    DrawCredit(zone)
     local state = ns.ZoneState(zone).state
     local order = {}
     if ns.route and ns.route.zone == zone then
@@ -1321,7 +1294,7 @@ end
 local HINTS = {
     world = "Click a continent to open it. Scroll or use + and - to zoom.",
     continent = "Click a zone to open it. Scroll to zoom, drag to pan. Right-click: Azeroth.",
-    zone = "Click a marker to head there next. Scroll to zoom, drag to pan. Right-click: back.",
+    zone = "Click an area to head there next. Scroll to zoom, drag to pan. Right-click: back.",
     map = "Scroll to zoom, drag to pan. Right-click: back.",
 }
 
@@ -1413,13 +1386,12 @@ local OPTIONS = {
     { section = "Route editing", mapper = true },
     { label = "Edit walls and roads", mapper = true, desc = "Make routes better.",
       tip = "Shows the Walls and Roads buttons over the map. Walls keep routes off ground "
-          .. "you can't really cross, zone lines keep them inside a zone, and roads pull them onto paths. "
-          .. "Cyan dots on the map show where the game gave credit for an area.",
+          .. "you can't really cross, zone lines keep them inside a zone, and roads pull them onto paths.",
       get = function() return ns.db.editing end,
       set = function(on) ns.SetEditing(on) end },
     { section = "Display" },
-    { label = "World map markers", desc = "Areas left and the route on the world map.",
-      tip = "Areas still to uncover, numbered in route order, plus a bar to start the route.",
+    { label = "World map markers", desc = "The route's stops and a route bar on the world map.",
+      tip = "A bar saying how many areas are left, to start the route, and the route's stops, numbered, while it runs.",
       get = function() return ns.db.mapPins end,
       set = function(on) ns.db.mapPins = on ns.Fire("settings") end },
     { label = "Covered areas on the world map", desc = "Areas still to uncover, drawn in gray.",

@@ -1,8 +1,5 @@
 -- Compass Forever: MapPins.lua
 -- On the world map, while it shows a zone with areas still covered:
---   - a marker on each of them, numbered in route order while that zone's
---     route is walked; click one to head there next (it starts the route if
---     none is running);
 --   - a bar across the top of the map saying how many are left, with a
 --     button to start or stop the route and one to open the zone in the
 --     Compass Forever window;
@@ -181,18 +178,6 @@ local function Refresh()
             DrawLines(mapID, inv)
         end
         return
-    end
-    if not zone then return end
-
-    for _, node in ipairs(ns.ZoneRemaining(zone)) do
-        local p = Pin()
-        p:SetScale(inv)
-        p.zone, p.node, p.first = zone, node, false
-        p.num:SetText("")
-        p:SetSize(PIN, PIN)
-        p.dot:SetVertexColor(1, 0.9, 0.3)
-        local pt = ns.NodeMarker(node)
-        Place(p, pt[1], pt[2])
     end
 end
 

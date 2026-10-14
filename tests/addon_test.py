@@ -1002,27 +1002,8 @@ check("Clear roads: this zone's roads gone, other zones' kept",
       rt.eval("NS.db.roads[ELWYNN.ach] == nil and #NS.db.roads[1411] == 1"))
 rt.execute("NS.WindowWallMode(false) NS.db.walls = nil NS.db.roads = nil NS.WallsChanged()")
 
-print("credit")
-rt.execute("""NS.StopRoute() NS.db.credit = nil NS.db.learnFlights = false
-    for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = nil end NS.InvalidateProgress()
-    PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.42, 0.65
-    FIRE('CRITERIA_UPDATE') FLUSH()
-    NS.StartRoute(ELWYNN, { quiet = true })
-    CREDITED = NS.CurrentStop().node
-    PLAYER.x, PLAYER.y = 0.4321, 0.6543
-    DONE[CREDITED.criteria] = true
-    -- in the game the map fills in with the achievement
-    EXPLORED[1429] = EXPLORED[1429] or {}
-    table.insert(EXPLORED[1429], { CREDITED.ox, CREDITED.oy })
-    FIRE('CRITERIA_UPDATE')
-    PLAYER.x, PLAYER.y = 0.5, 0.5   -- run on before progress is handled
-    FLUSH()""")
-credit = rt.eval("(function() local c = NS.db.credit and NS.db.credit[CREDITED.criteria] return c and (c[1] .. ',' .. c[2]) end)()")
-check(f"where credit was given is kept ({credit})", credit == "0.4321,0.6543", credit)
-check("and said in chat", any("Credit for " + rt.eval("CREDITED.name") in l for l in printed(rt)))
-check("the area's route points stay its edge", rt.eval("NS.NodePoints(CREDITED)[1] == NS.AreaOf(CREDITED).edge[1]"))
-rt.execute("NS.StopRoute() NS.db.credit = nil NS.db.learnFlights = true")
-
+print("spots and credit are gone")
+check("no credit kept, dotted or said", rt.eval("NS.CreditAt == nil and NS.OnProgressEvent == nil"))
 print("zones mapped by hand")
 check("Un'Goro and Thousand Needles are built in again", rt.eval("NS.ZoneHandMapped(NS.ZoneByMap(1449)) and NS.ZoneHandMapped(NS.ZoneByMap(1441))"))
 # A zone taken back out (Data/Returned.lua): its lines are the player's own
@@ -1050,11 +1031,11 @@ rt.execute("""NS.StopRoute() NS.db.mapPins = true
     for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = nil end NS.InvalidateProgress()
     function MAP_DOTS() local n = 0 for _, f in ipairs(FRAMES) do
         local d = rawget(f, "dot") if d and rawget(f, "_shown") and rawget(d, "_tex") and rawget(d, "_tex"):find("Indicator") then n = n + 1 end end return n end
+    PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.42, 0.65 NS.StartRoute(ELWYNN, { quiet = true })
     SHOWN_MAP = 1429 WorldMapFrame._scripts.OnShow() BEFORE = MAP_DOTS()
     SHOWN_MAP = 947 FRAME(0.3)""")
-before, after = rt.eval("BEFORE"), rt.eval("MAP_DOTS()")
-check(f"a zone's markers go when the map changes without telling ({before} -> {after})", before > 0 and after < before, (before, after))
-rt.execute("SHOWN_MAP = 1429")
+rt.execute("NS.StopRoute() SHOWN_MAP = 1429 FRAME(0.3)")
+check("no route: no markers on the areas, only the bar", rt.eval("MAP_DOTS()") == 0)
 
 print("clicking one area")
 rt.execute("""NS.StopRoute() for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = nil end
