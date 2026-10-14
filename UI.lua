@@ -1373,10 +1373,6 @@ local OPTIONS = {
           .. "Leaving the zone ends that route.",
       get = function() return ns.db.autoRoute end,
       set = function(on) ns.SetAutoRoute(on) end },
-    { label = "Stop at new flight masters", desc = "Learn the zone's flight points on the way.",
-      tip = "Each flight master in the zone you haven't met joins the route, so its flight point is learned.",
-      get = function() return ns.db.learnFlights end,
-      set = function(on) ns.SetLearnFlights(on) end },
     { label = "Fly automatically", desc = "Take the planned flight when the map opens.",
       tip = "When the route plans a flight, take it as soon as you open the flight master's map. "
           .. "Off, a button by the flight map takes it in one click.",

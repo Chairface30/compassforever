@@ -23,7 +23,6 @@ local DEFAULTS = {
     autoRoute = false,     -- start a zone's route on entering it
     banner = true,         -- big words for a new route, an uncovered area
     fanfare = true,        -- music on finishing a zone
-    learnFlights = true,   -- route past the zone's flight masters not yet learned
     autoFly = false,       -- take the planned flight as soon as the flight map opens
     editing = false,       -- the window's tools for walls, roads and zone lines
     minimap = {},          -- LibDBIcon's own settings
@@ -112,7 +111,7 @@ function ns.LoadSettings()
     end
     -- the world map markers went off by default with the area outlines:
     -- turned off once for everyone, then theirs to turn on again
-    db.onTheWay = nil      -- an option that's gone
+    db.onTheWay, db.learnFlights = nil, nil   -- options that are gone
     if not db.mapPinsOff then
         db.mapPins, db.mapPinsOff = false, true
     end

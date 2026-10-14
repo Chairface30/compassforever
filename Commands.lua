@@ -174,21 +174,12 @@ local function Help()
     print("  /cf skip - leave the current stop for the end of the route")
     print("  /cf stop - stop the route")
     print("  /cf autofly - take the planned flight as soon as the flight map opens, on or off")
-    print("  /cf flightpoints - route past flight masters you haven't met, on or off")
     print("  /cf banner - the big on-screen messages, on or off")
     print("  /cf minimap - the minimap button, shown or hidden")
     print("  /cf arrow <0.5-2> - size of the arrow")
     if ns.CanEdit() then print("  /cf edit - the tools for walls, roads and zone lines, shown or hidden") end
     print("  /cf perf [seconds] - measure what the addon costs (default 10 seconds)")
     print("  /cf probe [zone] - what the client says; send this when something looks wrong")
-end
-
--- Routing past flight masters not yet met; a route already going is planned
--- again with or without them.
-function ns.SetLearnFlights(on)
-    ns.db.learnFlights = on and true or false
-    if ns.route then ns.StartRoute(ns.route.zone, { quiet = true, skipped = ns.route.skipped, auto = ns.route.auto }) end
-    ns.Fire("settings")
 end
 
 SLASH_COMPASSFOREVER1 = "/cf"
@@ -223,9 +214,6 @@ SlashCmdList.COMPASSFOREVER = function(msg)
     elseif cmd == "auto" then
         ns.SetAutoRoute(not ns.db.autoRoute)
         ns.Print("automatic routes " .. (ns.db.autoRoute and "on" or "off") .. ".")
-    elseif cmd == "flightpoints" then
-        ns.SetLearnFlights(not ns.db.learnFlights)
-        ns.Print("routing past new flight masters " .. (ns.db.learnFlights and "on" or "off") .. ".")
     elseif cmd == "autofly" then
         ns.db.autoFly = not ns.db.autoFly
         ns.Print("flying automatically " .. (ns.db.autoFly and "on" or "off") .. ".")

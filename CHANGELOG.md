@@ -7,6 +7,8 @@
 - Thousand Needles: a road standing in for Freewind Post's lifts, so routes
   go up and down the mesa there.
 - Un'Goro Crater: one more road built in.
+- The Stop at new flight masters option (and /cf flightpoints) is gone:
+  the zone's flight masters you haven't met are always stops on its route.
 
 ## Compass Forever v1.3 (2026-10-13)
 

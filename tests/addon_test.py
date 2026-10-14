@@ -743,10 +743,8 @@ check("the areas are all still there too", rt.eval("""(function()
     for _, n in ipairs(NS.ZoneRemaining(ELWYNN)) do if not on[n] then return false end end return true end)()""") is True)
 rt.execute("NS.flightsRead = false NS.StartRoute(ELWYNN, { quiet = true })")
 check("not before the client has said which points are known", rt.eval("""(function() for _, st in ipairs(NS.route.stops) do if st.node.fp then return true end end return false end)()""") is False)
-rt.execute("NS.flightsRead = true SlashCmdList.COMPASSFOREVER('flightpoints')")
-check("not with /cf flightpoints off", rt.eval("""(function() for _, st in ipairs(NS.route.stops) do if st.node.fp then return true end end return false end)()""") is False)
-rt.execute("SlashCmdList.COMPASSFOREVER('flightpoints')")
-check("back with it on", rt.eval("""(function() for _, st in ipairs(NS.route.stops) do if st.node.fp then return true end end return false end)()""") is True)
+rt.execute("NS.flightsRead = true NS.StartRoute(ELWYNN, { quiet = true })")
+check("once it has, always", rt.eval("""(function() for _, st in ipairs(NS.route.stops) do if st.node.fp then return true end end return false end)()""") is True)
 # Learn it: the client now says it's known.
 rt.execute("""function NumTaxiNodes() return 1 end
     function TaxiNodeName() return "Test Post, Elwynn" end

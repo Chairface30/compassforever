@@ -199,9 +199,9 @@ local function InZone(node, zone)
 end
 
 local stopNodes = {}
-function ns.FlightStops(zone, always)
+function ns.FlightStops(zone)
     local out = {}
-    if not ((always or ns.db.learnFlights) and ns.flightsRead and ns.FLIGHT_NODES and ns.MapRect) then return out end
+    if not (ns.flightsRead and ns.FLIGHT_NODES and ns.MapRect) then return out end
     local c = ns.CONTINENT_YARDS and ns.CONTINENT_YARDS[zone.continent]
     local r = c and ns.MapRect(zone.map, c.map)
     if not r then return out end
