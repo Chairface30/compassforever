@@ -62,7 +62,9 @@ route, so paths keep to ground you can really run.
 - Uncovered areas are per character, read from your own map. A zone a
   character never set foot in no longer shows another character's areas
   as uncovered (the map gives back nothing there, and the account-wide
-  Explore achievement was asked instead).
+  Explore achievement was asked instead). Where the map can't answer, an
+  area counts the way the Legacy window counts it: done by this character
+  (the challenge earned here, or the area completed under its name).
 - World map markers are off by default (the option is still there); still
   covered areas show gray on the world map on their own option.
 - A new 48-second fanfare for a finished zone, with a Stop music button

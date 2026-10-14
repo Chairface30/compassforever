@@ -86,8 +86,8 @@ local function Probe(text)
         print(string.format("  criteria: %d read, %d match the built-in areas (of %d)", #crit, matched, #zone.nodes))
         local c = crit[1]
         if c then
-            print(string.format("    first: %s done=%s id=%s asset=%s", tostring(c.name), tostring(c.done),
-                tostring(c.id), tostring(c.asset)))
+            print(string.format("    first: %s done=%s by=%s id=%s asset=%s", tostring(c.name), tostring(c.done),
+                tostring(c.by), tostring(c.id), tostring(c.asset)))
         end
     else
         print("  criteria: |cffff5555unreadable|r")

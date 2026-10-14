@@ -124,6 +124,7 @@ C_Map = {
 -- Achievements: DONE[criteriaID] = true marks a criterion done.
 ACH_API = true
 DONE = {}
+DONE_BY = {}
 EARNED = {}
 function GetAchievementInfo(id)
     if not ACH_API then error("missing") end
@@ -139,7 +140,7 @@ end
 function GetAchievementCriteriaInfo(id, i)
     if not ACH_API then error("missing") end
     local c = ACH_BY_ID[id].crit[i]
-    return c.name, 43, DONE[c.id] or false, DONE[c.id] and 1 or 0, 1, nil, 0, c.asset, "", c.id, true
+    return c.name, 43, DONE[c.id] or false, DONE[c.id] and 1 or 0, 1, DONE_BY[c.id], 0, c.asset, "", c.id, true
 end
 
 -- The map's uncovered art: EXPLORED[map] = { { offsetX, offsetY } ... }.
@@ -1431,6 +1432,11 @@ check(f"map unreadable: another character's areas are unknown, not uncovered ({d
       d == "0" and u == t, (d, t, u))
 rt.execute(f"EARNED[{rt.eval('ELWYNN.ach')}] = true NS.InvalidateProgress()")
 check("unless this character has the achievement itself", rt.eval("(select(1, NS.ZoneCounts(ELWYNN)))") == int(t))
+rt.execute("""EARNED[ELWYNN.ach] = nil OLD_UNITNAME = UnitName function UnitName() return 'Beefstrokin', 'Goff' end
+    DONE_BY[ELWYNN.nodes[1].criteria] = 'Beefstrokin Goff' DONE_BY[ELWYNN.nodes[2].criteria] = 'Notte Sure' NS.InvalidateProgress()""")
+d, t, u = rt.eval("(function() return table.concat({ NS.ZoneCounts(ELWYNN) }, ',') end)()").split(",")
+check(f"or the criterion was completed by this character, by name ({d} of {t}, {u} unknown)", d == "1" and int(u) == int(t) - 1, (d, t, u))
+rt.execute("UnitName = OLD_UNITNAME DONE_BY = {}")
 rt.execute("""EARNED[ELWYNN.ach] = nil C_MapExplorationInfo.GetExploredMapTextures = REAL_EXPLORED_FN NS.InvalidateProgress()""")
 rt.execute("""ALT_ONLY = false EXPLORED[1429] = {}
     for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = nil end NS.InvalidateProgress()""")
