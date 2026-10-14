@@ -82,6 +82,10 @@ end
 local function TakeBack()
     local db = ns.db
     db.returned = db.returned or {}
+    -- built in again since: taken back out another time, it's handed back
+    for ach in pairs(db.returned) do
+        if not (ns.RETURNED and ns.RETURNED[ach]) then db.returned[ach] = nil end
+    end
     for ach, kinds in pairs(ns.RETURNED or {}) do
         if not db.returned[ach] then
             for kind, lines in pairs(kinds) do

@@ -24,7 +24,7 @@ local DEFAULTS = {
     autoRoute = false,     -- start a zone's route on entering it
     banner = true,         -- big words for a new route, an uncovered area
     fanfare = true,        -- music on finishing a zone
-    learnFlights = true,   -- route past flight masters not yet learned, when close
+    learnFlights = true,   -- route past the zone's flight masters not yet learned
     autoFly = false,       -- take the planned flight as soon as the flight map opens
     editing = false,       -- the window's tools for walls, roads and zone lines
     minimap = {},          -- LibDBIcon's own settings
@@ -45,6 +45,28 @@ function ns.Secret(value)
     if type(check) ~= "function" then return false end
     local ok, secret = pcall(check, value)
     return ok and secret and true or false
+end
+
+-- Route editing (walls, roads and zone lines) is for the addon's own
+-- mapping, on its author's characters only: everyone else just gets the
+-- lines built in. Forever names are "First Last" (UnitName gives the two
+-- apart); the beta realm's have no surname.
+local MAPPERS = {
+    ["Beefstrokin Goff"] = true, ["Briaar Shadowfoot"] = true, ["Chairface Chippendale"] = true,
+    ["Highley Regarded"] = true, ["Notte Sure"] = true, ["Salty Udders"] = true,
+    ["Scrootie Mcboogrballs"] = true, ["Sewer Urchin"] = true,
+    Chairface = true, Highley = true, Notte = true, Whitehot = true,
+}
+function ns.CanEdit()
+    local ok, first, last = ns.Ask(_G.UnitName, "player")
+    if not ok or type(first) ~= "string" then return false end
+    local key = (type(last) == "string" and last ~= "") and (first .. " " .. last) or first
+    return MAPPERS[key] and true or false
+end
+
+-- The editing tools are showing: turned on, by someone who may edit.
+function ns.Editing()
+    return ns.db and ns.db.editing and ns.CanEdit() or false
 end
 
 -- A client call that may be missing, may throw, or may answer in secrets.

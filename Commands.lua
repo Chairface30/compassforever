@@ -149,12 +149,12 @@ local function Help()
     print("  /cf skip - leave the current stop for the end of the route")
     print("  /cf stop - stop the route")
     print("  /cf autofly - take the planned flight as soon as the flight map opens, on or off")
-    print("  /cf flightpoints - route past flight masters you haven't met, when close, on or off")
+    print("  /cf flightpoints - route past flight masters you haven't met, on or off")
     print("  /cf banner - the big on-screen messages, on or off")
     print("  /cf minimap - the minimap button, shown or hidden")
     print("  /cf arrow <0.5-2> - size of the arrow")
     print("  /cf fp - a route to the nearest flight master you haven't met")
-    print("  /cf edit - the tools for walls, roads and zone lines, shown or hidden")
+    if ns.CanEdit() then print("  /cf edit - the tools for walls, roads and zone lines, shown or hidden") end
     print("  /cf perf [seconds] - measure what the addon costs (default 10 seconds)")
     print("  /cf probe - what the client says; send this when something looks wrong")
 end
@@ -221,7 +221,7 @@ SlashCmdList.COMPASSFOREVER = function(msg)
         ns.Print("arrow size " .. ns.db.arrowScale)
     elseif cmd == "fp" then
         ns.RouteToFlightMaster()
-    elseif cmd == "edit" then
+    elseif cmd == "edit" and ns.CanEdit() then
         ns.SetEditing(not ns.db.editing)
         ns.Print("route editing " .. (ns.db.editing and "on" or "off") .. ".")
     elseif cmd == "perf" then

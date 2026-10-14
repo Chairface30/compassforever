@@ -1,233 +1,71 @@
 # Changelog
 
-## Unreleased
+## Compass Forever v1.3 (2026-10-13)
 
-- Flights only between flight points you've learned. Forever's flight map
-  lists every point of your faction, and the ones you haven't learned
-  (distant) were counted as known, so a route could fly you to a flight
-  master you'd never met. Each character's list starts over: open any
-  flight map once on each character.
-- Eastern Kingdoms is mapped by hand: every zone's walls, roads and zone
-  lines are built in, Riverglades too.
-- Thousand Needles is taken back out of the built-in lines again to be
-  reworked: at login its lines become yours to edit (once).
+**Every zone mapped by hand.** All of Kalimdor and the Eastern Kingdoms
+(Riverglades too) have been walked, and walls, zone lines and roads drawn
+where the terrain data alone gets it wrong. They're built in and steer every
+route, so paths keep to ground you can really run.
 
-- Routes make more of flights. From outside a zone, its route can start
-  where a flight lands (from any known flight point in or by the zone)
-  instead of at the corner nearest you, when that's quicker; the chat line
-  says where you'll land. A flight master you haven't learned in the zone
-  is always a stop now, however far out of the way. Only the zone's own
-  flight masters count, not other zones' that fall on its map (Mulgore's
-  route had Brackenwall Village in it).
-- Kalimdor is mapped by hand: every zone's walls, roads and zone lines
-  are built in (Data/Walls.lua, Data/Roads.lua, Data/ZoneLines.lua).
-- Durotar redone from scratch: its built-in lines are the new ones only.
-  Thunder Ridge and Drygulch Ravine's cave can be reached again.
-- Thousand Needles is taken back out of the built-in lines too, the same way.
-- Un'Goro Crater and Thousand Needles redrawn and built in again; Ironstone
-  Plateau can be reached. Every area of Kalimdor now reaches every other.
-- Un'Goro Crater is taken back out of the built-in lines to be redrawn:
-  at login its walls and zone lines become yours again to edit (once), and
-  its done mark clears.
-- Drygulch Ravine (Durotar) gives credit only in its cave at 51.5, 27.7:
-  the route goes there rather than to the ravine's edge.
-- Rut'theran Village: routes take the portal between Darnassus (Teldrassil
-  23.3, 55.5) and Rut'theran (55.9, 89.3), and the boat from Auberdine,
-  instead of finding no way down or swimming the sea. At the portal or the
-  boat the arrow says to take it. The boat's docks are placed by eye.
-- Spots are gone: the Spots button and mode, Spot here, moving spots by
-  hand, learning them from credit (and its option), and the spots built
-  into the addon. Routes go by area outlines. Where credit was given is
-  still recorded, said in chat and shown as a cyan dot.
-- Sharing is gone too: the Share button and window, `/cf share`, and
-  importing a friend's walls and roads.
-- Seven pieces of the redrawn zone maps that no Explore criterion names
-  are areas of their own now, so a zone isn't done until its map is: the
-  middle of Shen'dralas, New Avalon (Eastern Plaguelands), Krol'dok
-  Stronghold (Riverglades), Whispering Forest (Tirisfal Glades), Skywatcher
-  Plateau (Mulgore), Hive'Ashi and Twilight Base Camp (Silithus). They're
-  read off the map only, and their tooltip says the achievement doesn't
-  count them.
-- Right-click a wall, zone line or road to remove just the segment under
-  the cursor (the line is split round it). Shift-right-click removes the
-  whole line, as right-click used to. Circles still go with a right-click.
-- Ctrl-click one segment of a wall to make just that segment a zone line;
-  the wall is split round it, so the ends meet exactly. Ctrl-click a zone
-  line's segment to make it a wall again.
-- Area borders show while drawing walls, zone lines or roads, every
-  area's, whatever the border options say.
-- A Clear button over the map while drawing walls, zone lines or roads:
-  removes all of your lines of that kind in the zone shown (click twice
-  to be sure). Lines built into the addon stay.
-- Off a zeppelin or boat, the route flies on when that's quicker (for
-  example Orgrimmar to Thunder Bluff for Mulgore). It used to plan the way
-  before the game could place you on the new continent, then never look
-  again, so it walked all the way. Flying is now reconsidered every ten
-  seconds on any route, not only while a flight is planned.
-- Mulgore (a trial run): each map area's real outline comes from the
-  terrain (Data/Areas.lua, built by tools/build_areas.py). The route heads
-  for the nearest point just inside each area's edge, over the waypoint
-  graph and roads, instead of one spot in its middle. You've arrived as
-  soon as you're anywhere inside. The window draws the outlines of the
-  areas still covered, with the next stop's in green. Credit no longer
-  moves a spot for an area with an outline.
-- Mulgore's areas have no markers in the window: hovering over an area
-  shows its name (and whether it's uncovered or on the route), and a click
-  routes to it. Such an area has no spot to move.
-- Every zone now has area outlines (548 areas; Undercity, which has no
-  ground of its own, keeps its marker). Uncovered areas keep a faint
-  outline. Two new options under Display: "Area borders on the map" and
-  "Uncovered area borders".
-- World map markers are off by default now, and turned off once for
-  everyone; the option is still there to turn them back on.
-- Walking paths are found over a waypoint graph (Data/Graph.lua, built
-  ahead of time from the terrain by tools/build_graph.py: a waypoint every
-  200 yards, along roads, at every area's spots, flight masters and docks,
-  with the walking links between them) instead of searching the terrain's
-  millions of points in the game. A path takes about a millisecond; the
-  searching never takes more than 2 ms of a frame. Walls, zone lines and
-  roads drawn by hand are laid over the graph in the game, so they work as
-  before and still need no rebuild.
-- The route planner orders stops by the same graph costs, walls and roads
-  included, once a zone's are worked out (in the background).
-- Kills, loot and quest steps no longer replan and redraw everything: a
-  progress refresh goes on only when what's uncovered (here or on the
-  route) or the flight points known really changed. The world map's
-  markers aren't redrawn while it's closed.
-- /cf perf [seconds]: measures what each part of the addon costs in time
-  and memory, for reporting lag.
-- Less lag: the arrow and the minimap button could aim at different
-  targets (the flight master and the stop) and threw away each other's
-  walking path many times a second, so it was searched for again and
-  again. Each target now keeps its own path; the minimap button aims
-  where the arrow does; paths and the route's lines aren't rebuilt when
-  nothing changed.
-- Fixed: every character counted as knowing every flight point, so New
-  flight master said you knew them all and Stop at new flight masters
-  never added any. The world map's flight point list on Forever calls
-  every point discovered; known points now come only from the flight map
-  itself. Each character needs to open a flight master's map once to
-  fill in its list (the old lists are cleared).
-- New flight master (under the window's map, or /cf fp): a route to the
-  flight master quickest to reach on your continent whose flight point you
-  haven't learned, walking or flying through the points you know (a far
-  one a flight away can beat a near one on foot); the route flies when
-  that's quicker.
-- The continent and Azeroth maps in the window carry no labels now, only
-  "I'm here!" on the zone you're in.
-- Zone lines: in Walls mode tick Zone line (on the map) to draw purple
-  lines that work as walls only for paths that stay in the zone (stop to
-  stop, or from you while you're in it); a path coming from another zone
-  crosses them. Shared and built in like walls.
-- A stop on the other continent: the arrow, the lines and the flight
-  planner take you to the nearest zeppelin (Horde) or boat (Alliance;
-  Ratchet to Booty Bay for everyone) across, flying to it when that's
-  quicker; "Board the zeppelin" at the dock. Once across, they head for
-  the stop again.
-- Route editing is a feature for everyone: Options, Route editing, Edit
-  walls, roads and spots (or /cf edit) shows the Walls, Roads, Spots and
-  Share buttons over the window's map (off by default; on already if you
-  have drawn or moved anything). Share (or /cf share) writes your walls,
-  roads and spots as one line of text for this zone or all of them, to
-  copy with Ctrl+C and send to friends; pasting theirs in shows what it
-  holds, then Add to mine or Replace mine takes it in.
-- Clicking an area's marker routes you to that one area only, uncovered
-  or not (even in a fully explored zone); the route ends when you reach it
-  or uncover it. Start route gives the whole zone's route.
-- Spots mode: a Spot here button moves the spot of the area you're standing
-  in to where you are, and Shift-click on a marker moves that area's spot
-  to you. Works on any character, uncovered there or not.
-- World map: backing out of a city no longer leaves its markers on the
-  next map.
-- Uncovered areas are per character: read from your own map, not the
-  account-wide Explore achievements, so an alt no longer sees its zones
-  as explored because another character did them. Spots, walls and roads
-  stay account-wide.
-- Tirisfal Glades is mapped by hand: 14 walls, 16 roads and its 14 spots
-  where the game really gives credit.
-- Dead: as a ghost, the arrow, the minimap button and the route lines
-  (window, world map, minimap) lead back to your corpse along the walking
-  path, in white. Once you're alive the route carries on.
-- A Done mapping this zone tick box on a zone's map: ticked, the zone gets a
-  gold * in the list, ready to be built in. Zones already mapped by hand
-  (built in) show their names in purple.
-- Durotar is mapped by hand: walls and roads keep its routes to ground you
-  can run, and its spots are where the game really gives credit. Built-in
-  walls and roads steer paths without being drawn; only your own show and
-  can be edited.
-- The minimap button is one and a half times its old size, ring and all.
-- After Me, the window's map keeps you in its middle as you move, and opens
-  the next map when you cross into one (Me shows blue while it follows).
-  Click Me again, drag the map or open another to stop.
-- The window opens every map, not only zones with areas to explore: click a
-  city (or any map inside a zone) on the map to open it, right-click goes
-  back up. Opening the window or pressing Me in a city shows that city,
-  with you and any route drawn on it. So it can stand in for the world map.
-- A new fanfare for a finished zone (48 seconds). While it plays, a Stop
-  music button near the top of the screen stops it; drag it anywhere and
-  it stays there. Options, Display: Fanfare turns it off.
-- The minimap button is now a compass arrow that turns as you do: green,
-  pointing at the route's next stop while a route runs; gold, pointing at
-  the nearest area still covered in your zone otherwise; upright when
-  there's nothing to point at.
-- Options, Display: Walls and roads on the map (on). Off, they're hidden on
-  the window's map except while you draw them; they still steer paths.
-- Spots: the Spots button over the window's map lets you drag an area's
-  marker to move its spot; right-click a marker to put it back. A route
-  under way there is planned again at once.
-- Where credit is given: whenever an area of the zone you're in is
-  uncovered, where you were standing is said in chat and kept, shown as a
-  cyan dot on the window's map and in the marker's tooltip. While you run a
-  route, the area's spot moves there too (Options, Routes: Learn spots from
-  credit, on by default).
-- Roads: the Roads button over the window's map draws roads on the zone
-  shown, in lime green, the same way as walls (left-click corners,
-  right-click to finish, right-click a road to remove it). Walking paths
-  keep to a drawn road until they have to leave it for where they're going,
-  even over ground the terrain calls too steep. With roads drawn, a path
-  takes a little longer to work out.
-- Options, Display: Covered areas on the world map (on). The game's world
-  map shows a zone's still-covered areas in gray, as the window does, now
-  apart from the world map markers, so it can be on with the markers off.
-- The window can be resized: drag the grip in its bottom right corner. It
-  keeps its shape as it grows or shrinks, and remembers its size.
-- Options, Display: Open instead of the world map. Your world map key (M
-  unless rebound) opens Compass Forever; the world map still opens from the
-  minimap, the quest log and its other buttons. Off by default.
-- A Map only button in the window's header hides the zone list and
-  everything under the map, shrinking the window to its map; Full view
-  brings them back. The window remembers which.
-  In Map only the Explorer bar fills the space between the title and the
-  buttons, with shorter text, so it no longer runs into Full view.
-- Walls: the Walls button over the window's map turns on wall drawing for
-  the zone shown. Left-click adds corners, right-click finishes a wall,
-  right-click on a wall removes it. Walking paths, the arrow and the drawn
-  route never cross a wall (flights still fly straight over them). Walls
-  show faintly on the map the rest of the time. They are kept in your
-  settings; good ones get built into the addon.
-  While wall mode is on, the zone's map is shown fully uncovered, in color,
-  so the ground can be seen where walls go. The area markers stay shown but
-  let clicks through to the map.
-- Circles: in wall mode, Shift-click a circle's middle, then Shift-click its
-  edge. No walking path enters a circle. Right-click inside one to remove
-  it.
+**Area outlines instead of spots.**
+- Each map area's real outline comes from the game's terrain. The route
+  heads for the nearest point just inside each area, and you've arrived as
+  soon as you're anywhere in it.
+- The window draws the outlines: covered areas in gold, the next stop in
+  green, uncovered ones faintly. Hover over an area for its name; click it
+  to go there next. Two options under Display turn the borders and the
+  uncovered ones' borders off.
+- Seven pieces of the redrawn maps that no Explore criterion names are areas
+  of their own now (the middle of Shen'dralas, New Avalon, Krol'dok
+  Stronghold, Whispering Forest, Skywatcher Plateau, Hive'Ashi and Twilight
+  Base Camp), so a zone isn't done until its map is.
 - An area counts as uncovered only once the zone map shows it, not just once
-  the achievement ticks it. Forever redrew some zone maps, and the
-  achievement can still check an older map piece covering more ground:
-  Razorwind Canyon ticked Drygulch Ravine but left a gap on Durotar's map.
-  Such an area now stays on the route until the map fills in.
-- Spots for 31 areas are now picked only from ground that counts for both
-  the achievement and the redrawn map (Drygulch Ravine no longer points into
-  Razorwind Canyon).
-- A Me button beside the zoom buttons over the window's map: it opens the
-  zone you're in, zoomed in, centered on you.
-- The route is drawn on the minimap too: the same lines as the world map
-  (your walk to the next stop, the stops after it, any flight) around you at
-  the minimap's zoom, turning with it if it rotates and cut off at its edge,
-  with a dot on each stop in reach (the next one larger). Options, Display:
-  Route on the minimap (on by default).
-- Fixed a Lua error when starting a route ("attempt to perform arithmetic on
-  upvalue 'py'" in MinimapRoute.lua).
+  the achievement ticks it (Razorwind Canyon used to tick Drygulch Ravine).
+- Drygulch Ravine's credit is in its cave at 51.5, 27.7: the route goes there.
+
+**Flights.**
+- Flights only between flight points you've learned. Forever's flight map
+  lists every point of your faction, and every character was counted as
+  knowing them all. Known points are read from the flight map again: open
+  any flight master's map once on each character.
+- From another zone, a route can start where your flight lands rather than
+  at the corner nearest you; the chat line says where you'll land.
+- The zone's flight masters you haven't met are always stops on its route
+  (Stop at new flight masters), and only the zone's own.
+- New flight master (under the window's map, or /cf fp): a route to the
+  quickest flight master to reach whose point you haven't learned.
+- Off a zeppelin or boat, the route flies on when that's quicker, instead of
+  walking all the way.
+- A stop on the other continent: the arrow, the lines and the flight planner
+  take you to the nearest zeppelin or boat, with "Board the zeppelin" at the
+  dock.
+- Rut'theran Village: routes take the portal from Darnassus (23.3, 55.5) or
+  the boat from Auberdine, and the arrow says to take it.
+
+**Getting around.**
+- Walking paths come from a waypoint graph built ahead of time, so finding
+  one takes about a millisecond and never more than 2 ms of a frame; the
+  route's order uses the same walking costs.
+- Less lag: kills, loot and quests no longer replan everything, and the
+  arrow and minimap button no longer fight over the walking path.
+- Dead: the arrow and the route's lines lead back to your corpse.
+
+**The map window.**
+- It opens every map, cities included, and can stand in for the world map
+  (Options, Display: Open instead of the world map).
+- A Me button opens your zone centered on you and keeps you in the middle as
+  you move. Map only shrinks the window to its map; drag the corner grip to
+  resize it.
+- The route is drawn on the minimap too (Options, Display: Route on the
+  minimap).
+- The minimap button is a compass arrow pointing at the next stop.
+- Uncovered areas are per character, read from your own map.
+- World map markers are off by default (the option is still there); still
+  covered areas show gray on the world map on their own option.
+- A new 48-second fanfare for a finished zone, with a Stop music button
+  (Options, Display: Fanfare turns it off).
+- /cf perf [seconds] measures what the addon costs, for reporting lag.
+- Fixed a Lua error when starting a route (MinimapRoute.lua).
 
 ## Compass Forever v1.2 (2026-10-12)
 

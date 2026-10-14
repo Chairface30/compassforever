@@ -1019,7 +1019,7 @@ check("the area's route points stay its edge", rt.eval("NS.NodePoints(CREDITED)[
 rt.execute("NS.StopRoute() NS.db.credit = nil NS.db.learnFlights = true")
 
 print("zones mapped by hand")
-check("Un'Goro is built in again", rt.eval("NS.ZoneHandMapped(NS.ZoneByMap(1449))"))
+check("Un'Goro and Thousand Needles are built in again", rt.eval("NS.ZoneHandMapped(NS.ZoneByMap(1449)) and NS.ZoneHandMapped(NS.ZoneByMap(1441))"))
 # A zone taken back out (Data/Returned.lua): its lines are the player's own
 # again at login, once.
 rt3 = boot()
@@ -1030,9 +1030,11 @@ check("a zone taken back out: its lines are the player's own again, to edit",
       rt3.eval("#NS.db.walls[1429] == 2 and #NS.db.roads[1429] == 1 and NS.db.returned[1429] == true and not NS.db.finished[1429]"))
 rt3.execute("table.remove(NS.db.walls[1429], 1) FIRE('PLAYER_LOGIN') FLUSH()")
 check("only once: an edit made since isn't undone at the next login", rt3.eval("#NS.db.walls[1429]") == 1)
+rt3.execute("NS.RETURNED = {} FIRE('PLAYER_LOGIN') FLUSH()")
+check("built in again, it's forgotten, to be handed back if taken out another time", rt3.eval("NS.db.returned[1429] == nil"))
 check("Durotar is built in (hand-mapped)", rt.eval("NS.ZoneHandMapped(NS.ZoneByMap(1411))"))
 unmapped = rt.eval("(function() local t = {} for _, z in ipairs(NS.ZONES) do if not NS.ZoneHandMapped(z) then t[#t + 1] = z.name end end return table.concat(t, ', ') end)()")
-check(f"and so is every zone but one taken back out ({unmapped or 'none'} left)", unmapped == "Thousand Needles", unmapped)
+check(f"and so is every zone ({unmapped or 'none'} left)", unmapped == "", unmapped)
 rt.execute("NS.SetZoneMarkedDone(ELWYNN, true)")
 check("a zone marked done is kept", rt.eval("NS.ZoneMarkedDone(ELWYNN)"))
 rt.execute("NS.SetZoneMarkedDone(ELWYNN, false)")
@@ -1068,11 +1070,17 @@ rt.execute("PLAYER.x, PLAYER.y = 0.42, 0.65 NS.RouteVia(ELWYNN, PICK) NS.StartRo
 check("Start route then gives the whole zone", rt.eval("NS.ZoneRouted(ELWYNN) and #NS.route.stops > 1"))
 rt.execute("""NS.StopRoute() for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = nil end NS.InvalidateProgress()""")
 
-print("editing tools only when turned on")
-rt.execute("NS.ShowZone(ELWYNN) NS.SetEditing(false)")
+print("editing tools only when turned on, on the author's characters")
+rt.execute("OLD_UNITNAME = UnitName function UnitName() return 'Beefstrokin', 'Goff' end NS.ShowZone(ELWYNN) NS.SetEditing(false)")
 check("off: no Walls button", not rt.eval("NS.WindowFrame().roadButton:IsShown()"))
 rt.execute("NS.SetEditing(true)")
 check("on: Walls and Roads", rt.eval("NS.WindowFrame().roadButton:IsShown()"))
+rt.execute("function UnitName() return 'Beefstrokin', 'Smith' end NS.ShowZone(ELWYNN)")
+check("anyone else: no Walls or Roads, even turned on", not rt.eval("NS.WindowFrame().roadButton:IsShown()")
+      and not rt.eval("NS.Editing()"))
+rt.execute("function UnitName() return 'Notte' end")
+check("a beta character without a surname may edit", rt.eval("NS.CanEdit()"))
+rt.execute("UnitName = OLD_UNITNAME NS.ShowZone(ELWYNN)")
 check("spots and sharing are gone", rt.eval("""NS.ShowShare == nil and NS.ExportEdits == nil and NS.MoveSpot == nil
     and NS.MovedSpot == nil and NS.SpotHere == nil and NS.SPOTS == nil and NS.db.learnSpots == nil"""))
 

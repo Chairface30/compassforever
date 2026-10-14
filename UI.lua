@@ -1279,7 +1279,7 @@ local function RefreshTrail()
     -- The strip has room for the Me and zoom buttons at its right, and while
     -- editing the Roads and Walls ones; the trail gets the rest, and only the
     -- last part (the shown map) is ever cut short.
-    local editing = ns.db.editing and true or false
+    local editing = ns.Editing()
     for _, b in ipairs({ wallButton, frame.roadButton }) do
         b:SetShown(editing)
     end
@@ -1319,7 +1319,7 @@ local function RefreshInfo()
     routeButton:Hide()
     skipButton:Hide()
     local done = frame.doneCheck
-    done:SetShown(view.kind == "zone" and ns.db.editing and true or false)
+    done:SetShown(view.kind == "zone" and ns.Editing())
     if view.kind == "zone" then done:SetChecked(ns.ZoneMarkedDone(view.zone)) end
     nextInfo:SetText("")
     hint:SetText(HINTS[view.kind] or "")
@@ -1391,8 +1391,8 @@ local OPTIONS = {
           .. "Leaving the zone ends that route.",
       get = function() return ns.db.autoRoute end,
       set = function(on) ns.SetAutoRoute(on) end },
-    { label = "Stop at new flight masters", desc = "Learn flight points close to the route.",
-      tip = "A flight master you haven't met joins the route when it costs at most 800 yards more walking.",
+    { label = "Stop at new flight masters", desc = "Learn the zone's flight points on the way.",
+      tip = "Each flight master in the zone you haven't met joins the route, so its flight point is learned.",
       get = function() return ns.db.learnFlights end,
       set = function(on) ns.SetLearnFlights(on) end },
     { label = "Fly automatically", desc = "Take the planned flight when the map opens.",
@@ -1400,8 +1400,8 @@ local OPTIONS = {
           .. "Off, a button by the flight map takes it in one click.",
       get = function() return ns.db.autoFly end,
       set = function(on) ns.db.autoFly = on ns.Fire("settings") end },
-    { section = "Route editing" },
-    { label = "Edit walls and roads", desc = "Make routes better.",
+    { section = "Route editing", mapper = true },
+    { label = "Edit walls and roads", mapper = true, desc = "Make routes better.",
       tip = "Shows the Walls and Roads buttons over the map. Walls keep routes off ground "
           .. "you can't really cross, zone lines keep them inside a zone, and roads pull them onto paths. "
           .. "Cyan dots on the map show where the game gave credit for an area.",
@@ -1426,7 +1426,7 @@ local OPTIONS = {
       tip = "Off, only the areas still to uncover keep their outlines.",
       get = function() return ns.db.doneAreaBorders ~= false end,
       set = function(on) ns.db.doneAreaBorders = on ns.Fire("settings") end },
-    { label = "Walls and roads on the map", desc = "Show the walls and roads drawn here.",
+    { label = "Walls and roads on the map", mapper = true, desc = "Show the walls and roads drawn here.",
       tip = "Off, they're hidden on this window's map except while you draw them. They still steer paths either way.",
       get = function() return ns.db.showLines ~= false end,
       set = function(on) ns.db.showLines = on ns.Fire("settings") end },
@@ -1469,8 +1469,11 @@ local function BuildOptions()
     options:SetPoint("TOPRIGHT", optionsButton, "BOTTOMRIGHT", 0, -4)
     optionBoxes = {}
     local y = -12
+    local mapper = ns.CanEdit()
     for _, opt in ipairs(OPTIONS) do
-        if opt.section then
+        if opt.mapper and not mapper then
+            -- route editing: the author's characters only (Core.lua)
+        elseif opt.section then
             local head = Label(options, "GameFontNormal", 250)
             head:SetPoint("TOPLEFT", 14, y - (y == -12 and 0 or 6))
             head:SetText(opt.section)

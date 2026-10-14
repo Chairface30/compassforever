@@ -51,11 +51,19 @@ walk along one counts as 30% shorter, so the route takes the road when it's
 not much longer. You don't move faster on a road, but roads skirt cliffs,
 woods and camps. Paths are drawn as a few waypoints, not every bend.
 
+Every zone has also been walked and mapped by hand: walls where the ground
+can't really be crossed (fences, rock faces the height data misses), lines
+that keep a route inside its zone, and roads the textures don't show. They
+are built in and steer every route.
+
 When the next stop is far away and a flight would save real time, the arrow
 takes you to the nearest useful flight master first and tells you where to
-fly; after you land the route carries on. Compass Forever learns which flight
-points each character knows from the flight map, so open any flight master's
-map once on each character.
+fly; after you land the route carries on. From another zone, a route can start
+where your flight lands rather than at the corner nearest you. Flights only go
+between flight points you've learned; the zone's flight masters you haven't
+met are stops on its route. Compass Forever learns which flight points each
+character knows from the flight map, so open any flight master's map once on
+each character.
 
 ## The fanfare
 
