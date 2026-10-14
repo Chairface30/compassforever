@@ -1373,6 +1373,11 @@ local OPTIONS = {
           .. "Leaving the zone ends that route.",
       get = function() return ns.db.autoRoute end,
       set = function(on) ns.SetAutoRoute(on) end },
+    { label = "Zones on the way", desc = "Uncover the zones you pass on the way there.",
+      tip = "A route to another zone first takes every zone with areas left that you'd cross going there, "
+          .. "one after another in the order you reach them, then the zone you picked.",
+      get = function() return ns.db.onTheWay end,
+      set = function(on) ns.db.onTheWay = on and true or false ns.Fire("settings") end },
     { label = "Stop at new flight masters", desc = "Learn the zone's flight points on the way.",
       tip = "Each flight master in the zone you haven't met joins the route, so its flight point is learned.",
       get = function() return ns.db.learnFlights end,

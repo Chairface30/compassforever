@@ -1164,6 +1164,37 @@ check(f"a route starts only where the zone's own flight points are ({landings})"
 rt.execute("""NS.StopRoute() NS.travel = nil NS.Translate = REAL_TRANSLATE UnitFactionGroup = nil
     PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.42, 0.65""")
 
+print("zones on the way")
+# From Orgrimmar to Thousand Needles, Durotar and The Barrens lie between.
+trip = rt.eval("""(function()
+    function UnitFactionGroup() return "Horde" end
+    NS.StopRoute() NS.db.onTheWay = true
+    for _, z in ipairs(NS.ZONES) do if z.continent == 1 then for _, n in ipairs(z.nodes) do if n.criteria then DONE[n.criteria] = nil end end end end
+    NS.InvalidateProgress()
+    PLAYER.map, PLAYER.x, PLAYER.y = 1411, 0.45, 0.10
+    local way = NS.ZonesOnTheWay(NS.ZoneByMap(1441))
+    local t = {} for _, z in ipairs(way) do t[#t + 1] = z.name end
+    return table.concat(t, ", ") end)()""")
+check(f"the zones between here and there, in order ({trip})", trip.startswith("Durotar") and "The Barrens" in trip
+      and "Thousand Needles" not in trip, trip)
+rt.execute("NS.StartRoute(NS.ZoneByMap(1441))")
+check("a route there starts with the first of them", rt.eval("NS.route and NS.route.zone.name") == "Durotar")
+check("and says the way", any("On the way to Thousand Needles: Durotar" in l for l in printed(rt)))
+check("the picked zone shows as routed", rt.eval("NS.ZoneRouted(NS.ZoneByMap(1441))"))
+# Durotar done: on to the next.
+rt.execute("""for _, n in ipairs(NS.ZoneByMap(1411).nodes) do if n.criteria then DONE[n.criteria] = true end end
+    EXPLORED[1411] = {} for _, n in ipairs(NS.ZoneByMap(1411).nodes) do if n.ox then table.insert(EXPLORED[1411], { n.ox, n.oy }) end end
+    FIRE('CRITERIA_UPDATE') FLUSH()""")
+nxt = rt.eval("NS.route and NS.route.zone.name")
+check(f"a zone on the way done, the next one's route starts ({nxt})", nxt not in (None, "Durotar"), nxt)
+rt.execute("NS.StopRoute()")
+check("stopping the route ends the trip", rt.eval("NS.trip == nil and NS.route == nil"))
+rt.execute("NS.db.onTheWay = false NS.StartRoute(NS.ZoneByMap(1441))")
+check("off: just the zone picked", rt.eval("NS.route and NS.route.zone.name") == "Thousand Needles")
+rt.execute("""NS.StopRoute() EXPLORED[1411] = nil
+    for _, z in ipairs(NS.ZONES) do for _, n in ipairs(z.nodes) do if n.criteria then DONE[n.criteria] = nil end end end
+    NS.InvalidateProgress() UnitFactionGroup = nil PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.42, 0.65""")
+
 print("zone lines")
 zl = rt.eval("""(function()
     local z = NS.ZoneByMap(1412)

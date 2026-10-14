@@ -21,6 +21,7 @@ local DEFAULTS = {
     replaceWorldMap = false, -- the world map key opens this window instead
     mapOnly = false,       -- the window shows its map and nothing else
     autoRoute = false,     -- start a zone's route on entering it
+    onTheWay = false,      -- a route to another zone clears the zones on the way first
     banner = true,         -- big words for a new route, an uncovered area
     fanfare = true,        -- music on finishing a zone
     learnFlights = true,   -- route past the zone's flight masters not yet learned
