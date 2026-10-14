@@ -2,8 +2,10 @@
 -- Flying there when that is quicker than walking.
 --
 -- Which flight points a character knows is read from the flight map, each
--- time one opens (it lists only the points the character has), and
--- remembered for that character (CompassForeverDB.taxi). Until a
+-- time one opens, and remembered for that character (CompassForeverDB.taxi).
+-- On Forever the flight map lists every point of the faction: only those it
+-- calls current or reachable are the character's; the rest (distant) are
+-- points not learned yet, and forgotten if they were remembered. Until a
 -- character's first flight map, nothing is assumed known or unknown.
 --
 -- The world map's list (C_TaxiMap.GetTaxiNodesForMap) is only trusted to
@@ -44,10 +46,11 @@ local function CharKey()
     return (ok and name or "?") .. "-" .. (okR and realm or "?")
 end
 
--- Lists made before the world map's word stopped counting called every
--- point known: dropped once, so each character's first flight map fills
+-- Lists made before the world map's word stopped counting (2), or while a
+-- distant point on the flight map counted (3), called every point known:
+-- dropped once, so each character's first flight map fills
 -- in the real list.
-local TAXI_VERSION = 2
+local TAXI_VERSION = 3
 local function Fresh()
     local db = ns.db
     if db.taxiVersion ~= TAXI_VERSION then
@@ -103,10 +106,11 @@ local function ReadTaxiMap()
                 local id = ns.Num(info.nodeID)
                 if not (id and ns.FLIGHT_NODES[id]) then id = ByName(ns.Text(info.name)) end
                 local state = info.state
-                local mine = state == nil or state == states.Current or state == states.Reachable
-                if id and mine then
+                if id and state ~= nil and (state == states.Current or state == states.Reachable) then
                     known[id] = true
                     seen = seen + 1
+                elseif id and state ~= nil and state == states.Unreachable then
+                    known[id] = nil
                 end
             end
         end
@@ -119,9 +123,12 @@ local function ReadTaxiMap()
             local okN, name = ns.Ask(nameOf, i)
             local okK, kind = ns.Ask(kindOf, i)
             local id = okN and ByName(ns.Text(name))
-            if id and (not okK or kind == "CURRENT" or kind == "REACHABLE" or kind == "DISTANT") then
+            -- a distant point is one not learned yet: it can't be flown to
+            if id and (not kindOf or (okK and (kind == "CURRENT" or kind == "REACHABLE"))) then
                 known[id] = true
                 seen = seen + 1
+            elseif id and okK and (kind == "DISTANT" or kind == "NONE") then
+                known[id] = nil
             end
         end
     end

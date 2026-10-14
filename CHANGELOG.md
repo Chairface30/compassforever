@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Flights only between flight points you've learned. Forever's flight map
+  lists every point of your faction, and the ones you haven't learned
+  (distant) were counted as known, so a route could fly you to a flight
+  master you'd never met. Each character's list starts over: open any
+  flight map once on each character.
+- Eastern Kingdoms is mapped by hand: every zone's walls, roads and zone
+  lines are built in, Riverglades too.
+- Thousand Needles is taken back out of the built-in lines again to be
+  reworked: at login its lines become yours to edit (once).
+
 - Routes make more of flights. From outside a zone, its route can start
   where a flight lands (from any known flight point in or by the zone)
   instead of at the corner nearest you, when that's quicker; the chat line

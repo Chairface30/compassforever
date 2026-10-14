@@ -680,6 +680,15 @@ rt.execute("""TAXI = { { "Undercity, Tirisfal", "CURRENT" }, { "The Sepulcher, S
 known = rt.eval("(function() local t = {} for id in pairs(NS.KnownFlights()) do t[#t + 1] = id end table.sort(t) return table.concat(t, ',') end)()")
 check(f"the flight map's points are known ({known})", known == "10,11", known)
 check("and the list counts as read", rt.eval("NS.flightsRead") is True)
+# Forever's flight map lists the faction's every point: a distant one is
+# not learned yet, and can't be flown to.
+rt.execute("""TAXI = { { "Undercity, Tirisfal", "CURRENT" }, { "The Sepulcher, Silverpine Forest", "DISTANT" },
+        { "Tarren Mill, Hillsbrad", "DISTANT" } }
+    FIRE('TAXIMAP_OPENED') FLUSH()""")
+known = rt.eval("(function() local t = {} for id in pairs(NS.KnownFlights()) do t[#t + 1] = id end table.sort(t) return table.concat(t, ',') end)()")
+check(f"a distant point on the flight map is not known, and is forgotten ({known})", known == "11", known)
+rt.execute("""TAXI = { { "Undercity, Tirisfal", "CURRENT" }, { "The Sepulcher, Silverpine Forest", "REACHABLE" } }
+    FIRE('TAXIMAP_OPENED') FLUSH()""")
 rt.execute("""C_TaxiMap.GetTaxiNodesForMap = function(map)
         if map ~= 1415 then return {} end
         return { { nodeID = 10, name = "The Sepulcher, Silverpine Forest", isUndiscovered = true } }
@@ -1010,7 +1019,7 @@ check("the area's route points stay its edge", rt.eval("NS.NodePoints(CREDITED)[
 rt.execute("NS.StopRoute() NS.db.credit = nil NS.db.learnFlights = true")
 
 print("zones mapped by hand")
-check("Un'Goro and Thousand Needles are built in again", rt.eval("NS.ZoneHandMapped(NS.ZoneByMap(1449)) and NS.ZoneHandMapped(NS.ZoneByMap(1441))"))
+check("Un'Goro is built in again", rt.eval("NS.ZoneHandMapped(NS.ZoneByMap(1449))"))
 # A zone taken back out (Data/Returned.lua): its lines are the player's own
 # again at login, once.
 rt3 = boot()
@@ -1022,7 +1031,8 @@ check("a zone taken back out: its lines are the player's own again, to edit",
 rt3.execute("table.remove(NS.db.walls[1429], 1) FIRE('PLAYER_LOGIN') FLUSH()")
 check("only once: an edit made since isn't undone at the next login", rt3.eval("#NS.db.walls[1429]") == 1)
 check("Durotar is built in (hand-mapped)", rt.eval("NS.ZoneHandMapped(NS.ZoneByMap(1411))"))
-check("Elwynn is not", not rt.eval("NS.ZoneHandMapped(ELWYNN)"))
+unmapped = rt.eval("(function() local t = {} for _, z in ipairs(NS.ZONES) do if not NS.ZoneHandMapped(z) then t[#t + 1] = z.name end end return table.concat(t, ', ') end)()")
+check(f"and so is every zone but one taken back out ({unmapped or 'none'} left)", unmapped == "Thousand Needles", unmapped)
 rt.execute("NS.SetZoneMarkedDone(ELWYNN, true)")
 check("a zone marked done is kept", rt.eval("NS.ZoneMarkedDone(ELWYNN)"))
 rt.execute("NS.SetZoneMarkedDone(ELWYNN, false)")
