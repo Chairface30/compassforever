@@ -187,6 +187,14 @@ ns.ReadKnownFromMaps = ReadFromMaps
 -- route stops (Route.lua decides whether they're worth the walk). Only once
 -- the client has said which points are known: until then every flight
 -- master would look undiscovered.
+-- A flight point of `zone` itself, by the zone its name gives ("Thunder
+-- Bluff, Mulgore"): a zone's map reaches past its edges, onto its
+-- neighbors' flight points.
+local function InZone(node, zone)
+    local where = node.name:match(",%s*(.+)$")
+    return not where or zone.name:sub(1, #where) == where
+end
+
 local stopNodes = {}
 function ns.FlightStops(zone, always)
     local out = {}
@@ -196,11 +204,7 @@ function ns.FlightStops(zone, always)
     if not r then return out end
     local known, side = Known(), Side()
     for id, node in pairs(ns.FLIGHT_NODES) do
-        -- in the zone itself, by the zone its name gives ("Thunder Bluff,
-        -- Mulgore"): a zone's map reaches past its edges
-        local where = node.name:match(",%s*(.+)$")
-        local inZone = not where or zone.name:sub(1, #where) == where
-        if inZone and node.continent == zone.continent and not known[id] and node.side % (side * 2) >= side then
+        if InZone(node, zone) and node.continent == zone.continent and not known[id] and node.side % (side * 2) >= side then
             local x = (node.x - r.l) / (r.r - r.l)
             local y = (node.y - r.t) / (r.b - r.t)
             if x >= 0 and x <= 1 and y >= 0 and y <= 1 then
@@ -286,7 +290,8 @@ local function Flights(continent, side, startCost)
 end
 
 -- Where a flight from here could land for a route through `zone`: every
--- known flight point on or just by the zone's map that a flight reaches
+-- known flight point of the zone (Sun Rock Retreat is on Ashenvale's map,
+-- but Stonetalon's) that a flight reaches
 -- (walking to a known point, then flying through others known), as
 -- { x, y (the zone's map), yards (the time it takes, as yards of running),
 -- id, name }. Empty when no flight is known or you can't be placed.
@@ -310,8 +315,8 @@ function ns.FlightLandings(zone)
     if not next(startCost) then return out end
     local best, prev = Flights(zone.continent, side, startCost)
     for id, t in pairs(best) do
-        if startCost[id] ~= t or prev[id] then          -- an actual flight
-            local node = ns.FLIGHT_NODES[id]
+        local node = ns.FLIGHT_NODES[id]
+        if (startCost[id] ~= t or prev[id]) and InZone(node, zone) then  -- an actual flight
             local x = (node.x - r.l) / (r.r - r.l)
             local y = (node.y - r.t) / (r.b - r.t)
             if x >= -NEAR_ZONE and x <= 1 + NEAR_ZONE and y >= -NEAR_ZONE and y <= 1 + NEAR_ZONE then

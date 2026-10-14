@@ -1129,6 +1129,15 @@ check("its first stop is by Thunder Bluff", rt.eval("""(function() local s = NS.
 check("no flight master of another zone is a stop", rt.eval("""(function()
     for _, s in ipairs(NS.route.stops) do if s.node.fp and not s.node.name:find("Bluff") and s.node.name:find("Brackenwall") then return false end end
     return true end)()"""))
+# From Thunder Bluff knowing Sun Rock Retreat (on Ashenvale's map, but
+# Stonetalon's) and Zoram'gar: Ashenvale's route starts at Ashenvale's own.
+landings = rt.eval("""(function()
+    local k = NS.KnownFlights() for _, id in ipairs({ 22, 23, 25, 29, 61 }) do k[id] = true end
+    PLAYER.map, PLAYER.x, PLAYER.y = 1412, 0.398, 0.357
+    local t = {} for _, l in ipairs(NS.FlightLandings(NS.ZoneByMap(1440))) do t[#t + 1] = l.name end
+    table.sort(t) return table.concat(t, ", ") end)()""")
+check(f"a route starts only where the zone's own flight points are ({landings})",
+      "Sun Rock" not in landings and "Splintertree Post" in landings, landings)
 rt.execute("""NS.StopRoute() NS.travel = nil NS.Translate = REAL_TRANSLATE UnitFactionGroup = nil
     PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.42, 0.65""")
 

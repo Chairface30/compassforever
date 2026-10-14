@@ -29,7 +29,11 @@ route, so paths keep to ground you can really run.
   knowing them all. Known points are read from the flight map again: open
   any flight master's map once on each character.
 - From another zone, a route can start where your flight lands rather than
-  at the corner nearest you; the chat line says where you'll land.
+  at the corner nearest you; the chat line says where you'll land. Only the
+  zone's own flight points count (Ashenvale's route no longer flies to Sun
+  Rock Retreat, which is on Ashenvale's map but in Stonetalon).
+- Opening a flight master's map says how many flight points you know, and
+  the flight the route plans or why there's none.
 - The zone's flight masters you haven't met are always stops on its route
   (Stop at new flight masters), and only the zone's own.
 - Off a zeppelin or boat, the route flies on when that's quicker, instead of
