@@ -226,7 +226,10 @@ end
 -- where they're going. Same form as walls: lists of map fractions.
 -- A zone's lines of one kind for the paths: the shipped ones (never drawn)
 -- and the player's own (drawn, and the ones edited).
-local function Both(shipped, mine)
+local function Both(shipped, mine, ach)
+    -- a zone whose built-in lines are taken over to edit (Edits.lua): its
+    -- own copies only
+    if ach and ns.db and ns.db.takeover and ns.db.takeover[ach] then return mine or {} end
     if not (shipped and #shipped > 0) then return mine or {} end
     if not (mine and #mine > 0) then return shipped end
     local all = {}
@@ -242,15 +245,22 @@ function ns.OwnLines(zone, kind)
 end
 
 function ns.ZoneRoads(zone)
-    return Both(ns.ROADS and ns.ROADS[zone.ach], ns.OwnLines(zone, "roads"))
+    return Both(ns.ROADS and ns.ROADS[zone.ach], ns.OwnLines(zone, "roads"), zone.ach)
 end
 
 function ns.ZoneWalls(zone)
-    return Both(ns.WALLS and ns.WALLS[zone.ach], ns.OwnLines(zone, "walls"))
+    return Both(ns.WALLS and ns.WALLS[zone.ach], ns.OwnLines(zone, "walls"), zone.ach)
 end
 
 function ns.ZoneLines(zone)
-    return Both(ns.ZONELINES and ns.ZONELINES[zone.ach], ns.OwnLines(zone, "zonelines"))
+    return Both(ns.ZONELINES and ns.ZONELINES[zone.ach], ns.OwnLines(zone, "zonelines"), zone.ach)
+end
+
+-- Ledges: one-way walls along cliffs and ridges, drawn with the high ground
+-- on the left (as you'd walk along it from its first corner): a path may
+-- jump down across one (left to right), never climb back up.
+function ns.ZoneLedges(zone)
+    return Both(ns.LEDGES and ns.LEDGES[zone.ach], ns.OwnLines(zone, "ledges"), zone.ach)
 end
 
 -- The zone whose zone lines a path from the player to a point of `zone`
@@ -448,7 +458,7 @@ local function Lines(c, kind, cont)
     for _, zone in ipairs(ns.ZONES) do
         if zone.continent == c then
             local lines = kind == "walls" and ns.ZoneWalls(zone) or kind == "zonelines" and ns.ZoneLines(zone)
-                or ns.ZoneRoads(zone)
+                or kind == "ledges" and ns.ZoneLedges(zone) or ns.ZoneRoads(zone)
             for _, wall in ipairs(lines) do
                 local item
                 if wall.circle then
@@ -518,6 +528,37 @@ local function Hits(set, pi, pj, qi, qj, ach)
     return false
 end
 
+-- Does the run p-q (grid units) climb a ledge of `set`: cross one from its
+-- low side (right of the way it was drawn) to its high side?
+local function Climbs(set, pi, pj, qi, qj)
+    local seen = {}
+    for si = math.floor(math.min(pi, qi) / CELL), math.floor(math.max(pi, qi) / CELL) do
+        for sj = math.floor(math.min(pj, qj) / CELL), math.floor(math.max(pj, qj) / CELL) do
+            for _, w in ipairs(set.at[si * 65536 + sj] or {}) do
+                if not seen[w] and not w.circle then
+                    seen[w] = true
+                    for k = 1, #w - 3, 2 do
+                        local ax, ay, bx, by = w[k], w[k + 1], w[k + 2], w[k + 3]
+                        if Crosses(pi, pj, qi, qj, ax, ay, bx, by) then
+                            -- p on the right of a->b: the low side
+                            if (bx - ax) * (pj - ay) - (by - ay) * (pi - ax) > 0 then return true end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return false
+end
+
+-- Does a run of points (with i, j) climb a ledge, walked first to last?
+local function RunClimbs(set, pts)
+    for k = 1, #pts - 1 do
+        if Climbs(set, pts[k].i, pts[k].j, pts[k + 1].i, pts[k + 1].j) then return true end
+    end
+    return false
+end
+
 -- Does a run of points (with i, j) cross a line of `set`?
 local function RunHits(set, pts, ach)
     for k = 1, #pts - 1 do
@@ -538,17 +579,27 @@ local function Overlay(c, pause)
     local g = Graph(c, pause)
     if not g then return nil end
     local cont = g.cont
-    ov = { walls = Lines(c, "walls", cont), zonelines = Lines(c, "zonelines", cont), cut = {}, local_ = {},
+    ov = { walls = Lines(c, "walls", cont), zonelines = Lines(c, "zonelines", cont),
+           ledges = Lines(c, "ledges", cont), cut = {}, local_ = {}, upA = {}, upB = {},
            x = {}, y = {}, i = {}, j = {}, links = {}, near = {}, n = g.n }
-    local walls, zl = ov.walls, ov.zonelines
+    local walls, zl, ledges = ov.walls, ov.zonelines, ov.ledges
     local zlZones = {}
     for _, w in ipairs(zl.list) do zlZones[w.ach] = true end
-    if #walls.list > 0 or #zl.list > 0 then
+    if #walls.list > 0 or #zl.list > 0 or #ledges.list > 0 then
         for e = 1, g.m do
             local pts = LinkPoints(g, e)
             if #walls.list > 0 and RunHits(walls, pts) then
                 ov.cut[e] = true
-            elseif #zl.list > 0 then
+            end
+            if not ov.cut[e] and #ledges.list > 0 then
+                -- upA: walking it from ea to eb climbs a ledge; upB: back
+                if RunClimbs(ledges, pts) then ov.upA[e] = true end
+                local back = {}
+                for k = #pts, 1, -1 do back[#back + 1] = pts[k] end
+                if RunClimbs(ledges, back) then ov.upB[e] = true end
+                if ov.upA[e] and ov.upB[e] then ov.cut[e] = true end
+            end
+            if not ov.cut[e] and #zl.list > 0 then
                 for ach in pairs(zlZones) do
                     if RunHits(zl, pts, ach) then
                         ov.local_[e] = ov.local_[e] or {}
@@ -572,11 +623,29 @@ local function Overlay(c, pause)
         table.insert(ov.near[sq], k)
         return k
     end
+    -- the zones whose zone lines the straight run between two points
+    -- crosses ({ [ach] = true }), or nil: kept out of paths in those zones
+    local function ZoneLinesHit(ai, aj, bi, bj)
+        local out
+        for ach in pairs(zlZones) do
+            if Hits(zl, ai, aj, bi, bj, ach) then
+                out = out or {}
+                out[ach] = true
+            end
+        end
+        return out
+    end
+    -- Join two waypoints by a straight run, each way it may be walked: never
+    -- across a wall, never up a ledge.
     local function Link(a, b, cost)
+        local ai, aj = PosOf(g, ov, a)
+        local bi, bj = PosOf(g, ov, b)
+        if Hits(walls, ai, aj, bi, bj) then return end
+        local loc = ZoneLinesHit(ai, aj, bi, bj)
         ov.links[a] = ov.links[a] or {}
         ov.links[b] = ov.links[b] or {}
-        table.insert(ov.links[a], { b, cost })
-        table.insert(ov.links[b], { a, cost })
+        if not Climbs(ledges, ai, aj, bi, bj) then table.insert(ov.links[a], { b, cost, loc }) end
+        if not Climbs(ledges, bi, bj, ai, aj) then table.insert(ov.links[b], { a, cost, loc }) end
     end
     local roadNodes = {}
     for _, r in ipairs(roads.list) do
@@ -631,11 +700,18 @@ local function Overlay(c, pause)
                     for _, it in ipairs(Attach(c, g, ov, i, j, nil)) do
                         if it[1] ~= k then Link(k, it[1], it[2]) end
                     end
+                    for _, it in ipairs(Attach(c, g, ov, i, j, nil, true)) do
+                        if it[1] ~= k then Link(k, it[1], it[2]) end
+                    end
                     ends[e] = k
                 end
             end
             if ends.a and ends.b then
-                Link(ends.a, ends.b, l.seconds * RUN_YARDS)
+                -- a ride crosses no line: joined straight, both ways
+                ov.links[ends.a] = ov.links[ends.a] or {}
+                ov.links[ends.b] = ov.links[ends.b] or {}
+                table.insert(ov.links[ends.a], { ends.b, l.seconds * RUN_YARDS })
+                table.insert(ov.links[ends.b], { ends.a, l.seconds * RUN_YARDS })
                 ov.ride[ends.a], ov.ride[ends.b] = { link = l, at = "a" }, { link = l, at = "b" }
             end
         end
@@ -693,10 +769,12 @@ local function GroundTest(g, ov, zone)
 end
 
 -- Waypoints (graph's and roads') near grid point (i, j), with the cost of
--- walking straight there: those the terrain allows and no wall (nor, for a
--- path kept in its zone, a zone line) is in the way of. If none is, the
--- nearest few at a high cost, so a path is still found.
-Attach = function(c, g, ov, i, j, ach)
+-- walking straight there (`inward`: from there to the point): those the
+-- terrain allows and no wall, ledge climbed (nor, for a path kept in its
+-- zone, zone line) is in the way of. If the terrain allows none, the nearest
+-- few at a high cost, but never through a wall, up a ledge or across a zone
+-- line kept to.
+Attach = function(c, g, ov, i, j, ach, inward)
     local found, any = {}, {}
     for si = math.floor((i - ATTACH) / CELL), math.floor((i + ATTACH) / CELL) do
         for sj = math.floor((j - ATTACH) / CELL), math.floor((j + ATTACH) / CELL) do
@@ -711,16 +789,20 @@ Attach = function(c, g, ov, i, j, ach)
         end
     end
     table.sort(any, function(a, b) return a[2] < b[2] end)
+    local open = {}
     for _, it in ipairs(any) do
         local ki, kj = PosOf(g, ov, it[1])
-        if not Hits(ov.walls, i, j, ki, kj) and not (ach and Hits(ov.zonelines, i, j, ki, kj, ach))
-            and StraightOK(c, i, j, ki, kj) then
-            found[#found + 1] = { it[1], it[2] * NODE }
-            if #found >= ATTACH_KEEP then break end
+        local up = inward and Climbs(ov.ledges, ki, kj, i, j) or not inward and Climbs(ov.ledges, i, j, ki, kj)
+        if not Hits(ov.walls, i, j, ki, kj) and not up and not (ach and Hits(ov.zonelines, i, j, ki, kj, ach)) then
+            open[#open + 1] = it
+            if StraightOK(c, i, j, ki, kj) then
+                found[#found + 1] = { it[1], it[2] * NODE }
+                if #found >= ATTACH_KEEP then break end
+            end
         end
     end
     if #found == 0 then
-        for q = 1, math.min(3, #any) do found[#found + 1] = { any[q][1], any[q][2] * NODE * UNKNOWN } end
+        for q = 1, math.min(3, #open) do found[#found + 1] = { open[q][1], open[q][2] * NODE * UNKNOWN } end
     end
     return found
 end
@@ -741,12 +823,12 @@ local function GraphPath(c, fx, fy, tx, ty, localZone, pause, anyGround)
     local START, GOAL = -1, -2
     local direct = math.sqrt((ti - si) ^ 2 + (tj - sj) ^ 2)
     if direct <= DIRECT and not Hits(ov.walls, si, sj, ti, tj) and not (ach and Hits(ov.zonelines, si, sj, ti, tj, ach))
-        and StraightOK(c, si, sj, ti, tj) then
+        and not Climbs(ov.ledges, si, sj, ti, tj) and StraightOK(c, si, sj, ti, tj) then
         return { { x = fx, y = fy }, { x = tx, y = ty } }, direct * NODE
     end
     local starts = Attach(c, g, ov, si, sj, ach)
     local goals = {}
-    for _, it in ipairs(Attach(c, g, ov, ti, tj, ach)) do goals[it[1]] = it[2] end
+    for _, it in ipairs(Attach(c, g, ov, ti, tj, ach, true)) do goals[it[1]] = it[2] end
     if #starts == 0 or not next(goals) then return nil end
     local ground = not anyGround and GroundTest(g, ov, localZone)
     -- the cheapest any yard of the way can be: along a drawn road
@@ -786,12 +868,16 @@ local function GraphPath(c, fx, fy, tx, ty, localZone, pause, anyGround)
             end
             if u <= g.n then
                 for _, e in ipairs(g.adj[u]) do
-                    if not ov.cut[e] and not (ach and ov.local_[e] and ov.local_[e][ach]) then
-                        Try(g.ea[e] == u and g.eb[e] or g.ea[e], g.ec[e], e)
+                    local fwd = g.ea[e] == u
+                    if not ov.cut[e] and not (ach and ov.local_[e] and ov.local_[e][ach])
+                        and not (fwd and ov.upA[e]) and not (not fwd and ov.upB[e]) then
+                        Try(fwd and g.eb[e] or g.ea[e], g.ec[e], e)
                     end
                 end
             end
-            for _, l in ipairs(ov.links[u] or {}) do Try(l[1], l[2], nil) end
+            for _, l in ipairs(ov.links[u] or {}) do
+                if not (ach and l[3] and l[3][ach]) then Try(l[1], l[2], nil) end
+            end
         end
     end
     if not bestGoal then
@@ -967,12 +1053,16 @@ local function Distances(g, ov, sources, targets, ach, pause, ground)
             end
             if u <= g.n then
                 for _, e in ipairs(g.adj[u]) do
-                    if not ov.cut[e] and not (ach and ov.local_[e] and ov.local_[e][ach]) then
-                        Try(g.ea[e] == u and g.eb[e] or g.ea[e], g.ec[e])
+                    local fwd = g.ea[e] == u
+                    if not ov.cut[e] and not (ach and ov.local_[e] and ov.local_[e][ach])
+                        and not (fwd and ov.upA[e]) and not (not fwd and ov.upB[e]) then
+                        Try(fwd and g.eb[e] or g.ea[e], g.ec[e])
                     end
                 end
             end
-            for _, l in ipairs(ov.links[u] or {}) do Try(l[1], l[2]) end
+            for _, l in ipairs(ov.links[u] or {}) do
+                if not (ach and l[3] and l[3][ach]) then Try(l[1], l[2]) end
+            end
         end
     end
     return best
@@ -992,7 +1082,9 @@ local function ZoneCosts(zone, pause)
                 local i, j = GridUnits(cont, cx, cy)
                 local links = {}
                 for _, it in ipairs(Attach(c, g, ov, i, j, zone.ach)) do links[it[1]] = it[2] end
-                pts[#pts + 1] = { key = PointKey(p[1], p[2]), links = links }
+                local into = {}
+                for _, it in ipairs(Attach(c, g, ov, i, j, zone.ach, true)) do into[it[1]] = it[2] end
+                pts[#pts + 1] = { key = PointKey(p[1], p[2]), links = links, into = into }
             end
         end
         if pause then pause() end
@@ -1001,12 +1093,12 @@ local function ZoneCosts(zone, pause)
     local cost = {}
     for _, a in ipairs(pts) do
         local targets = {}
-        for _, b in ipairs(pts) do for k in pairs(b.links) do targets[k] = true end end
+        for _, b in ipairs(pts) do for k in pairs(b.into) do targets[k] = true end end
         local dist = Distances(g, ov, a.links, targets, zone.ach, pause, ground)
         local row = {}
         for _, b in ipairs(pts) do
             local m
-            for k, extra in pairs(b.links) do
+            for k, extra in pairs(b.into) do
                 local d = dist[k]
                 if d and (not m or d + extra < m) then m = d + extra end
             end

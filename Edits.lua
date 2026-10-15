@@ -1,19 +1,56 @@
 -- Compass Forever: Edits.lua
 -- Zones mapped by hand.
 --
--- Walls, roads and zone lines drawn by hand (Pathing.lua) can be built into
--- the addon (Data/Walls.lua, Data/Roads.lua, Data/ZoneLines.lua, by
--- tools/bake_edits.py); at login the player's own copies of built-in ones
+-- Walls, roads, zone lines and ledges drawn by hand (Pathing.lua) can be
+-- built into the addon (Data/Walls.lua, Roads.lua, ZoneLines.lua, Ledges.lua,
+-- by tools/bake_edits.py); at login the player's own copies of built-in ones
 -- are dropped.
+
+local KINDS = { walls = "WALLS", roads = "ROADS", zonelines = "ZONELINES", ledges = "LEDGES" }
 
 local _, ns = ...
 
 -- A zone mapped by hand: walls, roads or zone lines of it built in.
 function ns.ZoneHandMapped(zone)
-    if ns.WALLS and ns.WALLS[zone.ach] and #ns.WALLS[zone.ach] > 0 then return true end
-    if ns.ROADS and ns.ROADS[zone.ach] and #ns.ROADS[zone.ach] > 0 then return true end
-    if ns.ZONELINES and ns.ZONELINES[zone.ach] and #ns.ZONELINES[zone.ach] > 0 then return true end
+    for _, var in pairs(KINDS) do
+        if ns[var] and ns[var][zone.ach] and #ns[var][zone.ach] > 0 then return true end
+    end
     return false
+end
+
+-- The zone's built-in lines, taken over to edit: copied into the player's
+-- own, and only those count for the zone's paths until it's baked again
+-- (bake_edits.py puts them in place of the built-in ones).
+function ns.TakeOverBuiltIn(zone)
+    local db = ns.db
+    if db.takeover and db.takeover[zone.ach] then return false end
+    local n = 0
+    for kind, var in pairs(KINDS) do
+        local shipped = ns[var] and ns[var][zone.ach]
+        if shipped and #shipped > 0 then
+            db[kind] = db[kind] or {}
+            local mine = db[kind][zone.ach] or {}
+            for _, line in ipairs(shipped) do
+                local copy = {}
+                if line.circle then
+                    copy.circle = { line.circle[1], line.circle[2], line.circle[3] }
+                else
+                    for i = 1, #line do copy[i] = line[i] end
+                end
+                mine[#mine + 1] = copy
+                n = n + 1
+            end
+            db[kind][zone.ach] = mine
+        end
+    end
+    db.takeover = db.takeover or {}
+    db.takeover[zone.ach] = true
+    if ns.WallsChanged then ns.WallsChanged() end
+    return n
+end
+
+function ns.TakenOver(zone)
+    return ns.db and ns.db.takeover and ns.db.takeover[zone.ach] and true or false
 end
 
 -- Marked done mapping by the player: ready to be built in.
@@ -45,11 +82,32 @@ end
 local function DropShipped()
     local db = ns.db
     db.spots, db.learnSpots, db.credit = nil, nil, nil
-    for kind, shippedAll in pairs({ walls = ns.WALLS or {}, roads = ns.ROADS or {}, zonelines = ns.ZONELINES or {} }) do
+    -- a zone taken over: once what's built in is exactly the player's copy
+    -- (it was baked), the copy goes and the zone is back to built-in
+    for ach in pairs(db.takeover or {}) do
+        local same = true
+        for kind, var in pairs(KINDS) do
+            local mine = db[kind] and db[kind][ach] or {}
+            local shipped = ns[var] and ns[var][ach] or {}
+            if #mine ~= #shipped then same = false break end
+            for i = 1, #mine do
+                if not Same(mine[i], shipped[i]) then same = false break end
+            end
+            if not same then break end
+        end
+        if same then
+            db.takeover[ach] = nil
+            for kind in pairs(KINDS) do
+                if db[kind] then db[kind][ach] = nil end
+            end
+        end
+    end
+    for kind, var in pairs(KINDS) do
+        local shippedAll = ns[var] or {}
         local mineAll = db[kind]
         if mineAll then
             for ach, mine in pairs(mineAll) do
-                local shipped = shippedAll[ach]
+                local shipped = not (db.takeover and db.takeover[ach]) and shippedAll[ach]
                 if shipped then
                     for i = #mine, 1, -1 do
                         for _, s in ipairs(shipped) do
@@ -65,9 +123,9 @@ local function DropShipped()
         end
     end
     for _, zone in ipairs(ns.ZONES) do
-        if ns.ZoneMarkedDone(zone) and ns.ZoneHandMapped(zone)
+        if ns.ZoneMarkedDone(zone) and ns.ZoneHandMapped(zone) and not ns.TakenOver(zone)
                 and not ns.OwnLines(zone, "walls") and not ns.OwnLines(zone, "roads")
-                and not ns.OwnLines(zone, "zonelines") then
+                and not ns.OwnLines(zone, "zonelines") and not ns.OwnLines(zone, "ledges") then
             ns.SetZoneMarkedDone(zone, false)
         end
     end

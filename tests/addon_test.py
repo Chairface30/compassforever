@@ -1190,6 +1190,32 @@ rt.execute("NS.ShowZone(ELWYNN) NS.SetEditing(true) NS.WindowWallMode(true, 'zon
 check("drawn with Zone line ticked, it's a zone line", rt.eval("NS.db.zonelines and #NS.db.zonelines[ELWYNN.ach] == 1 and not (NS.db.walls and NS.db.walls[ELWYNN.ach])"))
 rt.execute("NS.WindowWallMode(false) NS.db.zonelines = nil NS.WallsChanged()")
 
+print("ledges and walls")
+lw = rt.eval("""(function()
+    local z = NS.ZoneByMap(1412)
+    local ax, ay = NS.ZoneToContinentPoint(z, 0.45, 0.45)
+    local bx, by = NS.ZoneToContinentPoint(z, 0.55, 0.45)
+    local _, c0 = NS.FindContinentPathNow(z.continent, ax, ay, bx, by)
+    -- drawn southward: the high ground on its left (east), the drop west
+    NS.db.ledges = { [z.ach] = { { 0.5, 0.35, 0.5, 0.55 } } }
+    NS.WallsChanged()
+    local _, up = NS.FindContinentPathNow(z.continent, ax, ay, bx, by)
+    local _, down = NS.FindContinentPathNow(z.continent, bx, by, ax, ay)
+    NS.db.ledges = nil
+    -- a road straight across a wall: no way through it
+    NS.db.walls = { [z.ach] = { { 0.5, 0.35, 0.5, 0.55 } } }
+    NS.db.roads = { [z.ach] = { { 0.44, 0.45, 0.56, 0.45 } } }
+    NS.WallsChanged()
+    local _, walled = NS.FindContinentPathNow(z.continent, ax, ay, bx, by)
+    NS.db.walls, NS.db.roads = nil, nil
+    NS.WallsChanged()
+    return string.format("%.0f,%.0f,%.0f,%.0f", c0, up or -1, down or -1, walled or -1)
+end)()""")
+c0, up, down, walled = map(float, lw.split(","))
+check(f"a ledge can't be climbed: the way up goes round ({c0:.0f} -> {up:.0f} yd)", up > c0 + 20, lw)
+check(f"but it can be jumped down ({down:.0f} yd)", 0 < down < c0 + 20, lw)
+check(f"a road drawn across a wall doesn't get through it ({walled:.0f} yd)", walled > c0 + 20, lw)
+
 print("zone ground")
 check("Goldshire is on Elwynn's ground", rt.eval("NS.OnZoneGround(ELWYNN, 0.42, 0.65)") is True)
 check("far off its map is not", rt.eval("NS.OnZoneGround(ELWYNN, 0.5, -0.5)") is False)

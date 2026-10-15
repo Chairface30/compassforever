@@ -2,8 +2,8 @@
 
   python tools/unbake.py <zone ach> [...]
 
-Each zone's walls, roads and zone lines move from Data/Walls.lua,
-Data/Roads.lua and Data/ZoneLines.lua to Data/Returned.lua. At login the
+Each zone's walls, roads, zone lines and ledges move from Data/Walls.lua,
+Data/Roads.lua, Data/ZoneLines.lua and Data/Ledges.lua to Data/Returned.lua. At login the
 game copies them into the player's own lines, once, and clears the zone's
 done mark (Edits.lua). Baking the zone again (bake_edits.py --replace)
 takes it out of Data/Returned.lua.
@@ -15,7 +15,8 @@ import sys
 import bake_edits as b
 
 ADDON = b.ADDON
-KINDS = (("walls", "Walls.lua", "WALLS"), ("roads", "Roads.lua", "ROADS"), ("zonelines", "ZoneLines.lua", "ZONELINES"))
+KINDS = (("walls", "Walls.lua", "WALLS"), ("roads", "Roads.lua", "ROADS"), ("zonelines", "ZoneLines.lua", "ZONELINES"),
+         ("ledges", "Ledges.lua", "LEDGES"))
 HEADER = [
     "-- Compass Forever: Data/Returned.lua",
     "-- Zones taken back out of the built-in lines to be redrawn: at login",

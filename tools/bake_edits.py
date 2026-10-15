@@ -1,12 +1,13 @@
-"""Copy hand-made walls, roads and zone lines from the saved settings into
-the addon's data, for the zones named.
+"""Copy hand-made walls, roads, zone lines and ledges from the saved
+settings into the addon's data, for the zones named.
 
   python tools/bake_edits.py <CompassForever.lua saved variables> <zone ach> [...] [--replace]
 
-Walls, roads and zone lines go to Data/Walls.lua, Data/Roads.lua and
-Data/ZoneLines.lua, added to what a zone has built in already (the saved
-lines are only the player's own); with --replace, in place of them (a
-zone redone from scratch). In the game the saved
+Walls, roads, zone lines and ledges go to Data/Walls.lua, Data/Roads.lua,
+Data/ZoneLines.lua and Data/Ledges.lua, added to what a zone has built in
+already (the saved lines are only the player's own); with --replace, or for
+a zone whose built-in lines were taken over in the game (Edit built-in),
+in place of them. In the game the saved
 copies of what was baked are dropped at login (Edits.lua), so they don't
 show as the player's own.
 """
@@ -76,19 +77,25 @@ def main():
     rt = lua51.LuaRuntime()
     db = to_py(lua_table(rt, open(saved, encoding="utf-8").read(), "CompassForeverDB"))
 
+    takeover = db.get("takeover") or {}
     for kind, var, fname in (("walls", "WALLS", "Walls.lua"), ("roads", "ROADS", "Roads.lua"),
-                             ("zonelines", "ZONELINES", "ZoneLines.lua")):
+                             ("zonelines", "ZONELINES", "ZoneLines.lua"), ("ledges", "LEDGES", "Ledges.lua")):
         path = os.path.join(ADDON, "Data", fname)
         blocks = read_existing(path, var)
         mine = db.get(kind) or {}
         for ach in achs:
             lines = mine.get(ach) or []
+            whole = replace or takeover.get(ach)
             if not lines:
+                # taken over and every line of this kind removed: none built in
+                if takeover.get(ach) and blocks.pop(ach, None):
+                    print(f"{kind}: zone {ach}, all removed")
                 continue
             # The saved lines are only the player's own: at login the game
             # drops their copies of what's built in. So they're added to a
-            # zone's built-in lines, not put in place of them.
-            have = [] if replace else re.findall(r"\n        (\{.*\}),", blocks.get(ach, ""))
+            # zone's built-in lines, not put in place of them, unless the
+            # zone's built-in lines were taken over to edit.
+            have = [] if whole else re.findall(r"\n        (\{.*\}),", blocks.get(ach, ""))
             new = [t for t in (fmt_line(l) for l in lines) if t not in have]
             body = "".join("\n        %s," % t for t in have + new)
             blocks[ach] = "\n    [%d] = {%s\n    }," % (ach, body)
