@@ -159,6 +159,6 @@ ns.On("uncovered", function(zone, found)
         ns.Fanfare()
         return
     end
-    local left = #ns.route.stops
+    local left = #ns.ZoneRemaining(ns.route.zone)
     ns.Banner(head, string.format("%d left. %s", left, ns.NextStopText() or ""))
 end)

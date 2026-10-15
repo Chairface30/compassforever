@@ -1,6 +1,6 @@
 ## Interface: 16001
 ## Title: Compass Forever
-## Notes: Uncover every zone map for the Explorer Legacy challenge: the shortest route through each zone, an arrow to every spot, and markers on the world map. Type /cf.
+## Notes: Uncover every zone map for the Explorer Legacy challenge: a route through each zone, nearest area first, an arrow to every spot, and markers on the world map. Type /cf.
 ## Author: Chairface Chippendale
 ## Version: 1.6
 ## SavedVariables: CompassForeverDB

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **One area at a time.** Start route no longer plans the whole zone: it heads
+  for the area nearest to where you are (or where you walk in, or where a
+  flight lands), and once that one is uncovered, for the nearest one left from
+  there. Areas uncovered on the way don't change where it's heading. Skip
+  picks another area; skipped ones come back when nothing else is left.
 - **No more arrow or lines to your corpse.** As a ghost, the arrow, the minimap
   button and the route's lines no longer lead back to your body; the route
   carries on as usual.

@@ -1,8 +1,8 @@
 # Compass Forever
 
-Uncover every zone map for the Explorer Legacy challenge on WoW Forever: the
-shortest route through each zone, with each area's real outline on the map and
-an arrow to the nearest edge of every area.
+Uncover every zone map for the Explorer Legacy challenge on WoW Forever: a
+route through each zone, one nearest area after another, with each area's real
+outline on the map and an arrow to the nearest edge of every area.
 
 Type `/cf` (or `/compassforever`), or click the map icon on the minimap.
 
@@ -17,10 +17,11 @@ Type `/cf` (or `/compassforever`), or click the map icon on the minimap.
   banner tells you where to run: "Duskwood: 7 areas to uncover. Head northwest
   to Raven Hill, 420 yd". Leaving the zone ends that route.
 - **The arrow** points at the next stop with the distance. Right-click it to
-  skip a stop to the end of the route.
-- **As you go**, each area you uncover is announced with the next stop, and the
-  route is planned again from where you are, including areas you crossed on the
-  way to another.
+  skip that stop: the route heads for another, and comes back to the skipped
+  one when nothing else is left.
+- **As you go**, each area you uncover is announced. The route keeps its stop
+  until that one is uncovered, then heads for the nearest area left from where
+  you are.
 - **The window** lists every zone with how much of it is left, and its map
   works like the world map. Right-click to back out from a zone to its
   continent and then to Azeroth; click a continent or a zone to open it.
@@ -31,15 +32,17 @@ Type `/cf` (or `/compassforever`), or click the map icon on the minimap.
   gray, each area's outline, the route as a line, and you. Point at an area
   for its name; click it to go there next.
 
-The route is the shortest walk from where you stand: exact for up to 11 areas,
-and very close beyond that.
+The route doesn't plan the whole zone ahead. It starts with the area nearest
+to where you are (where you walk in from outside the zone, or where a flight
+lands when flying there saves the run), and each time an area is uncovered it
+picks the nearest one left.
 
 ## Around mountains, and by air
 
 Routes go round what can't be walked. Every zone's terrain is mapped every 8
 yards from the game's own height data: slopes too steep to climb (over 50
 degrees), sheer drops, lava and slime are avoided, and deep water is swum. The
-order of the stops uses real walking distances, and the arrow follows the
+arrow follows the
 walking path, aiming a little way ahead along it, so it bends round a cliff
 instead of pointing through it. Bridges and buildings aren't terrain, so a
 gorge with a bridge over it counts as hard going rather than impossible: the

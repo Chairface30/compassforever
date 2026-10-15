@@ -1331,19 +1331,19 @@ local function RefreshInfo()
     if d == t then
         zoneInfo:SetText(GREEN .. "Fully explored. All " .. t .. " areas uncovered.|r")
     elseif routed then
-        zoneInfo:SetText(string.format("%d of %d areas uncovered. Route: %d stop%s, about %s.", d, t,
-            #ns.route.stops, #ns.route.stops == 1 and "" or "s", ns.Yards(ns.route.yards)))
+        zoneInfo:SetText(string.format("%d of %d areas uncovered. Route: the nearest next, about %s.", d, t,
+            ns.Yards(ns.route.yards)))
     else
         zoneInfo:SetText(string.format("%d of %d areas uncovered. %s%d to find.|r", d, t, GOLD, t - d))
     end
     if routed then
         nextInfo:SetText(ns.NextStopText() or "")
     elseif d < t then
-        nextInfo:SetText(GRAY .. "Start the route for the shortest way through the areas left.|r")
+        nextInfo:SetText(GRAY .. "Start the route to be led to the nearest area, then the next nearest.|r")
     end
     routeButton:SetShown(d < t)
     routeButton:SetText(routed and "Stop route" or "Start route")
-    skipButton:SetShown(routed and #ns.route.stops > 1)
+    skipButton:SetShown(routed and t - d > 1)
 end
 
 -------------------------------------------------------------------------------

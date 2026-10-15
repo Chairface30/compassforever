@@ -168,7 +168,7 @@ end
 local function Help()
     ns.Print("commands:")
     print("  /cf - open or close the window")
-    print("  /cf route [zone] - walk the shortest route through the zone's covered areas (default: this zone)")
+    print("  /cf route [zone] - be led to the zone's covered areas, nearest first (default: this zone)")
     print("  /cf auto - route automatically on entering a zone, on or off")
     print("  /cf next - say the next stop in chat")
     print("  /cf skip - leave the current stop for the end of the route")
@@ -202,10 +202,10 @@ SlashCmdList.COMPASSFOREVER = function(msg)
         local text = ns.NextStopText()
         if text then ns.Print(text .. ".") end
     elseif cmd == "next" then
-        local stop, i = ns.CurrentStop()
+        local stop = ns.CurrentStop()
         if not stop then ns.Print("No route.") return end
         local _, yards = ns.StopVector(ns.route.zone, stop)
-        ns.Print(string.format("stop %d of %d: %s at %.1f, %.1f%s", i, #ns.route.stops, stop.node.name,
+        ns.Print(string.format("next: %s at %.1f, %.1f%s", stop.node.name,
             stop.x * 100, stop.y * 100, type(yards) == "number" and (" (" .. ns.Yards(yards) .. ")") or ""))
     elseif cmd == "skip" then
         ns.SkipStop()

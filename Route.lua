@@ -1,19 +1,12 @@
 -- Compass Forever: Route.lua
--- The shortest walk through a zone's map areas that are still covered.
+-- The way through a zone's map areas that are still covered, one area at a
+-- time: the route heads for the nearest area to where it starts (you in the
+-- zone, where you walk in, or a flight master you can fly to), and once that
+-- one is uncovered, for the nearest from there, until the zone is done.
 --
--- Every area comes with a few standing points (Data/Exploration.lua, picked
--- from the terrain: well inside the area and on flat ground). The route starts
--- where the player stands and visits one point per area:
---
---   1. nearest first: from here, always to the closest point of an area not
---      yet on the route;
---   2. then improved until nothing helps: reverse any stretch that gets
---      shorter for it (2-opt), move any one stop to where it costs least, and
---      let each stop take whichever of its points sits best between its
---      neighbours.
---
--- A zone has at most a couple of dozen areas, so this takes no time and is
--- simply redone whenever an area is uncovered or the player picks a zone.
+-- Every area comes with standing points (Data/Exploration.lua, picked from
+-- the terrain, or the points just inside its edge from Areas.lua); "nearest"
+-- is the nearest of those.
 
 local _, ns = ...
 
@@ -115,296 +108,52 @@ function ns.NodeMarker(node)
     return { node.points[1] / SCALE, node.points[2] / SCALE }
 end
 
--- Plan a route through `nodes` on `zone`, starting at (sx, sy) or, with no
--- start, wherever makes the walk shortest. Returns { { node, x, y } ... } and
--- its length in yards.
---
--- Legs between standing points cost what walking them costs around cliffs
--- and mountains (Pathing.lua, worked out ahead of time); a leg from the
--- player, or between points the terrain data doesn't cover, is a straight
--- line. Walking costs differ a little each way (down is easier than up), so
--- the planner uses the average of the two: its moves assume a leg costs the
--- same both ways.
-function ns.PlanRoute(zone, nodes, sx, sy)
-    local w, h = zone.w, zone.h
-    local function Straight(a, b)
-        local dx, dy = (a.x - b.x) * w, (a.y - b.y) * h
-        return math.sqrt(dx * dx + dy * dy)
-    end
-    local function D(a, b)
-        -- over the waypoint graph, walls and roads included, once worked out
-        if a.node and b.node and ns.PlanCost then
-            local c = ns.PlanCost(zone, a.x, a.y, b.x, b.y)
-            if c then return c end
+-- The point of `node` nearest (sx, sy), on `zone`'s map, and how far it is
+-- in yards. From a standing point (fromPoint) along the walking paths once
+-- they are worked out (Pathing.lua), else in a straight line.
+local function Nearest(zone, node, sx, sy, fromPoint)
+    local best, bestD
+    for _, p in ipairs(Points(node)) do
+        local d = fromPoint and ns.PlanCost and ns.PlanCost(zone, sx, sy, p[1], p[2])
+        if not d then
+            local dx, dy = (p[1] - sx) * zone.w, (p[2] - sy) * zone.h
+            d = math.sqrt(dx * dx + dy * dy)
         end
-        if a.id and b.id then
-            local ab, ba = ns.WalkCost(zone, a.id, b.id), ns.WalkCost(zone, b.id, a.id)
-            if ab and ba then return (ab + ba) / 2 end
-        end
-        return Straight(a, b)
+        if not bestD or d < bestD then best, bestD = p, d end
     end
-    local n = #nodes
-    if n == 0 then return {}, 0 end
-    local start = sx and { x = sx, y = sy } or nil
-    local pts = {}
-    for i, node in ipairs(nodes) do
-        pts[i] = {}
-        for k, p in ipairs(Points(node)) do
-            -- an edge point has no terrain costs worked out (the graph's
-            -- cover it)
-            local own = ns.AreaOf and ns.AreaOf(node)
-            pts[i][k] = { x = p[1], y = p[2], node = true,
-                          id = not own and ns.PointID and ns.PointID(zone, node, k) or nil }
-        end
-    end
+    return best, bestD
+end
 
-    -- 1. Nearest first, from the start (or from a given first node).
-    local function Greedy(from, firstNode)
-        local used, order, pick = {}, {}, {}
-        local cur = from
-        if firstNode then
-            used[firstNode] = true
-            order[1], pick[1] = firstNode, 1
-            cur = pts[firstNode][1]
+-- The next stop from (sx, sy): the nearest of `nodes`, as { node, x, y },
+-- and how far it is. With no start known, the first of them.
+function ns.NextStop(zone, nodes, sx, sy, fromPoint)
+    local stop, cost
+    for _, node in ipairs(nodes) do
+        local p, d
+        if sx then
+            p, d = Nearest(zone, node, sx, sy, fromPoint)
+        else
+            p, d = Points(node)[1], 0
         end
-        while #order < n do
-            local best, bestK, bestD
-            for i = 1, n do
-                if not used[i] then
-                    for k, p in ipairs(pts[i]) do
-                        local d = cur and D(cur, p) or 0
-                        if not bestD or d < bestD then best, bestK, bestD = i, k, d end
-                    end
-                end
-            end
-            used[best] = true
-            order[#order + 1], pick[#pick + 1] = best, bestK
-            cur = pts[best][bestK]
-        end
-        return order, pick
+        if p and (not cost or d < cost) then stop, cost = { node = node, x = p[1], y = p[2] }, d end
     end
-
-    local function P(order, pick, i)
-        return pts[order[i]][pick[i]]
-    end
-
-    local function Length(order, pick)
-        local total, cur = 0, start
-        for i = 1, #order do
-            local p = P(order, pick, i)
-            if cur then total = total + D(cur, p) end
-            cur = p
-        end
-        return total
-    end
-
-    -- Each stop takes the point that sits best between its neighbours.
-    local function Reselect(order, pick)
-        local m = #order
-        local moved = false
-        for i = 1, m do
-            local prev = i > 1 and P(order, pick, i - 1) or start
-            local nxt = i < m and P(order, pick, i + 1) or nil
-            local bestK, bestC = pick[i], nil
-            for k, p in ipairs(pts[order[i]]) do
-                local c = (prev and D(prev, p) or 0) + (nxt and D(p, nxt) or 0)
-                if not bestC or c < bestC - 0.01 then bestK, bestC = k, c end
-            end
-            if bestK ~= pick[i] then pick[i], moved = bestK, true end
-        end
-        return moved
-    end
-
-    -- 2. Improve until no move helps. Each move is costed by the few legs it
-    -- changes, not by re-measuring the walk. Position 0 is the start.
-    local function Improve(order, pick)
-        local m = #order
-        local function Pos(i)
-            if i == 0 then return start end
-            if i < 1 or i > m then return nil end
-            return P(order, pick, i)
-        end
-        local function E(i, j)
-            local a, b = Pos(i), Pos(j)
-            if not (a and b) then return 0 end
-            return D(a, b)
-        end
-
-        local function Step()
-            -- 2-opt: reverse positions i..j.
-            for i = 1, m - 1 do
-                for j = i + 1, m do
-                    local delta = E(i - 1, j) + E(i, j + 1) - E(i - 1, i) - E(j, j + 1)
-                    if delta < -0.5 then
-                        for a = 0, math.floor((j - i - 1) / 2) do
-                            order[i + a], order[j - a] = order[j - a], order[i + a]
-                            pick[i + a], pick[j - a] = pick[j - a], pick[i + a]
-                        end
-                        return true
-                    end
-                end
-            end
-            -- Move the run i..e (any length) to between j and j+1, either way
-            -- round.
-            for len = 1, m - 1 do
-                for i = 1, m - len + 1 do
-                    local e = i + len - 1
-                    local gain = E(i - 1, i) + E(e, e + 1) - E(i - 1, e + 1)
-                    for j = 0, m do
-                        if j < i - 1 or j > e then
-                            for flip = 0, 1 do
-                                local first, last = i, e
-                                if flip == 1 then first, last = e, i end
-                                if not (flip == 1 and len == 1) then
-                                    local cost = E(j, first) + E(last, j + 1) - E(j, j + 1)
-                                    if cost - gain < -0.5 then
-                                        local segO, segK, o2, k2 = {}, {}, {}, {}
-                                        for a = i, e do segO[#segO + 1], segK[#segK + 1] = order[a], pick[a] end
-                                        if flip == 1 then
-                                            for a = 1, math.floor(len / 2) do
-                                                segO[a], segO[len - a + 1] = segO[len - a + 1], segO[a]
-                                                segK[a], segK[len - a + 1] = segK[len - a + 1], segK[a]
-                                            end
-                                        end
-                                        if j == 0 then
-                                            for b = 1, len do o2[#o2 + 1], k2[#k2 + 1] = segO[b], segK[b] end
-                                        end
-                                        for a = 1, m do
-                                            if a < i or a > e then o2[#o2 + 1], k2[#k2 + 1] = order[a], pick[a] end
-                                            if a == j then
-                                                for b = 1, len do o2[#o2 + 1], k2[#k2 + 1] = segO[b], segK[b] end
-                                            end
-                                        end
-                                        for a = 1, m do order[a], pick[a] = o2[a], k2[a] end
-                                        return true
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-            return false
-        end
-
-        for _ = 1, 2000 do
-            Reselect(order, pick)
-            if not Step() then break end
-        end
-        Reselect(order, pick)
-        return order, pick, Length(order, pick)
-    end
-
-    -- 3. Few enough areas to be sure: the exact shortest walk through the
-    -- chosen points (Held-Karp), then each stop's point chosen again for its
-    -- new neighbours, until that changes nothing.
-    local EXACT = 11
-    local function Exact(order, pick)
-        local m = #order
-        for _ = 1, 4 do
-            local P2 = {}
-            for i = 1, m do P2[i] = P(order, pick, i) end
-            local full = 2 ^ m - 1
-            local dp, from, bit = {}, {}, {}
-            for i = 1, m do bit[i] = 2 ^ (i - 1) end
-            for i = 1, m do
-                dp[bit[i]] = dp[bit[i]] or {}
-                from[bit[i]] = from[bit[i]] or {}
-                dp[bit[i]][i] = start and D(start, P2[i]) or 0
-            end
-            for mask = 1, full do
-                local row = dp[mask]
-                if row then
-                    for j = 1, m do
-                        local c = row[j]
-                        if c then
-                            for k = 1, m do
-                                if math.floor(mask / bit[k]) % 2 == 0 then
-                                    local nm = mask + bit[k]
-                                    local nc = c + D(P2[j], P2[k])
-                                    dp[nm] = dp[nm] or {}
-                                    from[nm] = from[nm] or {}
-                                    if not dp[nm][k] or nc < dp[nm][k] then
-                                        dp[nm][k], from[nm][k] = nc, j
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-            local last, best
-            for j = 1, m do
-                if dp[full][j] and (not best or dp[full][j] < best) then last, best = j, dp[full][j] end
-            end
-            local seq, mask = {}, full
-            while last do
-                table.insert(seq, 1, last)
-                local prev = from[mask] and from[mask][last]
-                mask = mask - bit[last]
-                last = prev
-            end
-            local o2, k2 = {}, {}
-            for i, idx in ipairs(seq) do o2[i], k2[i] = order[idx], pick[idx] end
-            order, pick = o2, k2
-            if not Reselect(order, pick) then break end
-        end
-        return order, pick, Length(order, pick)
-    end
-
-    -- Several starts, keeping the shortest: from the player, greedy, and
-    -- with each of the few closest areas forced first (one wrong first step
-    -- can lock the greedy walk into a long detour the moves do not undo).
-    local bestOrder, bestPick, bestLen
-    local function Try(o, k)
-        local o2, k2, len = Improve(o, k)
-        if n <= EXACT then o2, k2, len = Exact(o2, k2) end
-        if not bestLen or len < bestLen - 0.5 then bestOrder, bestPick, bestLen = o2, k2, len end
-    end
-    if start then
-        Try(Greedy(start))
-        if n > EXACT then
-            local near = {}
-            for i = 1, n do
-                local d
-                for _, p in ipairs(pts[i]) do
-                    local dd = D(start, p)
-                    if not d or dd < d then d = dd end
-                end
-                near[i] = { i = i, d = d }
-            end
-            table.sort(near, function(a, b) return a.d < b.d end)
-            for r = 2, math.min(n, 5) do Try(Greedy(start, near[r].i)) end
-        end
-    elseif n <= EXACT then
-        Try(Greedy(nil, 1))
-    else
-        for first = 1, n do Try(Greedy(nil, first)) end
-    end
-
-    local stops = {}
-    for i, idx in ipairs(bestOrder) do
-        local p = pts[idx][bestPick[i]]
-        stops[i] = { node = nodes[idx], x = p.x, y = p.y }
-    end
-    return stops, bestLen
+    return stop, cost
 end
 
 -------------------------------------------------------------------------------
 -- The active route
 -------------------------------------------------------------------------------
 
--- (Re)plan the route through `zone` from where the player is now.
--- opts:
+-- Start the route through `zone`: its first stop, the nearest area to where
+-- you start. opts:
 --   quiet   = no chat line;
---   first   = a node to visit first (picked on a map), the rest planned on
---             from there;
+--   first   = the node to head for first (picked on a map);
 --   auto    = started on entering the zone; it ends when the player leaves;
---   skipped = overlay ID -> order skipped: those stay at the end.
+--   skipped = overlay ID -> order skipped: those come last.
 -- A flight master the character hasn't discovered, in the zone being
--- explored, is always a stop: learning it now saves a walk every time after.
+-- explored, counts as a stop: learning it now saves a walk every time after.
 -- From outside the zone, the route may start where a flight lands instead of
--- where you stand, when that saves at least this much (yards of running).
+-- where you walk in, when that saves at least this much (yards of running).
 local LANDING_SAVES = 210
 
 -- One area only, from a click on its marker: the walk there and nothing
@@ -436,6 +185,44 @@ local function SingleRoute(zone, node, quiet, wasCovered)
     return ns.route
 end
 
+-- What the route can head for next: the areas still covered and the zone's
+-- flight masters not yet learned, leaving out what was skipped. When only
+-- skipped ones are left, the one skipped first.
+local function Candidates(zone, skipped)
+    local list, later = {}, {}
+    for _, node in ipairs(ns.ZoneRemaining(zone)) do
+        if skipped[node.overlay] then later[#later + 1] = node else list[#list + 1] = node end
+    end
+    for _, node in ipairs(ns.FlightStops and ns.FlightStops(zone) or {}) do
+        if skipped[node.overlay] then later[#later + 1] = node else list[#list + 1] = node end
+    end
+    if #list == 0 and #later > 0 then
+        table.sort(later, function(a, b) return skipped[a.overlay] < skipped[b.overlay] end)
+        list[1] = later[1]
+    end
+    return list
+end
+
+-- The player on the zone's map, or on its continent's map when the zone's
+-- won't place them (far off), converted; nil when neither will.
+local function PlayerOnZone(zone)
+    local px, py = ns.PlayerOn(zone.map)
+    if px then return px, py end
+    local c = ns.CONTINENT_YARDS and ns.CONTINENT_YARDS[zone.continent]
+    local cx, cy
+    if c then cx, cy = ns.PlayerOn(c.map) end
+    local r = cx and ns.MapRect and ns.MapRect(zone.map, c.map)
+    if r then return (cx - r.l) / (r.r - r.l), (cy - r.t) / (r.b - r.t) end
+    return nil
+end
+
+-- Every area still to do, so progress can tell what was just uncovered.
+local function LeftSet(zone)
+    local left = {}
+    for _, node in ipairs(ns.ZoneRemaining(zone)) do left[node] = true end
+    return left
+end
+
 function ns.StartRoute(zone, opts)
     opts = opts or {}
     -- a replan keeps a one-area route as it is (from where you are now)
@@ -450,74 +237,50 @@ function ns.StartRoute(zone, opts)
         if had or not opts.quiet then ns.Fire("route") end
         return nil
     end
-    local flights = ns.FlightStops and ns.FlightStops(zone) or {}
-    local first, now, later, extra = nil, {}, {}, {}
-    for _, node in ipairs(remaining) do
-        if node == opts.first then first = node
-        elseif skipped[node.overlay] then later[#later + 1] = node
-        else now[#now + 1] = node end
-    end
-    for _, node in ipairs(flights) do
-        if node == opts.first then first = node
-        elseif not skipped[node.overlay] then extra[#extra + 1] = node end
-    end
-    table.sort(later, function(a, b) return skipped[a.overlay] < skipped[b.overlay] end)
-
-    local px, py = ns.PlayerOn(zone.map)
-    if not px then
-        -- not placed on the zone's map (another zone, far off): through the
-        -- continent's, so the walk there still counts
-        local c = ns.CONTINENT_YARDS and ns.CONTINENT_YARDS[zone.continent]
-        local cx, cy
-        if c then cx, cy = ns.PlayerOn(c.map) end
-        local r = cx and ns.MapRect and ns.MapRect(zone.map, c.map)
-        if r then px, py = (cx - r.l) / (r.r - r.l), (cy - r.t) / (r.b - r.t) end
-    end
-    local function Plan(list, sx, sy)
-        if not first then return ns.PlanRoute(zone, list, sx, sy) end
-        -- The chosen area first: its point nearest the player, then the rest
-        -- planned on from there.
-        local best, bestD
-        for _, p in ipairs(ns.NodePoints(first)) do
-            local d = sx and ((p[1] - sx) * zone.w) ^ 2 + ((p[2] - sy) * zone.h) ^ 2 or 0
-            if not bestD or d < bestD then best, bestD = p, d end
-        end
-        local stops = { { node = first, x = best[1], y = best[2] } }
-        local rest, len = ns.PlanRoute(zone, list, best[1], best[2])
-        for _, stop in ipairs(rest) do stops[#stops + 1] = stop end
-        return stops, len + (sx and math.sqrt(bestD) or 0)
-    end
-    local list = {}
-    for _, node in ipairs(now) do list[#list + 1] = node end
-    for _, node in ipairs(extra) do list[#list + 1] = node end
-    local stops, yards = Plan(list, px, py)
-    -- From outside the zone: the route from each known flight point in reach
-    -- of it, plus the time to get there by air (Travel.lua), against walking
-    -- in. The flight itself is then planned for the first stop as usual.
-    local landing
-    if not first and ns.FlightLandings and ns.CurrentZone() ~= zone then
-        for _, l in ipairs(ns.FlightLandings(zone)) do
-            local s2, y2 = Plan(list, l.x, l.y)
-            if y2 + l.yards < yards - LANDING_SAVES then stops, yards, landing = s2, y2 + l.yards, l end
+    local px, py = PlayerOnZone(zone)
+    local stop, yards, landing
+    if opts.first then
+        stop, yards = ns.NextStop(zone, { opts.first }, px, py)
+    else
+        local list = Candidates(zone, skipped)
+        stop, yards = ns.NextStop(zone, list, px, py)
+        -- From outside the zone: the nearest area to where a known flight
+        -- lands, plus the flight (Travel.lua), against walking in.
+        if ns.FlightLandings and ns.CurrentZone() ~= zone then
+            for _, l in ipairs(ns.FlightLandings(zone)) do
+                local s2, y2 = ns.NextStop(zone, list, l.x, l.y)
+                if s2 and y2 + l.yards < (yards or 0) - LANDING_SAVES then
+                    stop, yards, landing = s2, y2 + l.yards, l
+                end
+            end
         end
     end
-    for _, node in ipairs(later) do
-        local p = ns.NodePoints(node)[1]
-        stops[#stops + 1] = { node = node, x = p[1], y = p[2] }
-    end
-    ns.route = { zone = zone, stops = stops, yards = yards, skipped = skipped, auto = opts.auto or false,
-                 landing = landing }
+    if not stop then return nil end
+    ns.route = { zone = zone, stops = { stop }, yards = yards or 0, skipped = skipped,
+                 auto = opts.auto or false, landing = landing, left = LeftSet(zone) }
     if not opts.quiet then
         if landing then
             ns.Print(string.format("%s: %d area%s left, starting where you land at %s.", zone.name,
                 #remaining, #remaining == 1 and "" or "s", landing.name))
         else
-            ns.Print(string.format("%s: %d area%s left, about %s on foot.", zone.name,
-                #remaining, #remaining == 1 and "" or "s", ns.Yards(yards)))
+            ns.Print(string.format("%s: %d area%s left, the nearest about %s on foot.", zone.name,
+                #remaining, #remaining == 1 and "" or "s", ns.Yards(yards or 0)))
         end
     end
     ns.Fire("route")
     return ns.route
+end
+
+-- On from the stop just reached (or skipped): the nearest of what's left,
+-- from where the player is (from the stop when they can't be placed).
+local function Onward(r)
+    local list = Candidates(r.zone, r.skipped)
+    if #list == 0 then return nil end
+    local px, py = PlayerOnZone(r.zone)
+    local fromPoint = false
+    local last = r.stops[1]
+    if not px and last then px, py, fromPoint = last.x, last.y, true end
+    return ns.NextStop(r.zone, list, px, py, fromPoint)
 end
 
 -- A click on an area's marker: a route to that one area alone. Start route
@@ -552,17 +315,21 @@ function ns.CurrentStop()
 end
 
 -- Leave the current stop for later (an area that will not take, or one the
--- player wants to do another day): it goes to the end of the route and stays
--- there through every replan.
+-- player wants to do another day): the route heads for the nearest other
+-- one, and skipped ones come back only when nothing else is left.
 local skipCount = 0
 function ns.SkipStop()
     local r = ns.route
     local stop = ns.CurrentStop()
-    if not stop or #r.stops < 2 then return end
+    if not stop or r.single then return end
     skipCount = skipCount + 1
     r.skipped[stop.node.overlay] = skipCount
-    table.remove(r.stops, 1)
-    r.stops[#r.stops + 1] = stop
+    local nextStop, yards = Onward(r)
+    if not nextStop or nextStop.node == stop.node then
+        r.skipped[stop.node.overlay] = nil
+        return
+    end
+    r.stops, r.yards = { nextStop }, yards
     ns.Fire("route")
 end
 
@@ -571,27 +338,10 @@ function ns.Yards(yards)
     return string.format("%d yd", math.floor(yards + 0.5))
 end
 
--- A route's length in yards, from the player (if given) through its stops.
-local function RouteYards(zone, stops, sx, sy)
-    local total, cx, cy = 0, sx, sy
-    for _, stop in ipairs(stops) do
-        if cx then
-            local c = ns.PlanCost and ns.PlanCost(zone, cx, cy, stop.x, stop.y)
-            if not c then
-                local dx, dy = (stop.x - cx) * zone.w, (stop.y - cy) * zone.h
-                c = math.sqrt(dx * dx + dy * dy)
-            end
-            total = total + c
-        end
-        cx, cy = stop.x, stop.y
-    end
-    return total
-end
-
--- After any progress: the route keeps its order. A stop uncovered (even by
--- walking through it on the way somewhere else) drops out and the rest stay
--- as planned; an area that is somehow still to do and not on the route goes
--- on the end. "uncovered" tells the banner what was found and what is next.
+-- After any progress: the route's stop is kept until it is uncovered (or,
+-- for a flight master, learned); then the route heads for the nearest of
+-- what's left from where you are. Areas uncovered on the way don't change
+-- it. "uncovered" tells the banner what was found and what is next.
 ns.On("progress", function()
     local r = ns.route
     if not r then return end
@@ -609,37 +359,31 @@ ns.On("progress", function()
         end
         return
     end
-    local remaining = ns.ZoneRemaining(r.zone)
-    local flights = ns.FlightStops and ns.FlightStops(r.zone) or {}
-    local want = {}
-    for _, node in ipairs(remaining) do want[node] = true end
-    for _, node in ipairs(flights) do want[node] = true end
-    -- A flight master's stop drops out once its flight point is learned.
-    local known = ns.KnownFlights and ns.KnownFlights() or {}
-    local stops, have, found = {}, {}, {}
-    for _, stop in ipairs(r.stops) do
-        if want[stop.node] then
-            stops[#stops + 1] = stop
-            have[stop.node] = true
-        elseif not stop.node.fp or known[stop.node.fp] then
-            found[#found + 1] = stop.node
-        end
+    local left = LeftSet(r.zone)
+    -- what was still to do last time and isn't now
+    local found = {}
+    for node in pairs(r.left or {}) do
+        if not left[node] then found[#found + 1] = node end
     end
-    -- New flight masters aren't added mid-route; areas still to do are.
-    for _, node in ipairs(remaining) do
-        if not have[node] then
-            local p = Points(node)[1]
-            stops[#stops + 1] = { node = node, x = p[1], y = p[2] }
-        end
+    r.left = left
+    local stop = r.stops[1]
+    local done = stop and not left[stop.node] or false
+    if stop and stop.node.fp then
+        local known = ns.KnownFlights and ns.KnownFlights() or {}
+        done = known[stop.node.fp] and true or false
+        if done then found[#found + 1] = stop.node end
     end
-    local changed = #found > 0 or #stops ~= #r.stops
-    if #remaining == 0 or #stops == 0 then
+    if not next(left) then
         ns.route = nil
-        changed = true
-    elseif changed then
-        r.stops = stops
-        r.yards = RouteYards(r.zone, stops, ns.PlayerOn(r.zone.map))
+        ns.Fire("route")
+    elseif done then
+        local nextStop, yards = Onward(r)
+        if nextStop then
+            r.stops, r.yards = { nextStop }, yards
+        else
+            ns.route = nil
+        end
+        ns.Fire("route")
     end
-    if changed then ns.Fire("route") end
     if #found > 0 then ns.Fire("uncovered", r.zone, found) end
 end)

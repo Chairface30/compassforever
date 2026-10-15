@@ -25,9 +25,11 @@ local function Tooltip(tip)
         tip:AddLine(string.format("%s: %d/%d", zone.name, d, t), 0.8, 0.8, 0.8)
     end
     tip:AddLine("Automatic routes: " .. (ns.db.autoRoute and "on" or "off"), 0.8, 0.8, 0.8)
-    local stop, i = ns.CurrentStop()
+    local stop = ns.CurrentStop()
     if stop then
-        tip:AddLine(string.format("Route: %s, stop %d of %d", ns.route.zone.name, i, #ns.route.stops), 1, 0.82, 0)
+        local left = #ns.ZoneRemaining(ns.route.zone)
+        tip:AddLine(string.format("Route: %s, %d area%s left", ns.route.zone.name, left, left == 1 and "" or "s"),
+            1, 0.82, 0)
     end
     tip:AddLine(" ")
     tip:AddLine("Click: open", 0.7, 0.7, 0.7)

@@ -305,35 +305,23 @@ for zone, area, x, y in (("Elwynn Forest", "Goldshire", 42.5, 65.5), ("Durotar",
     end end end)()''')
     check(f"{area} near {x}, {y}", pt and math.hypot(pt[0] - x, pt[1] - y) < 3, pt)
 
-print("route planning")
+print("next stop")
 rt.execute('''ELWYNN = NS.ZoneByMap(1429)''')
-rt.execute('''STOPS, LEN = NS.PlanRoute(ELWYNN, ELWYNN.nodes, 0.42, 0.65)''')
-check("route visits every area once", rt.eval('''(function()
-    local seen = {} for _, s in ipairs(STOPS) do if seen[s.node] then return false end seen[s.node] = true end
-    return #STOPS == #ELWYNN.nodes end)()'''))
-
-
-def brute(rt, zone_expr, count, sx, sy):
-    """Best open walk over the first `count` areas' first points, tried every
-    way, against the planner (which may also choose other points: <=)."""
-    pts = rt.eval(f'''(function() local z = {zone_expr} local out = {{}}
-        for i = 1, {count} do local p = z.nodes[i].points out[i] = {{ p[1] / 10000, p[2] / 10000 }} end
-        return out end)()''')
-    w, h = rt.eval(f"{zone_expr}.w"), rt.eval(f"{zone_expr}.h")
-    P = [(pts[i][1], pts[i][2]) for i in range(1, count + 1)]
-
-    def d(a, b):
-        return math.hypot((a[0] - b[0]) * w, (a[1] - b[1]) * h)
-    best = min(sum(d(a, b) for a, b in zip(((sx, sy),) + perm, perm)) for perm in itertools.permutations(P))
-    rt.execute(f'''SUB = {{}} for i = 1, {count} do local n = {zone_expr}.nodes[i]
-        SUB[i] = {{ name = n.name, points = {{ n.points[1], n.points[2] }} }} end''')
-    _, length = rt.eval(f"NS.PlanRoute({zone_expr}, SUB, {sx}, {sy})")
-    return best, length
-
-
-for zone in ("ELWYNN", "NS.ZoneByMap(1412)", "NS.ZoneByMap(1434)"):
-    best, got = brute(rt, zone, 8, 0.5, 0.5)
-    check(f"route over 8 areas of {zone} is the shortest ({got:.0f} vs {best:.0f} yd)", got <= best * 1.0001, (got, best))
+nearest = rt.eval('''(function()
+    local stop, d = NS.NextStop(ELWYNN, ELWYNN.nodes, 0.42, 0.65)
+    -- every point of every area, measured here
+    local best
+    for _, n in ipairs(ELWYNN.nodes) do
+        for _, p in ipairs(NS.NodePoints(n)) do
+            local dd = math.sqrt(((p[1] - 0.42) * ELWYNN.w) ^ 2 + ((p[2] - 0.65) * ELWYNN.h) ^ 2)
+            if not best or dd < best then best = dd end
+        end
+    end
+    return d, best
+end)()''')
+check(f"the next stop is the nearest area ({nearest[0]:.0f} yd, nearest {nearest[1]:.0f})",
+      abs(nearest[0] - nearest[1]) < 0.01, nearest)
+check("with no start known, the first area", rt.eval("NS.NextStop(ELWYNN, ELWYNN.nodes).node == ELWYNN.nodes[1]"))
 
 print("progress from the achievement")
 rt.execute("FIRE('CRITERIA_UPDATE') FLUSH()")
@@ -353,33 +341,31 @@ check("the source is the map", rt2.eval("NS.ZoneState(ELWYNN).source") == "map")
 print("the route")
 rt.execute("SlashCmdList.COMPASSFOREVER('route')")
 check("route starts in the player's zone", rt.eval("NS.route and NS.route.zone == ELWYNN"))
-n0 = rt.eval("#NS.route.stops")
-check("route skips what is done", n0 == len(rt.eval("ELWYNN.nodes")) - 2, n0)
+check("it holds only the next stop", rt.eval("#NS.route.stops") == 1)
+check("the nearest area still to do", rt.eval("""(function()
+    local px, py = NS.PlayerOn(1429)
+    local stop = NS.NextStop(ELWYNN, NS.ZoneRemaining(ELWYNN), px, py)
+    return NS.CurrentStop().node == stop.node end)()"""))
 first = rt.eval("NS.CurrentStop().node.criteria")
-rt.execute("ORDER = {} for i, s in ipairs(NS.route.stops) do ORDER[i] = s.node end")
+other = rt.eval(f"""(function() for _, n in ipairs(NS.ZoneRemaining(ELWYNN)) do
+    if n.criteria ~= {first} then return n.criteria end end end)()""")
+rt.execute(f"DONE[{other}] = true FIRE('CRITERIA_UPDATE') FLUSH()")
+check("an area uncovered on the way leaves the stop as it is", rt.eval("NS.CurrentStop().node.criteria") == first)
+check("the banner says what was uncovered", "Uncovered" in (rt.eval("rawget(BANNER_TITLE(), '_text')") or ""))
 rt.execute(f"DONE[{first}] = true FIRE('CRITERIA_UPDATE') FLUSH()")
-check("uncovering a stop drops it from the route", rt.eval("#NS.route.stops") == n0 - 1
-      and rt.eval(f"NS.CurrentStop().node.criteria ~= {first}"))
-check("and the rest keep their order", rt.eval("""(function()
-    for i, s in ipairs(NS.route.stops) do if s.node ~= ORDER[i + 1] then return false end end
-    return true end)()"""))
-mid = rt.eval("NS.route.stops[3].node.criteria")
-rt.execute(f"ORDER = {{}} for i, s in ipairs(NS.route.stops) do ORDER[i] = s.node end DONE[{mid}] = true FIRE('CRITERIA_UPDATE') FLUSH()")
-check("an area uncovered out of turn drops out, the order otherwise unchanged", rt.eval("""(function()
-    local j = 1
-    for i = 1, #ORDER do
-        if i ~= 3 then
-            if NS.route.stops[j].node ~= ORDER[i] then return false end
-            j = j + 1
-        end
-    end
-    return j - 1 == #NS.route.stops end)()"""))
-check("the banner says what was uncovered and where next", "Uncovered" in (rt.eval("rawget(BANNER_TITLE(), '_text')") or ""))
+check("uncovering the stop heads for the nearest area left, from here", rt.eval(f"""(function()
+    local px, py = NS.PlayerOn(1429)
+    local stop = NS.NextStop(ELWYNN, NS.ZoneRemaining(ELWYNN), px, py)
+    return #NS.route.stops == 1 and NS.CurrentStop().node == stop.node
+        and NS.CurrentStop().node.criteria ~= {first} end)()"""))
 skipped = rt.eval("NS.CurrentStop().node.overlay")
 rt.execute("SlashCmdList.COMPASSFOREVER('skip')")
-check("skip moves the stop to the end", rt.eval("NS.route.stops[#NS.route.stops].node.overlay") == skipped)
-rt.execute(f"DONE[NS.CurrentStop().node.criteria] = true FIRE('CRITERIA_UPDATE') FLUSH()")
-check("a skipped stop stays last after a replan", rt.eval("NS.route.stops[#NS.route.stops].node.overlay") == skipped)
+check("skip heads for another area", rt.eval("NS.CurrentStop().node.overlay") != skipped)
+rt.execute("""for _, n in ipairs(NS.ZoneRemaining(ELWYNN)) do
+    if n.overlay ~= SKIPPED then DONE[n.criteria] = true end end""".replace("SKIPPED", repr(skipped)))
+rt.execute("FIRE('CRITERIA_UPDATE') FLUSH()")
+check("and the skipped one comes back when nothing else is left",
+      rt.eval("NS.route and NS.CurrentStop().node.overlay") == skipped)
 rt.execute("SlashCmdList.COMPASSFOREVER('route westfall')")
 check("route by zone name", rt.eval("NS.route.zone.name") == "Westfall")
 rt.execute("for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = true end SlashCmdList.COMPASSFOREVER('route elwynn')")
@@ -577,20 +563,6 @@ end)()""")
 check(f"a path between two points of Elwynn's east road keeps to it ({share[0] * 100:.0f}% of {share[1]} waypoints on the road)",
       share[0] > 0.8 and share[1] < 30, share)
 
-print("route planner walks round cliffs")
-legs = rt.eval("""(function()
-    local z = NS.ZoneByMap(1441)
-    local stops, len = NS.PlanRoute(z, z.nodes)
-    local sum = 0
-    for i = 2, #stops do
-        local function id(stop) for k, p in ipairs(NS.NodePoints(stop.node)) do
-            if math.abs(p[1] - stop.x) < 1e-9 and math.abs(p[2] - stop.y) < 1e-9 then return NS.PointID(z, stop.node, k) end end end
-        local a, b = id(stops[i - 1]), id(stops[i])
-        sum = sum + (NS.WalkCost(z, a, b) + NS.WalkCost(z, b, a)) / 2
-    end
-    return len, sum
-end)()""")
-check("a route's length is its legs' walking costs", abs(legs[0] - legs[1]) < 1, legs)
 rt.execute("""NS.AREAS = SAVED_AREAS
     NS.WALLS, NS.ROADS, NS.ZONELINES = SAVED_LINES[1], SAVED_LINES[2], SAVED_LINES[3]
     NS.db.walls, NS.db.roads, NS.db.zonelines = SAVED_OWN[1], SAVED_OWN[2], SAVED_OWN[3] NS.WallsChanged()""")
@@ -628,13 +600,12 @@ rt.execute("""NS.StopRoute()
     local p = NS.NodePoints(TN.nodes[1])[1]
     PLAYER.map, PLAYER.x, PLAYER.y = TN.map, p[1], p[2]
     NS.StartRoute(TN, { quiet = true })""")
-before = rt.eval("(function() local g = NS.RouteGeometry() for _, p in ipairs(g.parts) do if p.kind == 'route' then return #p.pts / 2 end end end)()")
+before = rt.eval("(function() local g = NS.RouteGeometry() for _, p in ipairs(g.parts) do if p.kind == 'walk' then return #p.pts / 2 end end end)()")
 for _ in range(3000):
     rt.execute("FRAME(0.05)")
-after = rt.eval("(function() local g = NS.RouteGeometry() for _, p in ipairs(g.parts) do if p.kind == 'route' then return #p.pts / 2 end end end)()")
-stops = rt.eval("#NS.route.stops")
-check(f"legs between stops start straight, then follow paths ({before} points, then {after}, for {stops} stops)",
-      before == stops and after > stops, (before, after, stops))
+after = rt.eval("(function() local g = NS.RouteGeometry() for _, p in ipairs(g.parts) do if p.kind == 'walk' then return #p.pts / 2 end end end)()")
+check(f"the walk to the stop starts straight, then follows the path ({before} points, then {after})",
+      before == 2 and after > 2, (before, after))
 rt.execute("NS.StopRoute()")
 
 print("flights")
@@ -750,22 +721,21 @@ rt.execute("""NS.StopRoute()
     NS.flightsRead = true
     PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.45, 0.55
     NS.StartRoute(ELWYNN)""")
-fp_in = rt.eval("""(function() for i, st in ipairs(NS.route.stops) do if st.node.fp == 9999 then return i end end end)()""")
-check("an unlearned flight master in the zone joins the route", fp_in is not None, fp_in)
-check("named for what it is", rt.eval(f"NS.route.stops[{fp_in or 1}].node.name") == "Flight master: Test Post")
-check("the areas are all still there too", rt.eval("""(function()
-    local on = {} for _, st in ipairs(NS.route.stops) do on[st.node] = true end
-    for _, n in ipairs(NS.ZoneRemaining(ELWYNN)) do if not on[n] then return false end end return true end)()""") is True)
-rt.execute("NS.flightsRead = false NS.StartRoute(ELWYNN, { quiet = true })")
-check("not before the client has said which points are known", rt.eval("""(function() for _, st in ipairs(NS.route.stops) do if st.node.fp then return true end end return false end)()""") is False)
+FP_STOP = """(function() for _, n in ipairs(NS.FlightStops(ELWYNN)) do if n.fp == 9999 then return n end end end)()"""
+check("an unlearned flight master in the zone is one of the stops", rt.eval(FP_STOP) is not None)
+check("named for what it is", rt.eval(f"{FP_STOP}.name") == "Flight master: Test Post")
+rt.execute(f"""local fp = {FP_STOP}
+    PLAYER.x, PLAYER.y = fp.points[1] / 10000, fp.points[2] / 10000
+    NS.flightsRead = false NS.StartRoute(ELWYNN, {{ quiet = true }})""")
+check("not before the client has said which points are known", rt.eval("NS.CurrentStop().node.fp") is None)
 rt.execute("NS.flightsRead = true NS.StartRoute(ELWYNN, { quiet = true })")
-check("once it has, always", rt.eval("""(function() for _, st in ipairs(NS.route.stops) do if st.node.fp then return true end end return false end)()""") is True)
+check("once it has, standing by it, it is the next stop", rt.eval("NS.CurrentStop().node.fp") == 9999)
 # Learn it: the client now says it's known.
 rt.execute("""function NumTaxiNodes() return 1 end
     function TaxiNodeName() return "Test Post, Elwynn" end
     function TaxiNodeGetType() return "CURRENT" end
     FIRE('TAXIMAP_OPENED') FLUSH()""")
-check("learning it takes it off the route", rt.eval("""(function() for _, st in ipairs(NS.route.stops) do if st.node.fp == 9999 then return true end end return false end)()""") is False)
+check("learning it moves the route on", rt.eval("NS.CurrentStop().node.fp") is None)
 check("and the banner says so", "flight point" in (rt.eval("(function() for _, f in ipairs(FRAMES) do local t = rawget(f, '_text') if type(t) == 'string' and t:find('^Learned') then return t end end end)()") or ""))
 rt.execute("""NumTaxiNodes = nil TaxiNodeName = nil TaxiNodeGetType = nil NS.FLIGHT_NODES[9999] = nil NS.flightsRead = false
     NS.StopRoute() PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.42, 0.65""")
@@ -1093,7 +1063,7 @@ check("an uncovered area can be gone to", rt.eval("NS.CurrentStop() and NS.Curre
 rt.execute("local s = NS.CurrentStop() PLAYER.x, PLAYER.y = s.x, s.y NS.ShowZone(ELWYNN) FRAME(0.2)")
 check("reaching it ends the route", rt.eval("NS.route == nil"))
 rt.execute("PLAYER.x, PLAYER.y = 0.42, 0.65 NS.RouteVia(ELWYNN, PICK) NS.StartRoute(ELWYNN)")
-check("Start route then gives the whole zone", rt.eval("NS.ZoneRouted(ELWYNN) and #NS.route.stops > 1"))
+check("Start route then gives the whole zone", rt.eval("NS.ZoneRouted(ELWYNN) and not NS.route.single"))
 rt.execute("""NS.StopRoute() for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = nil end NS.InvalidateProgress()""")
 
 print("editing tools only when turned on, on the author's characters")
@@ -1192,7 +1162,7 @@ check("in the air the route isn't replanned", rt.eval("NS.InFlight() and #NS.rou
 check("nor any path looked for", rt.eval("NS.Steer(0, { x = 0.5, y = 0.5 }, 0.45, 0.75) == nil"))
 check("and the arrow just says you're flying", "In flight" in rt.eval("TEXTS()") or "Flying to" in rt.eval("TEXTS()"))
 rt.execute("ON_TAXI = false FRAME(1.1) FLUSH()")
-check("landed: planned again from there", rt.eval("not NS.InFlight() and #NS.route.stops == BEFORE - 1"))
+check("landed: the next stop, from there", rt.eval("not NS.InFlight() and #NS.route.stops == 1 and NS.CurrentStop().node ~= FIRST"))
 rt.execute("""UnitOnTaxi = nil NS.StopRoute() EXPLORED[1429] = nil
     for _, n in ipairs(ELWYNN.nodes) do DONE[n.criteria] = nil end NS.InvalidateProgress() PLAYER.x, PLAYER.y = 0.42, 0.65""")
 
@@ -1390,14 +1360,16 @@ end)()""")
 check("outlines hold their own spots and edge points, and no one else's", inside == "", inside)
 legs = rt.eval("""(function()
     NS.PlanCostsNow(MULGORE)
-    local stops = NS.PlanRoute(MULGORE, MULGORE.nodes, 0.46, 0.62)
-    -- every stop is one of its area's edge points
-    for _, s in ipairs(stops) do
+    -- every area's stop is one of its edge points
+    local n = 0
+    for _, node in ipairs(MULGORE.nodes) do
+        local s = NS.NextStop(MULGORE, { node }, 0.46, 0.62)
         local ok = false
         for _, p in ipairs(NS.AreaOf(s.node).edge) do if p[1] == s.x and p[2] == s.y then ok = true end end
         if not ok then return "stop off the edge: " .. s.node.name end
+        n = n + 1
     end
-    return #stops
+    return n
 end)()""")
 check(f"the route stops at the areas' edges ({legs} stops)", legs == len(rt.eval("MULGORE.nodes")), legs)
 # Red Cloud Mesa is big: from just north of it, the route enters from the
@@ -1405,9 +1377,9 @@ check(f"the route stops at the areas' edges ({legs} stops)", legs == len(rt.eval
 mesa = rt.eval("""(function()
     local mesa
     for _, n in ipairs(MULGORE.nodes) do if n.name == "Red Cloud Mesa" then mesa = n end end
-    local stops = NS.PlanRoute(MULGORE, { mesa }, 0.47, 0.74)
+    local stop = NS.NextStop(MULGORE, { mesa }, 0.47, 0.74)
     local mid = mesa.points[2] / 10000
-    return stops[1].y < mid and stops[1].y or -1
+    return stop.y < mid and stop.y or -1
 end)()""")
 check(f"a big area is entered from the near side (at y {mesa:.3f})", mesa > 0, mesa)
 rt.execute("""NS.StopRoute()

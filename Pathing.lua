@@ -1030,11 +1030,6 @@ function ns.PlanCost(zone, ax, ay, bx, by)
             done = function(cost)
                 if planCosts[zone.ach] ~= pc then return end
                 pc.cost = cost or {}
-                -- a route under way in this zone is planned again with them
-                local r = ns.route
-                if r and r.zone == zone and not r.single then
-                    ns.StartRoute(zone, { quiet = true, skipped = r.skipped, auto = r.auto })
-                end
             end }, 3)
         return nil
     end

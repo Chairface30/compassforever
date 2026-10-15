@@ -106,7 +106,7 @@ local function Point(relative)
 end
 
 local function Update()
-    local stop, index = ns.CurrentStop()
+    local stop = ns.CurrentStop()
     if not stop then
         frame:Hide()
         return
@@ -122,7 +122,9 @@ local function Update()
         return
     end
     nameText:SetText(stop.node.name)
-    stepText:SetText(string.format("%s: stop %d of %d", zone.name, index, #r.stops))
+    local left = #ns.ZoneRemaining(zone)
+    stepText:SetText(r.single and zone.name
+        or string.format("%s: %d area%s left", zone.name, left, left == 1 and "" or "s"))
     -- on the other continent: the zeppelin or boat across first
     local cross = ns.Crossing and ns.Crossing(zone, stop)
     if cross then
