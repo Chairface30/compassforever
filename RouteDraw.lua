@@ -109,11 +109,8 @@ end
 --   fly   - the flight, straight from flight point to flight point, then the
 --           walk from the landing along the map;
 --   route - stop to stop, along the walking paths between them.
---   corpse - while a ghost, from you to your corpse, ahead of everything
---           (the route's stops still drawn, if on the same continent).
 local memo, memoAt = nil, -1
 local function Geometry()
-    local corpse = ns.Corpse and ns.Corpse()
     local route = ns.route
     local stop = ns.CurrentStop()
     local zone = route and stop and route.zone
@@ -123,10 +120,6 @@ local function Geometry()
     local cont = zone and ContinentMap(zone)
     local c = zone and zone.continent
     local parts = {}
-    if corpse then
-        parts[1] = { kind = "corpse", pts = WalkFromPlayer(corpse.c, corpse.px, corpse.py, corpse.x, corpse.y) }
-        if cont ~= corpse.cont then return { cont = corpse.cont, c = corpse.c, parts = parts } end
-    end
     if not cont then return nil end
     local px, py = ns.PlayerOn(cont)
     -- in the zone, the walk keeps inside its zone lines
@@ -135,9 +128,7 @@ local function Geometry()
     local sx, sy = ZoneToContinent(zone, stop.x, stop.y, cont)
     if not sx then return nil end
 
-    if corpse then
-        -- the walk to the next stop waits until you're alive
-    elseif ns.travel and ns.travel.from and ns.travel.to then
+    if ns.travel and ns.travel.from and ns.travel.to then
         local f, t = ns.travel.from, ns.travel.to
         if px then parts[#parts + 1] = { kind = "walk", pts = WalkFromPlayer(c, px, py, f.x, f.y, lz) } end
         parts[#parts + 1] = { kind = "fly", pts = { f.x, f.y, t.x, t.y } }
@@ -206,7 +197,6 @@ local COLORS = {
     walk = { 0.3, 1, 0.35, 0.9 },
     route = { 1, 0.82, 0.1, 0.75 },
     fly = { 0.4, 0.75, 1, 0.9 },
-    corpse = { 0.9, 0.92, 1, 0.95 },
 }
 ns.ROUTE_COLORS = COLORS
 

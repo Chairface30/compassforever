@@ -79,8 +79,7 @@ local function HideDots(from)
 end
 
 local function Draw()
-    local corpse = ns.Corpse and ns.Corpse()
-    if not (ns.db and ns.db.minimapRoute ~= false and (corpse or ns.route and ns.CurrentStop())) then
+    if not (ns.db and ns.db.minimapRoute ~= false and ns.route and ns.CurrentStop()) then
         Hide(1)
         HideDots(1)
         return

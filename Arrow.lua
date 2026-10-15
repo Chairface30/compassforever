@@ -105,30 +105,7 @@ local function Point(relative)
     arrowTex:SetTexCoord(col / GRID, (col + 1) / GRID, row / GRID, (row + 1) / GRID)
 end
 
--- A ghost: to the corpse first, whatever the route.
-local function CorpseUpdate(corpse)
-    nameText:SetText("Your corpse")
-    local stop = ns.CurrentStop()
-    stepText:SetText(stop and ("then " .. stop.node.name) or "")
-    local bearing, yards = ns.CorpseVector(corpse)
-    arrowTex:Show()
-    if yards <= CLOSE_YARDS then
-        Point(0)
-        arrowTex:SetVertexColor(0.85, 0.9, 1, 0.45)
-        distText:SetText("Here")
-        return
-    end
-    local ok, facing = pcall(_G.GetPlayerFacing)
-    facing = ok and ns.Num(facing) or 0
-    local relative = bearing - facing
-    Point(relative)
-    arrowTex:SetVertexColor(Color(relative))
-    distText:SetText(ns.Yards(yards))
-end
-
 local function Update()
-    local corpse = ns.Corpse and ns.Corpse()
-    if corpse then return CorpseUpdate(corpse) end
     local stop, index = ns.CurrentStop()
     if not stop then
         frame:Hide()
@@ -269,7 +246,7 @@ function ns.ApplyArrowScale()
 end
 
 ns.On("route", function()
-    if ns.CurrentStop() or (ns.Corpse and ns.Corpse()) then
+    if ns.CurrentStop() then
         Build()
         ns.ApplyArrowScale()
         elapsed = TICK

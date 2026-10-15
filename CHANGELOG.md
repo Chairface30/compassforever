@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **No more arrow or lines to your corpse.** As a ghost, the arrow, the minimap
+  button and the route's lines no longer lead back to your body; the route
+  carries on as usual.
 - **Routes keep inside the zone.** The path from one stop to the next, and
   from you to the next stop while you're in the zone, no longer leaves the
   zone to go round a wall: it keeps to the zone's own ground (worked out from

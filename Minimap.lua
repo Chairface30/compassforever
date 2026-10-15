@@ -80,8 +80,6 @@ end
 -- Where the arrow points, as a bearing (radians counter-clockwise from
 -- north): the route's next stop, else the nearest area still covered here.
 local function Target()
-    local corpse = ns.Corpse and ns.Corpse()
-    if corpse then return ns.CorpseVector(corpse) end
     if ns.travel and ns.TravelVector then
         local bearing = ns.TravelVector()
         if bearing then return bearing end
@@ -131,8 +129,7 @@ function ns.TurnMinimapArrow()
     facing = ok and ns.Num(facing) or 0
     local turn = ((bearing - facing) % TWO_PI) / TWO_PI
     local cell = math.floor(turn * FRAMES + 0.5) % FRAMES
-    if ns.Corpse and ns.Corpse() then Show(cell, 0.9, 0.92, 1)
-    elseif ns.CurrentStop() then Show(cell, 0.3, 1, 0.35) else Show(cell, 1, 0.82, 0.1) end
+    if ns.CurrentStop() then Show(cell, 0.3, 1, 0.35) else Show(cell, 1, 0.82, 0.1) end
 end
 
 local ticker = CreateFrame("Frame")
