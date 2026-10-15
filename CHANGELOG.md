@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- **Routes keep inside the zone.** The path from one stop to the next, and
+  from you to the next stop while you're in the zone, no longer leaves the
+  zone to go round a wall: it keeps to the zone's own ground (worked out from
+  the game's terrain, a little over 100 yards past its edge), so the walls
+  and zone lines drawn round each map hold even where there are gaps between
+  them. Where there's no way through inside the zone, the path still goes
+  round outside.
+
 ## Compass Forever v1.6 (2026-10-14)
 
 - Maps:

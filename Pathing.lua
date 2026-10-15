@@ -530,6 +530,7 @@ end
 -- cut (by zone), and the drawn roads' waypoints and links. Worked out again
 -- after any line changes.
 local Attach                 -- (below) a point's way on and off the graph
+local PosOf                  -- (below) a waypoint's grid point
 
 local function Overlay(c, pause)
     local ov = overlays[c]
@@ -643,9 +644,52 @@ local function Overlay(c, pause)
     return ov
 end
 
-local function PosOf(g, ov, k)
+PosOf = function(g, ov, k)
     if k <= g.n then return g.i[k], g.j[k] end
     return ov.i[k], ov.j[k]
+end
+
+-- A zone's ground (Data/Territory.lua): its own chunks and its subzones',
+-- grown a little all round. Paths kept inside a zone (stop to stop, or from
+-- the player while in it) don't leave it: the walls and zone lines drawn by
+-- hand bound the zone where they are, and this closes the gaps between them.
+-- Is (x, y), the zone's map fractions, on its ground? true for a zone with
+-- none known.
+function ns.OnZoneGround(zone, x, y)
+    local t = ns.TERRITORY and ns.TERRITORY[zone.ach]
+    if not t then return true end
+    local col = math.floor(x * t.cols) + t.margin
+    local runs = t.runs[math.floor(y * t.rows) + t.margin + 1]
+    if not runs then return false end
+    for k = 1, #runs - 1, 2 do
+        if col < runs[k] then return false end
+        if col <= runs[k + 1] then return true end
+    end
+    return false
+end
+
+-- Is waypoint k on `zone`'s ground? A function of k (each answer kept with
+-- the overlay), or nil when the zone has no ground known.
+local function GroundTest(g, ov, zone)
+    if not (zone and ns.TERRITORY and ns.TERRITORY[zone.ach]) then return nil end
+    local r = ns.MapRect and g.cont.map and ns.MapRect(zone.map, g.cont.map)
+    if not r then return nil end
+    ov.ground = ov.ground or {}
+    local memo = ov.ground[zone.ach]
+    if not memo then
+        memo = {}
+        ov.ground[zone.ach] = memo
+    end
+    local w, h = r.r - r.l, r.b - r.t
+    return function(k)
+        local v = memo[k]
+        if v == nil then
+            local x, y = GridPos(g.cont, PosOf(g, ov, k))
+            v = ns.OnZoneGround(zone, (x - r.l) / w, (y - r.t) / h)
+            memo[k] = v
+        end
+        return v
+    end
 end
 
 -- Waypoints (graph's and roads') near grid point (i, j), with the cost of
@@ -683,9 +727,10 @@ end
 
 -- The walking path on continent c from (fx, fy) to (tx, ty), its map's
 -- fractions, over the graph: { { x, y } ... } and its cost in yards, or nil.
--- `localZone`: the zone whose zone lines it keeps inside. Run in a
--- coroutine: `pause` lets it wait for the next frame.
-local function GraphPath(c, fx, fy, tx, ty, localZone, pause)
+-- `localZone`: the zone whose zone lines and ground it keeps inside (if no
+-- path does, it is looked for again kept inside the zone lines only). Run in
+-- a coroutine: `pause` lets it wait for the next frame.
+local function GraphPath(c, fx, fy, tx, ty, localZone, pause, anyGround)
     local g = Graph(c, pause)
     if not g then return nil end
     local ov = Overlay(c, pause)
@@ -703,6 +748,7 @@ local function GraphPath(c, fx, fy, tx, ty, localZone, pause)
     local goals = {}
     for _, it in ipairs(Attach(c, g, ov, ti, tj, ach)) do goals[it[1]] = it[2] end
     if #starts == 0 or not next(goals) then return nil end
+    local ground = not anyGround and GroundTest(g, ov, localZone)
     -- the cheapest any yard of the way can be: along a drawn road
     local hf = ov.drawnRoads and DRAWN_ROAD or ROAD
     local function H(k)
@@ -731,6 +777,7 @@ local function GraphPath(c, fx, fy, tx, ty, localZone, pause)
             local gc = goals[u]
             if gc and (not goalCost or base + gc < goalCost) then goalCost, bestGoal = base + gc, u end
             local function Try(v, cost, e)
+                if ground and not goals[v] and not ground(v) then return end
                 local nc = base + cost
                 if not done[v] and (not best[v] or nc < best[v]) then
                     best[v], came[v], via[v] = nc, u, e
@@ -747,7 +794,10 @@ local function GraphPath(c, fx, fy, tx, ty, localZone, pause)
             for _, l in ipairs(ov.links[u] or {}) do Try(l[1], l[2], nil) end
         end
     end
-    if not bestGoal then return nil end
+    if not bestGoal then
+        if ground then return GraphPath(c, fx, fy, tx, ty, localZone, pause, true) end
+        return nil
+    end
     -- back from the end, each link's bends in the way it was walked
     local chain = {}
     local k = bestGoal
@@ -890,7 +940,7 @@ local function PointKey(x, y) return string.format("%.4f,%.4f", x, y) end
 
 -- Cheapest cost from `sources` ({ [waypoint] = cost }) to every waypoint,
 -- until all of `targets` ({ [waypoint] = true }) are settled.
-local function Distances(g, ov, sources, targets, ach, pause)
+local function Distances(g, ov, sources, targets, ach, pause, ground)
     local best, done = {}, {}
     local open = Heap()
     for k, cost in pairs(sources) do
@@ -908,6 +958,7 @@ local function Distances(g, ov, sources, targets, ach, pause)
             looked = looked + 1
             if pause and looked % 40 == 0 then pause() end
             local function Try(v, cost)
+                if ground and not targets[v] and not ground(v) then return end
                 local nc = d + cost
                 if not done[v] and (not best[v] or nc < best[v]) then
                     best[v] = nc
@@ -946,11 +997,12 @@ local function ZoneCosts(zone, pause)
         end
         if pause then pause() end
     end
+    local ground = GroundTest(g, ov, zone)
     local cost = {}
     for _, a in ipairs(pts) do
         local targets = {}
         for _, b in ipairs(pts) do for k in pairs(b.links) do targets[k] = true end end
-        local dist = Distances(g, ov, a.links, targets, zone.ach, pause)
+        local dist = Distances(g, ov, a.links, targets, zone.ach, pause, ground)
         local row = {}
         for _, b in ipairs(pts) do
             local m
@@ -988,6 +1040,30 @@ function ns.PlanCost(zone, ax, ay, bx, by)
     end
     local row = pc.cost and pc.cost[PointKey(ax, ay)]
     return row and row[PointKey(bx, by)] or nil
+end
+
+-- For the tools: where a path kept inside `zone` can get to from its areas'
+-- standing points ({ [waypoint] = cost }), and the graph to read them by.
+function ns.ZoneReachNow(zone)
+    local c = zone.continent
+    local g = Graph(c, nil)
+    if not g then return nil end
+    local ov = Overlay(c, nil)
+    local sources = {}
+    for _, node in ipairs(zone.nodes) do
+        for _, p in ipairs(ns.NodePoints(node)) do
+            local cx, cy = ns.ZoneToContinentPoint(zone, p[1], p[2])
+            if cx then
+                local i, j = GridUnits(g.cont, cx, cy)
+                for _, it in ipairs(Attach(c, g, ov, i, j, zone.ach)) do sources[it[1]] = 0 end
+            end
+        end
+    end
+    local reach = Distances(g, ov, sources, { [-1] = true }, zone.ach, nil, GroundTest(g, ov, zone))
+    return reach, function(k)
+        local i, j = PosOf(g, ov, k)
+        return GridPos(g.cont, i, j)
+    end
 end
 
 -- For the tests: a zone's costs worked out at once.

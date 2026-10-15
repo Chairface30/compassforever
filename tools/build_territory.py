@@ -1,0 +1,144 @@
+"""Build Data/Territory.lua: the ground each zone covers, from the terrain.
+
+Paths from one stop to the next keep inside their zone (Pathing.lua). The
+walls and zone lines drawn by hand bound it where they are; this closes the
+gaps between them. A zone's ground is every 33-yard chunk whose area is the
+zone or one of its subzones (AreaTable's ParentAreaID, up to the top), on
+the zone's map, grown by MARGIN chunks all round so a wall drawn a little
+outside the real border still decides.
+
+Stored per zone (by its Explore achievement) as a grid of chunk-sized cells
+over its map: cols x rows, plus MARGIN cells on every side, each row a list
+of runs of cells inside.
+
+Usage: python build_territory.py <cache dir> <addon dir>
+"""
+import math
+import os
+import sys
+
+from build_data import CHUNK, EXPLORE_CATS, TILE, criteria_children, leaf_criteria, load, load_terrain
+
+MARGIN = 4            # chunks (~133 yards) of ground added round the zone's own
+
+
+def main():
+    cache, addon = sys.argv[1], sys.argv[2]
+    ach = load(cache, "Achievement")
+    crit = {c["ID"]: c for c in load(cache, "Criteria")}
+    kids = criteria_children(load(cache, "CriteriaTree"))
+    overlays = {o["ID"]: o for o in load(cache, "WorldMapOverlay")}
+    current = {r["UiMapID"]: r["UiMapArtID"] for r in load(cache, "UiMapXMapArt")}
+    art_to_map = {r["UiMapArtID"]: r["UiMapID"] for r in load(cache, "UiMapXMapArt_era")}
+    art_to_map.update({art: ui for ui, art in current.items()})
+    uimaps = {u["ID"]: u for u in load(cache, "UiMap")}
+    parent = {int(a["ID"]): int(a["ParentAreaID"]) for a in load(cache, "AreaTable")}
+    assign = {}
+    for r in load(cache, "UiMapAssignment"):
+        if r["OrderIndex"] == "0" and r["MapID"] in ("0", "1"):
+            assign.setdefault(r["UiMapID"], r)
+
+    def root(aid):
+        seen = set()
+        while parent.get(aid, 0) and aid not in seen:
+            seen.add(aid)
+            aid = parent[aid]
+        return aid
+
+    terrain, by_root = {}, {}
+    out = []
+    for a in sorted(ach, key=lambda a: a["Title_lang"]):
+        if a["Category"] not in map(str, EXPLORE_CATS):
+            continue
+        leaves = leaf_criteria(a["Criteria_tree"], kids, crit)
+        if not leaves or any(c["Type"] != "43" for _, c in leaves):
+            continue
+        mapID = EXPLORE_CATS[int(a["Category"])]
+        first = overlays[leaves[0][1]["Asset"]]
+        ui = art_to_map[first["UiMapArtID"]]
+        name = uimaps[ui]["Name_lang"]
+        if mapID not in terrain:
+            terrain[mapID] = load_terrain(cache, mapID)
+            by_root[mapID] = {}
+            for c, (area, _) in terrain[mapID].items():
+                by_root[mapID].setdefault(root(area), set()).add(c)
+        roots = set()
+        for _, c in leaves:
+            o = overlays[c["Asset"]]
+            for i in range(4):
+                if o[f"AreaID_{i}"] != "0":
+                    roots.add(root(int(o[f"AreaID_{i}"])))
+        chunks = set()
+        for r in roots:
+            chunks |= by_root[mapID].get(r, set())
+
+        asg = assign[ui]
+        minX, minY = float(asg["Region_0"]), float(asg["Region_1"])
+        maxX, maxY = float(asg["Region_3"]), float(asg["Region_4"])
+        w, h = maxY - minY, maxX - minX
+        cols, rows = math.ceil(w / CHUNK), math.ceil(h / CHUNK)
+
+        cells = set()
+        for gx, gy in chunks:
+            wx, wy = 32 * TILE - (gy + 0.5) * CHUNK, 32 * TILE - (gx + 0.5) * CHUNK
+            fx, fy = (maxY - wy) / w, (maxX - wx) / h
+            cx, cy = math.floor(fx * cols), math.floor(fy * rows)
+            if -MARGIN <= cx < cols + MARGIN and -MARGIN <= cy < rows + MARGIN:
+                cells.add((cx, cy))
+        # grown by MARGIN all round (a disc)
+        disc = [(dx, dy) for dx in range(-MARGIN, MARGIN + 1) for dy in range(-MARGIN, MARGIN + 1)
+                if dx * dx + dy * dy <= MARGIN * MARGIN]
+        grown = set()
+        for cx, cy in cells:
+            for dx, dy in disc:
+                x, y = cx + dx, cy + dy
+                if -MARGIN <= x < cols + MARGIN and -MARGIN <= y < rows + MARGIN:
+                    grown.add((x, y))
+        runs = []
+        for y in range(-MARGIN, rows + MARGIN):
+            row, start = [], None
+            for x in range(-MARGIN, cols + MARGIN + 1):
+                on = (x, y) in grown
+                if on and start is None:
+                    start = x
+                elif not on and start is not None:
+                    row += [start + MARGIN, x - 1 + MARGIN]
+                    start = None
+            runs.append(row)
+        out.append((int(a["ID"]), name, cols, rows, runs))
+        share = len(cells & {(x, y) for x in range(cols) for y in range(rows)}) / (cols * rows)
+        print(f"{name:24} {len(chunks):6} chunks, {cols}x{rows} cells, {share:.0%} of the map its own")
+
+    write(addon, out)
+    return 0
+
+
+def write(addon, zones):
+    lines = [
+        "-- Generated by tools/build_territory.py from the client's terrain. Do not",
+        "-- edit by hand.",
+        "--",
+        "-- The ground each zone covers, by its Explore achievement: its chunks and",
+        "-- its subzones', grown by `margin` chunks all round, as a grid of",
+        "-- chunk-sized cells over the zone's map (cols x rows, plus `margin` cells",
+        "-- on every side). runs[row]: first and last cell of each run inside,",
+        "-- counted from the grid's left edge, margin included (rows likewise).",
+        "-- Paths from stop to stop keep inside it (Pathing.lua).",
+        "local _, ns = ...",
+        "ns.TERRITORY = {",
+    ]
+    for ach, name, cols, rows, runs in zones:
+        lines.append(f"    [{ach}] = {{ -- {name}")
+        lines.append(f"        cols = {cols}, rows = {rows}, margin = {MARGIN},")
+        lines.append("        runs = {")
+        for row in runs:
+            lines.append("            { " + ", ".join(map(str, row)) + " },")
+        lines.append("        },")
+        lines.append("    },")
+    lines.append("}")
+    with open(os.path.join(addon, "Data", "Territory.lua"), "w", encoding="utf-8", newline="\n") as f:
+        f.write("\n".join(lines) + "\n")
+
+
+if __name__ == "__main__":
+    sys.exit(main())

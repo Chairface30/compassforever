@@ -1220,6 +1220,31 @@ rt.execute("NS.ShowZone(ELWYNN) NS.SetEditing(true) NS.WindowWallMode(true, 'zon
 check("drawn with Zone line ticked, it's a zone line", rt.eval("NS.db.zonelines and #NS.db.zonelines[ELWYNN.ach] == 1 and not (NS.db.walls and NS.db.walls[ELWYNN.ach])"))
 rt.execute("NS.WindowWallMode(false) NS.db.zonelines = nil NS.WallsChanged()")
 
+print("zone ground")
+check("Goldshire is on Elwynn's ground", rt.eval("NS.OnZoneGround(ELWYNN, 0.42, 0.65)") is True)
+check("far off its map is not", rt.eval("NS.OnZoneGround(ELWYNN, 0.5, -0.5)") is False)
+ground = rt.eval("""(function()
+    local path = NS.FindPathNow(ELWYNN, 0.42, 0.65, 0.80, 0.70)
+    if not path then return "no path" end
+    for _, p in ipairs(path) do
+        if not NS.OnZoneGround(ELWYNN, p.x, p.y) then return string.format("off at %.3f,%.3f", p.x, p.y) end
+    end
+    return "on"
+end)()""")
+check(f"a path inside the zone keeps to its ground ({ground})", ground == "on", ground)
+far = rt.eval("""(function()
+    local reach, pos = NS.ZoneReachNow(ELWYNN)
+    local r = NS.ZoneRectOnContinent(ELWYNN)
+    local far = 0
+    for k in pairs(reach) do
+        local x, y = pos(k)
+        local zx, zy = (x - r.l) / (r.r - r.l), (y - r.t) / (r.b - r.t)
+        far = math.max(far, -zx, zx - 1, -zy, zy - 1)
+    end
+    return far
+end)()""")
+check(f"nowhere a path kept in the zone can get to is far off its map ({far:.2f})", far < 0.1, far)
+
 print("portal and boat to Rut'theran")
 ride = rt.eval("""(function()
     local tel, dark = NS.ZoneByMap(1438), NS.ZoneByMap(1439)

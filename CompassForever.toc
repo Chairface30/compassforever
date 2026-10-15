@@ -21,6 +21,7 @@ Data\Roads.lua
 Data\ZoneLines.lua
 Data\Returned.lua
 Data\Areas.lua
+Data\Territory.lua
 Progress.lua
 Route.lua
 Edits.lua
