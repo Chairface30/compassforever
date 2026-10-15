@@ -6,10 +6,15 @@
 --
 --   Flight masters    every flight point for your faction, known or not
 --   Area outlines     each area's outline from the terrain (the option)
---   Standing points   where a route may step into each area (its edge)
---   Area spots        the spots picked inside each area from the terrain
+-- From the game's own data (Data/MapData.lua, tools/build_mapdata.py):
+--   Zone edge         the zone's real edge: its terrain chunks' outline
+--   Ways in and out   where walkable ground crosses that edge, with the
+--                     neighbour's name and how wide
+--   Place names       the world map's own place names
+--   Area triggers     the game's trigger spots, circles and boxes
+--   Area hover boxes  each area's hover box on the world map
+-- And what the routes are made of:
 --   Zone ground       the ground a route inside the zone keeps to
---   Zone entrances    the middle of every zone line: the ways in and out
 --   Walls, Zone lines, Roads, Ledges
 --                     your own (while editing) and the built-in ones
 --   Walking network   the waypoints and links paths are found over: cut by
@@ -29,14 +34,19 @@ local LAYERS = {
       tip = "Each area's outline, from the terrain.",
       get = function() return ns.db.areaBorders ~= false end,
       set = function(on) ns.db.areaBorders = on end },
-    { key = "points", label = "Standing points", mapper = true, default = false,
-      tip = "Where a route may step into each area: points just inside its edge, the nearest one is used." },
-    { key = "spots", label = "Area spots", mapper = true, default = false,
-      tip = "The spots picked inside each area from the terrain (well inside, on flat ground)." },
+    { key = "border", label = "Zone edge", mapper = true, default = false,
+      tip = "From the game's terrain: the zone's real edge, round every chunk of ground that is the zone or one of its subzones." },
+    { key = "crossings", label = "Ways in and out", mapper = true, default = true,
+      tip = "From the game's terrain: where walkable ground crosses the zone's edge into the next zone, "
+          .. "with its name and how wide (in 33-yard chunks). Water counts as walkable here." },
+    { key = "places", label = "Place names", mapper = true, default = false,
+      tip = "From the game's data: the world map's own place names." },
+    { key = "triggers", label = "Area triggers", mapper = true, default = false,
+      tip = "From the game's data: its trigger spots (inns, entrances and the like), at their real size." },
+    { key = "hits", label = "Area hover boxes", mapper = true, default = false,
+      tip = "From the game's data: the box over which the world map lights each area up." },
     { key = "ground", label = "Zone ground", mapper = true, default = false,
       tip = "The ground a route inside the zone keeps to: the zone's own terrain and a little over 100 yards round it." },
-    { key = "entrances", label = "Zone entrances", mapper = true, default = true,
-      tip = "The middle of every zone line: where paths come into and leave the zone." },
     { key = "walls", label = "Walls", mapper = true, default = true, tip = "Never crossed." },
     { key = "zonelines", label = "Zone lines", mapper = true, default = true,
       tip = "Walls for paths inside the zone; crossed only coming in or going out." },
@@ -233,31 +243,75 @@ local function DrawGround(zone)
     end
 end
 
-local ENTRANCE = { 0.8, 0.45, 1, 1 }
-local function DrawEntrances(zone)
-    for _, line in ipairs(ns.ZoneLines(zone)) do
-        if not line.circle and #line >= 4 then
-            -- halfway along it
-            local total, segs = 0, {}
-            for k = 1, #line - 3, 2 do
-                local d = math.sqrt(((line[k + 2] - line[k]) * zone.w) ^ 2 + ((line[k + 3] - line[k + 1]) * zone.h) ^ 2)
-                segs[#segs + 1] = d
-                total = total + d
+-- The game's own data for the zone's map (Data/MapData.lua).
+local EDGE, CROSS, PLACE, TRIGGER, HIT = { 1, 1, 1, 0.8 }, { 0.2, 1, 0.6, 1 }, { 1, 0.9, 0.6, 1 },
+    { 1, 0.3, 0.8, 0.9 }, { 0.5, 0.8, 1, 0.7 }
+local function MapData(zone)
+    return ns.MAPDATA and ns.MAPDATA[zone.ach]
+end
+
+local function DrawBorder(zone)
+    local d = MapData(zone)
+    for _, r in ipairs(d and d.border or {}) do
+        local pts = {}
+        for k = 1, #r do pts[k] = r[k] / 10000 end
+        pts[#pts + 1], pts[#pts + 2] = r[1] / 10000, r[2] / 10000
+        Polyline(pts, EDGE, 2)
+    end
+end
+
+local function DrawCrossings(zone)
+    local d = MapData(zone)
+    for _, c in ipairs(d and d.crossings or {}) do
+        local x, y = c[1] / 10000, c[2] / 10000
+        Dot(x, y, 12, { 0, 0, 0, 0.8 })
+        Dot(x, y, 8, CROSS)
+        Note(x, y, string.format("|cff33ff99to %s (%d)|r", c[3], c[4]))
+    end
+end
+
+local function DrawPlaces(zone)
+    local d = MapData(zone)
+    for _, p in ipairs(d and d.places or {}) do
+        local x, y = p[1] / 10000, p[2] / 10000
+        Dot(x, y, 5, PLACE)
+        Note(x, y, "|cffffe699" .. p[3] .. "|r")
+    end
+end
+
+local function DrawTriggers(zone)
+    local d = MapData(zone)
+    for _, t in ipairs(d and d.triggers or {}) do
+        local x, y, rad, bl, bw, yaw = t[1] / 10000, t[2] / 10000, t[3], t[4], t[5], t[6]
+        local pts = {}
+        if rad > 0 then
+            for q = 0, 24 do
+                local a = q / 24 * 2 * math.pi
+                pts[#pts + 1] = x + math.cos(a) * rad / zone.w
+                pts[#pts + 1] = y + math.sin(a) * rad / zone.h
             end
-            local half, k = total / 2, 1
-            for i, d in ipairs(segs) do
-                if half <= d or i == #segs then
-                    local t = d > 0 and math.min(1, half / d) or 0
-                    k = i * 2 - 1
-                    local x = line[k] + (line[k + 2] - line[k]) * t
-                    local y = line[k + 1] + (line[k + 3] - line[k + 1]) * t
-                    Dot(x, y, 12, { 0, 0, 0, 0.8 })
-                    Dot(x, y, 8, ENTRANCE)
-                    break
-                end
-                half = half - d
+        elseif bl > 0 then
+            -- a box: length along the yaw (world north), width across; on the
+            -- map north is up and west is left
+            local cs, sn = math.cos(yaw), math.sin(yaw)
+            for _, k in ipairs({ { 1, 1 }, { 1, -1 }, { -1, -1 }, { -1, 1 }, { 1, 1 } }) do
+                local north, west = k[1] * bl / 2, k[2] * bw / 2
+                local n2, w2 = north * cs - west * sn, north * sn + west * cs
+                pts[#pts + 1] = x - w2 / zone.w
+                pts[#pts + 1] = y - n2 / zone.h
             end
         end
+        if #pts >= 4 then Polyline(pts, TRIGGER, 1.5) end
+        Dot(x, y, 4, TRIGGER)
+    end
+end
+
+local function DrawHits(zone)
+    local d = MapData(zone)
+    for _, h in ipairs(d and d.hits or {}) do
+        local l, t, r, b = h[1] / 10000, h[2] / 10000, h[3] / 10000, h[4] / 10000
+        Polyline({ l, t, r, t, r, b, l, b, l, t }, HIT, 1.5)
+        Note((l + r) / 2, t, "|cff80ccff" .. h[5] .. "|r")
     end
 end
 
@@ -359,7 +413,6 @@ local function DrawCutOff(zone)
     if not any then Note(0.5, 0.04, "|cff55dd55Every area can be reached from every other.|r") end
 end
 
-local POINT, SPOT = { 0.3, 1, 0.35, 0.9 }, { 1, 0.82, 0.1, 0.9 }
 function ns.DrawLayers()
     local view
     canvas, cw, ch, view = ns.WindowMapSpace()
@@ -374,18 +427,11 @@ function ns.DrawLayers()
     if ns.LayerOn("ground") then DrawGround(zone) end
     if ns.LayerOn("graph") and canvas.CreateLine then DrawGraph(zone) end
     if ns.LayerOn("builtin") and canvas.CreateLine then DrawBuiltIn(zone) end
-    if ns.LayerOn("points") then
-        for _, node in ipairs(zone.nodes) do
-            for _, p in ipairs(ns.NodePoints(node)) do Dot(p[1], p[2], 5, POINT) end
-        end
-    end
-    if ns.LayerOn("spots") then
-        for _, node in ipairs(zone.nodes) do
-            local p = node.points
-            for k = 1, #p - 1, 2 do Dot(p[k] / 10000, p[k + 1] / 10000, 6, SPOT) end
-        end
-    end
-    if ns.LayerOn("entrances") then DrawEntrances(zone) end
+    if ns.LayerOn("hits") and canvas.CreateLine then DrawHits(zone) end
+    if ns.LayerOn("border") and canvas.CreateLine then DrawBorder(zone) end
+    if ns.LayerOn("triggers") and canvas.CreateLine then DrawTriggers(zone) end
+    if ns.LayerOn("places") then DrawPlaces(zone) end
+    if ns.LayerOn("crossings") then DrawCrossings(zone) end
     if ns.LayerOn("rides") and canvas.CreateLine then DrawRides(zone) end
     if ns.LayerOn("cutoff") and canvas.CreateLine then DrawCutOff(zone) end
 end
@@ -485,17 +531,22 @@ end
 function ns.ZoneDataSummary(zone)
     local out = {}
     local function Add(text) out[#out + 1] = text end
-    local outlined, points, spots, mapOnly = 0, 0, 0, 0
+    local outlined, mapOnly = 0, 0
     for _, node in ipairs(zone.nodes) do
         if ns.AreaOf and ns.AreaOf(node) then outlined = outlined + 1 end
         if node.mapOnly then mapOnly = mapOnly + 1 end
-        points = points + #ns.NodePoints(node)
-        spots = spots + #node.points / 2
     end
     Add(string.format("%s (Explore achievement %d, map %d): %.0f x %.0f yards", zone.name, zone.ach, zone.map,
         zone.w, zone.h))
-    Add(string.format("  areas: %d (%d outlined, %d on the map only), %d standing points, %d spots",
-        #zone.nodes, outlined, mapOnly, points, spots))
+    Add(string.format("  areas: %d (%d outlined, %d on the map only)", #zone.nodes, outlined, mapOnly))
+    local d = MapData(zone)
+    if d then
+        local ways = {}
+        for _, c in ipairs(d.crossings) do ways[#ways + 1] = string.format("%s (%d)", c[3], c[4]) end
+        Add(string.format("  from the game: %d place names, %d area triggers, %d hover boxes, edge of %d ring%s",
+            #d.places, #d.triggers, #d.hits, #d.border, #d.border == 1 and "" or "s"))
+        Add("  ways in and out: " .. (#ways > 0 and table.concat(ways, ", ") or "none"))
+    end
     for _, k in ipairs({ { "walls", "WALLS" }, { "zonelines", "ZONELINES" }, { "roads", "ROADS" }, { "ledges", "LEDGES" } }) do
         local built = ns[k[2]] and ns[k[2]][zone.ach]
         local mine = ns.OwnLines(zone, k[1])

@@ -23,6 +23,7 @@ Data\Ledges.lua
 Data\Returned.lua
 Data\Areas.lua
 Data\Territory.lua
+Data\MapData.lua
 Progress.lua
 Route.lua
 Edits.lua
