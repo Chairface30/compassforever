@@ -1060,6 +1060,9 @@ rt.execute("DONE[PICK.criteria] = true FIRE('CRITERIA_UPDATE') FLUSH()")
 check("uncovering it ends the route", rt.eval("NS.route == nil"))
 rt.execute("NS.RouteVia(ELWYNN, PICK)")
 check("an uncovered area can be gone to", rt.eval("NS.CurrentStop() and NS.CurrentStop().node == PICK"))
+rt.execute("rawget(CompassForeverArrow.stopButton, '_scripts').OnClick(CompassForeverArrow.stopButton)")
+check("the arrow's Stop clears the directions", rt.eval("NS.route == nil"))
+rt.execute("NS.RouteVia(ELWYNN, PICK)")
 rt.execute("local s = NS.CurrentStop() PLAYER.x, PLAYER.y = s.x, s.y NS.ShowZone(ELWYNN) FRAME(0.2)")
 check("reaching it ends the route", rt.eval("NS.route == nil"))
 rt.execute("PLAYER.x, PLAYER.y = 0.42, 0.65 NS.RouteVia(ELWYNN, PICK) NS.StartRoute(ELWYNN)")
@@ -1236,6 +1239,27 @@ c0, up, down, walled = map(float, lw.split(","))
 check(f"a ledge can't be climbed: the way up goes round ({c0:.0f} -> {up:.0f} yd)", up > c0 + 20, lw)
 check(f"but it can be jumped down ({down:.0f} yd)", 0 < down < c0 + 20, lw)
 check(f"a road drawn across a wall doesn't get through it ({walled:.0f} yd)", walled > c0 + 20, lw)
+
+print("never stuck behind a line")
+stuck = rt.eval("""(function()
+    local z = NS.ZoneByMap(1412)
+    local ax, ay = NS.ZoneToContinentPoint(z, 0.45, 0.45)
+    local bx, by = NS.ZoneToContinentPoint(z, 0.60, 0.45)
+    -- walled in: a circle wall round the start
+    NS.db.walls = { [z.ach] = { { circle = { 0.45, 0.45, 150 } } } }
+    NS.WallsChanged()
+    local out = NS.FindContinentPathNow(z.continent, ax, ay, bx, by, z)
+    -- and walled out: round the end
+    NS.db.walls = { [z.ach] = { { circle = { 0.60, 0.45, 150 } } } }
+    NS.WallsChanged()
+    local into = NS.FindContinentPathNow(z.continent, ax, ay, bx, by, z)
+    NS.db.walls = nil
+    NS.WallsChanged()
+    return (out and #out or 0) .. "," .. (into and #into or 0)
+end)()""")
+out_n, into_n = map(int, stuck.split(","))
+check(f"walled in, a path still leads out ({out_n} points)", out_n >= 2, stuck)
+check(f"walled out, a path still leads in ({into_n} points)", into_n >= 2, stuck)
 
 print("zone ground")
 check("Goldshire is on Elwynn's ground", rt.eval("NS.OnZoneGround(ELWYNN, 0.42, 0.65)") is True)

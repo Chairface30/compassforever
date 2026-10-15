@@ -774,7 +774,7 @@ end
 -- zone, zone line) is in the way of. If the terrain allows none, the nearest
 -- few at a high cost, but never through a wall, up a ledge or across a zone
 -- line kept to.
-Attach = function(c, g, ov, i, j, ach, inward)
+Attach = function(c, g, ov, i, j, ach, inward, loose)
     local found, any = {}, {}
     for si = math.floor((i - ATTACH) / CELL), math.floor((i + ATTACH) / CELL) do
         for sj = math.floor((j - ATTACH) / CELL), math.floor((j + ATTACH) / CELL) do
@@ -792,8 +792,8 @@ Attach = function(c, g, ov, i, j, ach, inward)
     local open = {}
     for _, it in ipairs(any) do
         local ki, kj = PosOf(g, ov, it[1])
-        local up = inward and Climbs(ov.ledges, ki, kj, i, j) or not inward and Climbs(ov.ledges, i, j, ki, kj)
-        if not Hits(ov.walls, i, j, ki, kj) and not up and not (ach and Hits(ov.zonelines, i, j, ki, kj, ach)) then
+        local up = not loose and (inward and Climbs(ov.ledges, ki, kj, i, j) or not inward and Climbs(ov.ledges, i, j, ki, kj))
+        if loose or not Hits(ov.walls, i, j, ki, kj) and not up and not (ach and Hits(ov.zonelines, i, j, ki, kj, ach)) then
             open[#open + 1] = it
             if StraightOK(c, i, j, ki, kj) then
                 found[#found + 1] = { it[1], it[2] * NODE }
@@ -809,10 +809,22 @@ end
 
 -- The walking path on continent c from (fx, fy) to (tx, ty), its map's
 -- fractions, over the graph: { { x, y } ... } and its cost in yards, or nil.
--- `localZone`: the zone whose zone lines and ground it keeps inside (if no
--- path does, it is looked for again kept inside the zone lines only). Run in
+-- `localZone`: the zone whose zone lines and ground it keeps inside. Run in
 -- a coroutine: `pause` lets it wait for the next frame.
-local function GraphPath(c, fx, fy, tx, ty, localZone, pause, anyGround)
+--
+-- The lines say where a route may be drawn, not where a player can be, so
+-- a search never comes back empty-handed for them. Tried in turn, until one
+-- finds a way:
+--   strict - every line, and the zone's ground;
+--   ground - every line, off the zone's ground too;
+--   ends   - as ground, but the start (where the player stands) and the end
+--            (the stop) reach the network across a line when nothing nearer
+--            does: someone walled in can still be led out;
+--   loose  - lines can be crossed at a heavy cost, as few as can be.
+local LINE_COST = 1000           -- yards a line crossed costs, searched loose
+local NEXT_MODE = { strict = "ground", ground = "ends", ends = "loose" }
+local function GraphPath(c, fx, fy, tx, ty, localZone, pause, mode)
+    mode = mode or "strict"
     local g = Graph(c, pause)
     if not g then return nil end
     local ov = Overlay(c, pause)
@@ -822,15 +834,24 @@ local function GraphPath(c, fx, fy, tx, ty, localZone, pause, anyGround)
     local ti, tj = GridUnits(cont, tx, ty)
     local START, GOAL = -1, -2
     local direct = math.sqrt((ti - si) ^ 2 + (tj - sj) ^ 2)
+    local loose = mode == "loose"
     if direct <= DIRECT and not Hits(ov.walls, si, sj, ti, tj) and not (ach and Hits(ov.zonelines, si, sj, ti, tj, ach))
         and not Climbs(ov.ledges, si, sj, ti, tj) and StraightOK(c, si, sj, ti, tj) then
         return { { x = fx, y = fy }, { x = tx, y = ty } }, direct * NODE
     end
-    local starts = Attach(c, g, ov, si, sj, ach)
+    local starts = Attach(c, g, ov, si, sj, ach, false, loose)
+    local into = Attach(c, g, ov, ti, tj, ach, true, loose)
+    if mode == "ends" then
+        if #starts == 0 then starts = Attach(c, g, ov, si, sj, ach, false, true) end
+        if #into == 0 then into = Attach(c, g, ov, ti, tj, ach, true, true) end
+    end
     local goals = {}
-    for _, it in ipairs(Attach(c, g, ov, ti, tj, ach, true)) do goals[it[1]] = it[2] end
-    if #starts == 0 or not next(goals) then return nil end
-    local ground = not anyGround and GroundTest(g, ov, localZone)
+    for _, it in ipairs(into) do goals[it[1]] = it[2] end
+    if #starts == 0 or not next(goals) then
+        if NEXT_MODE[mode] then return GraphPath(c, fx, fy, tx, ty, localZone, pause, NEXT_MODE[mode]) end
+        return nil
+    end
+    local ground = mode == "strict" and GroundTest(g, ov, localZone)
     -- the cheapest any yard of the way can be: along a drawn road
     local hf = ov.drawnRoads and DRAWN_ROAD or ROAD
     local function H(k)
@@ -869,19 +890,23 @@ local function GraphPath(c, fx, fy, tx, ty, localZone, pause, anyGround)
             if u <= g.n then
                 for _, e in ipairs(g.adj[u]) do
                     local fwd = g.ea[e] == u
-                    if not ov.cut[e] and not (ach and ov.local_[e] and ov.local_[e][ach])
-                        and not (fwd and ov.upA[e]) and not (not fwd and ov.upB[e]) then
+                    local blocked = ov.cut[e] or (ach and ov.local_[e] and ov.local_[e][ach])
+                        or (fwd and ov.upA[e]) or (not fwd and ov.upB[e])
+                    if not blocked then
                         Try(fwd and g.eb[e] or g.ea[e], g.ec[e], e)
+                    elseif loose then
+                        Try(fwd and g.eb[e] or g.ea[e], g.ec[e] + LINE_COST, e)
                     end
                 end
             end
             for _, l in ipairs(ov.links[u] or {}) do
-                if not (ach and l[3] and l[3][ach]) then Try(l[1], l[2], nil) end
+                if not (ach and l[3] and l[3][ach]) then Try(l[1], l[2], nil)
+                elseif loose then Try(l[1], l[2] + LINE_COST, nil) end
             end
         end
     end
     if not bestGoal then
-        if ground then return GraphPath(c, fx, fy, tx, ty, localZone, pause, true) end
+        if NEXT_MODE[mode] then return GraphPath(c, fx, fy, tx, ty, localZone, pause, NEXT_MODE[mode]) end
         return nil
     end
     -- back from the end, each link's bends in the way it was walked

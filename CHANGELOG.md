@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- **Stop on the arrow.** Whatever the arrow is leading you to (a zone's route,
+  one area picked on a map, a flight or boat on the way), the x on it stops
+  it. The Stop route button in the window and on the world map now also
+  stops a route to one picked area.
+- **Never stuck behind a wall.** Walls, zone lines and ledges say where a
+  route may be drawn, not where you can stand. If you're somewhere they shut
+  off, the arrow leads you out the nearest way, and if a stop has no way in
+  that keeps to them, the route goes in crossing as few as it can, rather
+  than the arrow pointing straight.
 - **Flight masters on the map.** The window's maps mark every flight point
   for your faction: green if you know it, yellow if not, with its name under
   the cursor.

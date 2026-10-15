@@ -211,10 +211,26 @@ local function Build()
     frame:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
         GameTooltip:AddLine("Exploration route", 1, 1, 1)
-        GameTooltip:AddLine("Drag to move. Right-click to skip this stop.", 0.8, 0.8, 0.8, true)
+        GameTooltip:AddLine("Drag to move. Right-click to skip this stop. The x stops the directions.",
+            0.8, 0.8, 0.8, true)
         GameTooltip:Show()
     end)
     frame:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+    -- Stop: whatever the arrow is leading to, it stops (the whole route,
+    -- or the one area picked on a map, flights and boats with it).
+    local stop = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
+    stop:SetSize(22, 22)
+    stop:SetPoint("TOPRIGHT", frame, "TOPRIGHT", 4, 4)
+    stop:SetScript("OnClick", function() ns.StopRoute() end)
+    stop:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:AddLine("Stop", 1, 1, 1)
+        GameTooltip:AddLine("Clears these directions: the route and any flight or boat on the way.", 0.8, 0.8, 0.8, true)
+        GameTooltip:Show()
+    end)
+    stop:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    frame.stopButton = stop
 
     arrowTex = frame:CreateTexture(nil, "ARTWORK")
     arrowTex:SetTexture(TEXTURE)

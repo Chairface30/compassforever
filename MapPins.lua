@@ -89,10 +89,12 @@ local function RefreshBar(zone)
     local bar = barFrame
     if not zone then bar:Hide() return end
     local d, t = ns.ZoneCounts(zone)
-    local routed = ns.ZoneRouted(zone)
+    -- any directions in this zone (its route, or one area picked) can be stopped
+    local routed = ns.route and ns.route.zone == zone
     if d == t then
         bar.text:SetText("|cff55dd55" .. zone.name .. " is fully explored.|r")
-        bar.route:Hide()
+        bar.route:SetText("Stop route")
+        bar.route:SetShown(routed and true or false)
     else
         bar.text:SetText(string.format("%s: |cffffd100%d area%s to uncover|r", zone.name, t - d, t - d == 1 and "" or "s"))
         bar.route:SetText(routed and "Stop route" or "Start route")
@@ -225,7 +227,7 @@ local function Setup()
     bar.route:SetSize(96, 20)
     bar.route:SetPoint("RIGHT", bar.open, "LEFT", -4, 0)
     bar.route:SetScript("OnClick", function()
-        if ns.ZoneRouted(bar.zone) then ns.StopRoute() else ns.StartRoute(bar.zone) end
+        if ns.route and ns.route.zone == bar.zone then ns.StopRoute() else ns.StartRoute(bar.zone) end
     end)
     bar:Hide()
     overlay, barFrame, grayFrame, grayPool = o, bar, g, ns.TexturePool(g, "ARTWORK")

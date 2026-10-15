@@ -1383,8 +1383,10 @@ local function RefreshInfo()
     elseif d < t then
         nextInfo:SetText(GRAY .. "Start the route to be led to the nearest area, then the next nearest.|r")
     end
-    routeButton:SetShown(d < t)
-    routeButton:SetText(routed and "Stop route" or "Start route")
+    -- any directions in this zone (its route, or one area picked) can be stopped
+    local here = ns.route and ns.route.zone == zone
+    routeButton:SetShown(d < t or here and true or false)
+    routeButton:SetText(here and "Stop route" or "Start route")
     skipButton:SetShown(routed and t - d > 1)
 end
 
@@ -1790,7 +1792,7 @@ local function Build()
     routeButton:SetSize(BUTTON_W, 26)
     routeButton:SetPoint("TOPRIGHT", border, "BOTTOMRIGHT", -4, -10)
     routeButton:SetScript("OnClick", function()
-        if ns.ZoneRouted(view.zone) then ns.StopRoute() else ns.StartRoute(view.zone) end
+        if ns.route and ns.route.zone == view.zone then ns.StopRoute() else ns.StartRoute(view.zone) end
     end)
     skipButton = CreateFrame("Button", nil, frame.belowMap, "UIPanelButtonTemplate")
     skipButton:SetSize(BUTTON_W, 26)
