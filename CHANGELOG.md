@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## Compass Forever v1.8 (2026-10-15)
 
 - **A road through a wall is a way through.** Where a road is drawn across a
   wall or a cliff edge, routes may follow it across, both ways.
