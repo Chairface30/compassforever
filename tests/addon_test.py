@@ -1103,7 +1103,11 @@ check("/cf data says what the map holds", "areas:" in summary and "walking netwo
 rt.execute("""for _, k in ipairs({ "border", "places", "triggers", "hits", "ground", "graph", "rides", "cutoff" }) do
     NS.SetLayer(k, false) end
     UnitName = OLD_UNITNAME""")
-check("for anyone else, only flight masters and outlines", rt.eval("NS.LayerOn('fp') and not NS.LayerOn('walls')"))
+check("for anyone else, flight masters always and no other layer", rt.eval("NS.LayerOn('fp') and not NS.LayerOn('walls')"))
+rt.execute("NS.SetLayer('fp', false) NS.ShowZone(DUROTAR)")
+check("even switched off by a mapper before", rt.eval("NS.LayerOn('fp')"))
+check("and no Layers button", not rt.eval("NS.WindowFrame().layersButton:IsShown()"))
+rt.execute("NS.db.layers = nil")
 
 print("across the sea")
 rt.execute("""NS.StopRoute() function UnitFactionGroup() return "Horde" end

@@ -1308,6 +1308,8 @@ local function RefreshTrail()
     for _, b in ipairs({ wallButton, frame.roadButton, frame.ledgeButton }) do
         b:SetShown(editing)
     end
+    -- the map's layers: its authors only
+    frame.layersButton:SetShown(ns.CanEdit())
     local x, room = 0, editing and MAP_W - 262 or MAP_W - 98
     for i, b in ipairs(trail) do
         local part = parts[i]

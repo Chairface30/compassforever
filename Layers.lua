@@ -1,8 +1,9 @@
 -- Compass Forever: Layers.lua
 -- What a zone's map holds, drawn over the window's map, each kind with its
--- own switch (the Layers button in the map's corner). Flight masters are for
--- everyone; the rest is for the map's authors (Core.lua, MAPPERS): what the
--- routes are made of, so a zone can be checked and mapped by eye.
+-- own switch (the Layers button in the map's corner, shown only to the map's
+-- authors: Core.lua, MAPPERS). Everyone else always has the flight masters
+-- (and the area outlines, their own option); the rest is what the routes are
+-- made of, so a zone can be checked and mapped by eye.
 --
 --   Flight masters    every flight point for your faction, known or not
 --   Area outlines     each area's outline from the terrain (the option)
@@ -71,7 +72,8 @@ for _, L in ipairs(LAYERS) do byKey[L.key] = L end
 function ns.LayerOn(key)
     local L = byKey[key]
     if not L or not ns.db then return false end
-    if L.mapper and not ns.CanEdit() then return false end
+    -- not the map's author: flight masters only, always
+    if not ns.CanEdit() then return key == "fp" end
     if L.get then return L.get() end
     local v = ns.db.layers and ns.db.layers[key]
     if v == nil then return L.default end

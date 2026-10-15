@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## Compass Forever v1.7 (2026-10-14)
 
 - **Stop on the arrow.** Whatever the arrow is leading you to (a zone's route,
   one area picked on a map, a flight or boat on the way), the x on it stops
@@ -14,14 +14,10 @@
 - **Flight masters on the map.** The window's maps mark every flight point
   for your faction: green if you know it, yellow if not, with its name under
   the cursor.
-- **Layers button** in the map's corner: switch the flight masters and area
-  outlines on and off.
 - **Walls hold everywhere.** No path crosses a wall any more, not even to get
   on or off the walking network or along a road drawn across one, and roads
   no longer take paths inside a zone across its zone lines (those are only
   for coming into or leaving the zone).
-- **Ledges:** one-way walls for cliffs and ridges, which a path may jump down
-  but never climb.
 - **One area at a time.** Start route no longer plans the whole zone: it heads
   for the area nearest to where you are (or where you walk in, or where a
   flight lands), and once that one is uncovered, for the nearest one left from
