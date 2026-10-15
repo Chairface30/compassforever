@@ -1231,19 +1231,28 @@ lw = rt.eval("""(function()
     local _, up = NS.FindContinentPathNow(z.continent, ax, ay, bx, by)
     local _, down = NS.FindContinentPathNow(z.continent, bx, by, ax, ay)
     NS.db.ledges = nil
-    -- a road straight across a wall: no way through it
+    -- a road straight across a wall, or up a ledge: the way through it
     NS.db.walls = { [z.ach] = { { 0.5, 0.35, 0.5, 0.55 } } }
+    NS.WallsChanged()
+    local _, shut = NS.FindContinentPathNow(z.continent, ax, ay, bx, by)
     NS.db.roads = { [z.ach] = { { 0.44, 0.45, 0.56, 0.45 } } }
     NS.WallsChanged()
     local _, walled = NS.FindContinentPathNow(z.continent, ax, ay, bx, by)
-    NS.db.walls, NS.db.roads = nil, nil
+    NS.db.walls = nil
+    NS.db.ledges = { [z.ach] = { { 0.5, 0.35, 0.5, 0.55 } } }
     NS.WallsChanged()
-    return string.format("%.0f,%.0f,%.0f,%.0f", c0, up or -1, down or -1, walled or -1)
+    local _, climbed = NS.FindContinentPathNow(z.continent, ax, ay, bx, by)
+    NS.db.ledges, NS.db.roads = nil, nil
+    NS.WallsChanged()
+    return string.format("%.0f,%.0f,%.0f,%.0f,%.0f,%.0f", c0, up or -1, down or -1, shut or -1, walled or -1,
+        climbed or -1)
 end)()""")
-c0, up, down, walled = map(float, lw.split(","))
+c0, up, down, shut, walled, climbed = map(float, lw.split(","))
 check(f"a ledge can't be climbed: the way up goes round ({c0:.0f} -> {up:.0f} yd)", up > c0 + 20, lw)
 check(f"but it can be jumped down ({down:.0f} yd)", 0 < down < c0 + 20, lw)
-check(f"a road drawn across a wall doesn't get through it ({walled:.0f} yd)", walled > c0 + 20, lw)
+check(f"a road drawn across a wall is the way through it ({shut:.0f} -> {walled:.0f} yd)",
+      walled < shut - 100 and walled < c0 + 20, lw)
+check(f"and one up a ledge is the way up ({up:.0f} -> {climbed:.0f} yd)", climbed < up - 100, lw)
 
 print("never stuck behind a line")
 stuck = rt.eval("""(function()

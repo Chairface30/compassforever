@@ -636,16 +636,18 @@ local function Overlay(c, pause)
         return out
     end
     -- Join two waypoints by a straight run, each way it may be walked: never
-    -- across a wall, never up a ledge.
-    local function Link(a, b, cost)
+    -- across a wall, never up a ledge. Along a drawn road (`road`) both are
+    -- crossed: a road drawn through a wall or over a ledge is the way
+    -- through it, both ways. Zone lines hold either way.
+    local function Link(a, b, cost, road)
         local ai, aj = PosOf(g, ov, a)
         local bi, bj = PosOf(g, ov, b)
-        if Hits(walls, ai, aj, bi, bj) then return end
+        if not road and Hits(walls, ai, aj, bi, bj) then return end
         local loc = ZoneLinesHit(ai, aj, bi, bj)
         ov.links[a] = ov.links[a] or {}
         ov.links[b] = ov.links[b] or {}
-        if not Climbs(ledges, ai, aj, bi, bj) then table.insert(ov.links[a], { b, cost, loc }) end
-        if not Climbs(ledges, bi, bj, ai, aj) then table.insert(ov.links[b], { a, cost, loc }) end
+        if road or not Climbs(ledges, ai, aj, bi, bj) then table.insert(ov.links[a], { b, cost, loc }) end
+        if road or not Climbs(ledges, bi, bj, ai, aj) then table.insert(ov.links[b], { a, cost, loc }) end
     end
     local roadNodes = {}
     for _, r in ipairs(roads.list) do
@@ -660,7 +662,7 @@ local function Overlay(c, pause)
                     roadNodes[#roadNodes + 1] = node
                     if prev then
                         local d = math.sqrt((ov.i[node] - ov.i[prev]) ^ 2 + (ov.j[node] - ov.j[prev]) ^ 2)
-                        Link(prev, node, d * NODE * DRAWN_ROAD)
+                        Link(prev, node, d * NODE * DRAWN_ROAD, true)
                     end
                     prev = node
                 end

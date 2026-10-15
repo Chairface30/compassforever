@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- **A road through a wall is a way through.** Where a road is drawn across a
+  wall or a cliff edge, routes may follow it across, both ways.
+
 ## Compass Forever v1.7 (2026-10-14)
 
 - **Stop on the arrow.** Whatever the arrow is leading you to (a zone's route,
