@@ -38,5 +38,6 @@ Banner.lua
 Auto.lua
 MapPins.lua
 UI.lua
+Layers.lua
 Minimap.lua
 Commands.lua

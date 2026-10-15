@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **Flight masters on the map.** The window's maps mark every flight point
+  for your faction: green if you know it, yellow if not, with its name under
+  the cursor.
+- **Layers button** in the map's corner: switch the flight masters and area
+  outlines on and off.
 - **Walls hold everywhere.** No path crosses a wall any more, not even to get
   on or off the walking network or along a road drawn across one, and roads
   no longer take paths inside a zone across its zone lines (those are only

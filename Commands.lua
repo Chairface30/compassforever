@@ -177,7 +177,10 @@ local function Help()
     print("  /cf banner - the big on-screen messages, on or off")
     print("  /cf minimap - the minimap button, shown or hidden")
     print("  /cf arrow <0.5-2> - size of the arrow")
-    if ns.CanEdit() then print("  /cf edit - the tools for walls, roads and zone lines, shown or hidden") end
+    if ns.CanEdit() then
+        print("  /cf edit - the tools for walls, roads, zone lines and ledges, shown or hidden")
+        print("  /cf data [zone] - everything the zone's map holds, in numbers")
+    end
     print("  /cf perf [seconds] - measure what the addon costs (default 10 seconds)")
     print("  /cf probe [zone] - what the client says; send this when something looks wrong")
 end
@@ -201,6 +204,10 @@ SlashCmdList.COMPASSFOREVER = function(msg)
         ns.StartRoute(zone)
         local text = ns.NextStopText()
         if text then ns.Print(text .. ".") end
+    elseif cmd == "data" and ns.CanEdit() then
+        local zone = ZoneFromText(rest)
+        if not zone then ns.Print("No zone called \"" .. rest .. "\".") return end
+        for _, line in ipairs(ns.ZoneDataSummary(zone)) do print(line) end
     elseif cmd == "next" then
         local stop = ns.CurrentStop()
         if not stop then ns.Print("No route.") return end

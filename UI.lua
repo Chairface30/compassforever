@@ -794,6 +794,8 @@ end
 local WALL_COLOR = { 1, 0.25, 0.2, 0.95 }
 local ROAD_COLOR = { 0.6, 1, 0.05, 1 }       -- bright lime green
 local ZONE_LINE_COLOR = { 0.8, 0.45, 1, 1 }  -- purple
+local LEDGE_COLOR = { 1, 0.55, 0.1, 1 }      -- orange, ticks on the drop side
+local KIND_COLOR = { walls = WALL_COLOR, roads = ROAD_COLOR, zonelines = ZONE_LINE_COLOR, ledges = LEDGE_COLOR }
 
 -- Only the player's own lines are drawn and edited; shipped ones (Data/)
 -- still steer paths but stay out of sight.
@@ -834,15 +836,28 @@ local function DrawWalls()
         end
         Draw(pts, r, g, b, a)
     end
-    -- the kind being edited in full, the rest faintly, so they can be seen
-    for _, kind in ipairs({ "roads", "walls", "zonelines" }) do
-        local c = kind == "roads" and ROAD_COLOR or kind == "zonelines" and ZONE_LINE_COLOR or WALL_COLOR
-        local alpha = (wallMode and editKind == kind) and c[4] or 0.45
-        for _, wall in ipairs(Lines(zone, kind)) do
-            if wall.circle then
-                Ring(wall.circle[1], wall.circle[2], wall.circle[3], c[1], c[2], c[3], alpha)
-            else
-                Draw(wall, c[1], c[2], c[3], alpha)
+    -- the kind being edited in full, the rest faintly, so they can be seen;
+    -- a kind its layer hides (Layers.lua) only while it's being drawn
+    for _, kind in ipairs({ "roads", "walls", "zonelines", "ledges" }) do
+        local editing = wallMode and editKind == kind
+        if editing or not ns.LayerOn or ns.LayerOn(kind) then
+            local c = KIND_COLOR[kind]
+            local alpha = editing and c[4] or 0.45
+            for _, wall in ipairs(Lines(zone, kind)) do
+                if wall.circle then
+                    Ring(wall.circle[1], wall.circle[2], wall.circle[3], c[1], c[2], c[3], alpha)
+                else
+                    Draw(wall, c[1], c[2], c[3], alpha)
+                    if kind == "ledges" and ns.LedgeTicks then
+                        for _, t in ipairs(ns.LedgeTicks(wall, CW(), CH())) do
+                            n = n + 1
+                            local l = WallLine(n)
+                            l:SetStartPoint("TOPLEFT", canvas, t[1], -t[2])
+                            l:SetEndPoint("TOPLEFT", canvas, t[3], -t[4])
+                            l:SetColorTexture(c[1], c[2], c[3], alpha)
+                        end
+                    end
+                end
             end
         end
     end
@@ -952,12 +967,29 @@ local function SwapSegment(zone, x, y)
 end
 ns.SwapSegment = SwapSegment
 
+-- Ctrl-click in Ledges mode: the ledge under the cursor turns round, so its
+-- drop is on the other side.
+local function FlipLedge(zone, x, y)
+    local kind, w = SegmentAt(zone, { "ledges" }, x, y)
+    if not kind then return false end
+    local line = OwnWalls(zone, "ledges")[w]
+    local flipped = {}
+    for k = #line - 1, 1, -2 do flipped[#flipped + 1], flipped[#flipped + 2] = line[k], line[k + 1] end
+    OwnWalls(zone, "ledges")[w] = flipped
+    ns.WallsChanged()
+    ns.Print("That ledge drops the other way now.")
+    return true
+end
+ns.FlipLedge = FlipLedge
+
 -- (x, y: where, for the tests; else under the cursor)
 WallClick = function(button, x, y)
     local zone = view.zone
     if not x then x, y = CursorOnMap() end
     if not x then return end
-    if button == "LeftButton" and IsControlKeyDown() and editKind ~= "roads" and not drawing and not circleCenter then
+    if button == "LeftButton" and IsControlKeyDown() and editKind == "ledges" and not drawing then
+        FlipLedge(zone, x, y)
+    elseif button == "LeftButton" and IsControlKeyDown() and editKind ~= "roads" and not drawing and not circleCenter then
         SwapSegment(zone, x, y)
     elseif button == "LeftButton" and IsShiftKeyDown() and editKind == "walls" then
         if not circleCenter then
@@ -982,7 +1014,8 @@ WallClick = function(button, x, y)
             table.insert(walls, drawing)
             ns.WallsChanged()
             ns.Print(string.format("%s added (%d in %s). Left-click to start the next one.",
-                editKind == "roads" and "Road" or editKind == "zonelines" and "Zone line" or "Wall", #walls, zone.name))
+                editKind == "roads" and "Road" or editKind == "zonelines" and "Zone line"
+                    or editKind == "ledges" and "Ledge" or "Wall", #walls, zone.name))
         end
         drawing = nil
     else
@@ -1007,7 +1040,7 @@ end
 -- The Clear button: every wall, zone line or road of the kind being drawn
 -- in the shown zone (the player's own), gone at once. The first click only
 -- asks; a second within a few seconds clears.
-local CLEAR_NAMES = { walls = "walls", roads = "roads", zonelines = "zone lines" }
+local CLEAR_NAMES = { walls = "walls", roads = "roads", zonelines = "zone lines", ledges = "ledges" }
 local clearAsked
 local function ClearLabel()
     local b = frame and frame.clearButton
@@ -1062,6 +1095,10 @@ local function SetWallMode(on, kind)
     end
     if frame and frame.roadButton then
         frame.roadButton:SetText((wallMode and editKind == "roads") and "|cff99ff0dRoads|r" or "Roads")
+        frame.ledgeButton:SetText((wallMode and editKind == "ledges") and "|cffff8c1aLedges|r" or "Ledges")
+        local zone = view.zone
+        frame.takeoverButton:SetShown(wallMode and zone and ns.ZoneHandMapped(zone) and not ns.TakenOver(zone)
+            and true or false)
     end
     DrawMap()
 end
@@ -1238,6 +1275,7 @@ DrawMap = function()
     elseif view.kind == "continent" or view.kind == "world" then DrawHere() end
     DrawRouteStops(used)
     DrawAreas()
+    if ns.DrawLayers then pcall(ns.DrawLayers) end
     DrawPlayer()
     -- in wall mode the markers stay in sight but let clicks through to the
     -- map, where they draw walls
@@ -1246,6 +1284,10 @@ DrawMap = function()
     zoomIn:SetEnabled(zoom < ZOOM_MAX)
     zoomOut:SetEnabled(zoom > 1.001 or view.kind ~= "world")
 end
+
+-- For Layers.lua: the map's canvas and its size, what it shows, a redraw.
+function ns.WindowMapSpace() return canvas, CW(), CH(), view, mapBox end
+function ns.WindowRedraw() if frame and frame:IsShown() then DrawMap() end end
 
 -------------------------------------------------------------------------------
 -- The trail above the map, and the text under it
@@ -1263,10 +1305,10 @@ local function RefreshTrail()
     -- editing the Roads and Walls ones; the trail gets the rest, and only the
     -- last part (the shown map) is ever cut short.
     local editing = ns.Editing()
-    for _, b in ipairs({ wallButton, frame.roadButton }) do
+    for _, b in ipairs({ wallButton, frame.roadButton, frame.ledgeButton }) do
         b:SetShown(editing)
     end
-    local x, room = 0, editing and MAP_W - 206 or MAP_W - 98
+    local x, room = 0, editing and MAP_W - 262 or MAP_W - 98
     for i, b in ipairs(trail) do
         local part = parts[i]
         if part then
@@ -1603,6 +1645,16 @@ local function Build()
     frame.roadButton:SetPoint("RIGHT", wallButton, "LEFT", -4, 0)
     frame.roadButton:SetText("Roads")
     frame.roadButton:SetScript("OnClick", function() SetWallMode(not (wallMode and editKind == "roads"), "roads") end)
+    frame.ledgeButton = CreateFrame("Button", nil, strip, "UIPanelButtonTemplate")
+    frame.ledgeButton:SetSize(52, 22)
+    frame.ledgeButton:SetPoint("RIGHT", frame.roadButton, "LEFT", -4, 0)
+    frame.ledgeButton:SetText("Ledges")
+    frame.ledgeButton:SetScript("OnClick", function() SetWallMode(not (wallMode and editKind == "ledges"), "ledges") end)
+    Tip(frame.ledgeButton, "Draw ledges",
+        "One-way walls for cliffs and ridges: routes may jump down across one but never climb it. "
+        .. "Draw it with the high ground on your left as you go from corner to corner; ticks mark the drop side. "
+        .. "Left-click to add corners, right-click to finish. Ctrl-click a ledge to turn it round. "
+        .. "Right-click a segment to remove it, Shift-right-click the whole ledge.")
     Tip(frame.roadButton, "Draw roads",
         "On a zone's map: left-click to add corners of a road, right-click to finish it. "
         .. "Right-click a road's segment to remove just that segment, Shift-right-click to remove "
@@ -1684,6 +1736,9 @@ local function Build()
         SetWallMode(true, self:GetChecked() and "zonelines" or "walls")
     end)
     frame.zoneLineCheck:Hide()
+    -- the map's layers (Layers.lua), in the top right corner
+    frame.layersButton = ns.MakeLayersButton(frame, border)
+    frame.layersButton:SetFrameLevel(mapBox:GetFrameLevel() + 20)
     Tip(frame.zoneLineCheck, "Zone line",
         "Draws zone lines (purple) instead of walls: the waypoints inside this zone never cross one, "
         .. "but a path coming from or going to another zone may. Use them along the zone's edge "
@@ -1697,6 +1752,23 @@ local function Build()
     frame.clearButton:SetFrameLevel(mapBox:GetFrameLevel() + 20)
     frame.clearButton:SetScript("OnClick", function() ClearLines(editKind) end)
     frame.clearButton:Hide()
+    frame.takeoverButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    frame.takeoverButton:SetSize(110, 22)
+    frame.takeoverButton:SetPoint("LEFT", frame.clearButton, "RIGHT", 6, 0)
+    frame.takeoverButton:SetFrameLevel(mapBox:GetFrameLevel() + 20)
+    frame.takeoverButton:SetText("Edit built-in")
+    frame.takeoverButton:SetScript("OnClick", function()
+        local zone = view.zone
+        if not zone then return end
+        local n = ns.TakeOverBuiltIn(zone)
+        if n then ns.Print(string.format("%s: %d built-in lines are yours to edit now. "
+            .. "Only your lines count for this zone until it's baked again.", zone.name, n)) end
+        SetWallMode(true, editKind)
+    end)
+    frame.takeoverButton:Hide()
+    Tip(frame.takeoverButton, "Edit built-in lines",
+        "Copies this zone's built-in walls, zone lines, roads and ledges into your own, so you can see, "
+        .. "move and delete them. Until the zone is baked again only your copies count for its routes.")
     Tip(frame.clearButton, "Clear",
         "Removes every one of your walls (or zone lines, or roads: whichever you're drawing) in this zone. "
         .. "Click twice to be sure. Lines built into the addon aren't yours to clear.")

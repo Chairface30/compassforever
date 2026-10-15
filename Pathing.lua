@@ -1122,6 +1122,7 @@ function ns.PlanCost(zone, ax, ay, bx, by)
             done = function(cost)
                 if planCosts[zone.ach] ~= pc then return end
                 pc.cost = cost or {}
+                ns.Fire("plancosts", zone)
             end }, 3)
         return nil
     end
@@ -1153,6 +1154,94 @@ function ns.ZoneReachNow(zone)
     end
 end
 
+-------------------------------------------------------------------------------
+-- For the map's layers (UI.lua, the mapping tools)
+-------------------------------------------------------------------------------
+
+-- The walking network over a zone's map: waypoints { x, y, drawn road? }
+-- and links { x1, y1, x2, y2, state } in the zone's map fractions, state
+-- "open", "cut" (a wall), "oneway" (a ledge), "zoneline" (kept out of this
+-- zone's own paths) or "road" (a drawn road's). nil while the network isn't
+-- read yet (it starts being read; "path" fires when it is). Kept per zone
+-- until a line changes.
+local onZone = {}
+function ns.GraphOnZone(zone)
+    local c = zone.continent
+    local g, ov = graphs[c], overlays[c]
+    if not (g and ov) then
+        ns.WarmGraph(c)
+        return nil
+    end
+    local hit = onZone[zone.ach]
+    if hit and hit.ov == ov then return hit.pts, hit.links end
+    local r = ns.MapRect and g.cont.map and ns.MapRect(zone.map, g.cont.map)
+    if not r then return nil end
+    local w, h = r.r - r.l, r.b - r.t
+    local function Z(k)
+        local x, y = GridPos(g.cont, PosOf(g, ov, k))
+        return (x - r.l) / w, (y - r.t) / h
+    end
+    local function In(x, y) return x >= -0.02 and x <= 1.02 and y >= -0.02 and y <= 1.02 end
+    local pts, links = {}, {}
+    for k = 1, ov.n do
+        local x, y = Z(k)
+        if In(x, y) then pts[#pts + 1] = { x, y, k > g.n } end
+    end
+    for e = 1, g.m do
+        local x1, y1 = Z(g.ea[e])
+        local x2, y2 = Z(g.eb[e])
+        if In(x1, y1) or In(x2, y2) then
+            local state = ov.cut[e] and "cut" or (ov.upA[e] or ov.upB[e]) and "oneway"
+                or (ov.local_[e] and ov.local_[e][zone.ach]) and "zoneline" or "open"
+            links[#links + 1] = { x1, y1, x2, y2, state }
+        end
+    end
+    for a, list in pairs(ov.links) do
+        for _, l in ipairs(list) do
+            if a < l[1] then
+                local x1, y1 = Z(a)
+                local x2, y2 = Z(l[1])
+                if In(x1, y1) or In(x2, y2) then
+                    links[#links + 1] = { x1, y1, x2, y2, (l[3] and l[3][zone.ach]) and "zoneline" or "road" }
+                end
+            end
+        end
+    end
+    onZone[zone.ach] = { ov = ov, pts = pts, links = links }
+    return pts, links
+end
+
+-- Which of a zone's areas can't be walked to from all the others, inside
+-- the zone: { [node] = how many others it reaches }, only the cut-off ones,
+-- and how many others there are. nil while the zone's walking costs are
+-- worked out ("plancosts" fires when they are).
+function ns.ZoneCutOff(zone)
+    local pc = planCosts[zone.ach]
+    if not (pc and pc.cost) then
+        ns.PlanCost(zone, 0, 0, 0, 0)
+        return nil
+    end
+    local nodes = zone.nodes
+    local cut = {}
+    for a = 1, #nodes do
+        local reach = 0
+        for b = 1, #nodes do
+            if b ~= a then
+                local ok = false
+                for _, p in ipairs(ns.NodePoints(nodes[a])) do
+                    for _, q in ipairs(ns.NodePoints(nodes[b])) do
+                        if ns.PlanCost(zone, p[1], p[2], q[1], q[2]) then ok = true break end
+                    end
+                    if ok then break end
+                end
+                if ok then reach = reach + 1 end
+            end
+        end
+        if reach < #nodes - 1 then cut[nodes[a]] = reach end
+    end
+    return cut, #nodes - 1
+end
+
 -- For the tests: a zone's costs worked out at once.
 function ns.PlanCostsNow(zone)
     local pc = { cost = ZoneCosts(zone, nil) or {} }
@@ -1163,6 +1252,7 @@ end
 -- and every path is looked for again.
 function ns.WallsChanged()
     overlays = {}
+    onZone = {}
     jobs = {}
     planCosts = {}
     if ns.ForgetPaths then ns.ForgetPaths() end

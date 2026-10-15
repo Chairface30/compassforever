@@ -155,6 +155,12 @@ local function Side()
     if faction == "Horde" then return 2 end
     return 3
 end
+-- Does a flight point of faction `side` (1 Alliance, 2 Horde, 3 both) serve
+-- the player?
+function ns.FlightForMe(side)
+    local me = Side()
+    return side % (me * 2) >= me
+end
 
 -- The world map's word on flight points: one it calls undiscovered is
 -- forgotten; one it calls discovered proves nothing (see the top). Returns

@@ -1080,6 +1080,27 @@ rt.execute("UnitName = OLD_UNITNAME NS.ShowZone(ELWYNN)")
 check("spots and sharing are gone", rt.eval("""NS.ShowShare == nil and NS.ExportEdits == nil and NS.MoveSpot == nil
     and NS.MovedSpot == nil and NS.SpotHere == nil and NS.SPOTS == nil and NS.db.learnSpots == nil"""))
 
+print("map layers")
+before_layers = len(printed(rt))
+rt.execute("""OLD_UNITNAME = UnitName function UnitName() return 'Beefstrokin', 'Goff' end
+    DUROTAR = NS.ZoneByMap(1411)
+    NS.PlanCostsNow(DUROTAR)
+    for _, k in ipairs({ "fp", "points", "spots", "ground", "entrances", "walls", "zonelines", "roads",
+                         "ledges", "builtin", "graph", "rides", "cutoff" }) do NS.SetLayer(k, true) end
+    NS.WarmGraph(1)
+    for _ = 1, 600 do FRAME(0.05) if NS.PathJobs() == 0 then break end end
+    NS.ShowZone(DUROTAR)""")
+check("every layer draws on Durotar without an error", not any("|cffff5555" in p for p in printed(rt)[before_layers:]),
+      printed(rt)[before_layers:])
+check("the walking network is there to draw", rt.eval("NS.GraphOnZone(DUROTAR) ~= nil"))
+summary = rt.eval("table.concat(NS.ZoneDataSummary(DUROTAR), '\\n')")
+print(summary)
+check("/cf data says what the map holds", "areas:" in summary and "walking network:" in summary
+      and "flight masters:" in summary and "ground:" in summary, summary)
+rt.execute("""for _, k in ipairs({ "points", "spots", "ground", "graph", "rides", "cutoff" }) do NS.SetLayer(k, false) end
+    UnitName = OLD_UNITNAME""")
+check("for anyone else, only flight masters and outlines", rt.eval("NS.LayerOn('fp') and not NS.LayerOn('walls')"))
+
 print("across the sea")
 rt.execute("""NS.StopRoute() function UnitFactionGroup() return "Horde" end
     DUROTAR = NS.ZoneByMap(1411)
