@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## Compass Forever v1.6 (2026-10-14)
 
 - Maps:
   - Azshara redrawn again; every area can be reached, Tower of Eldara and
