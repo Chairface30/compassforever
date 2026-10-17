@@ -1304,6 +1304,8 @@ end
 -- along the path, so it bends around a cliff instead of pointing through it.
 
 local AHEAD = 40             -- yards along the path to aim at
+local SHORTCUT = 120         -- yards: a bend this close, walkable straight from here, is aimed at
+local SHORTCUT_ALONG = 300   -- yards along the path the shortcut looks ahead at most
 local RIDE_NEAR = 40         -- this close to a portal or boat, the arrow says to take it
 local OFF_PATH = 60          -- this far from the path asks for a new one
 local ASK_AGAIN = 3          -- seconds between asks
@@ -1334,6 +1336,76 @@ end
 
 local function Seg(zone, a, b)
     return math.sqrt(((a.x - b.x) * zone.w) ^ 2 + ((a.y - b.y) * zone.h) ^ 2)
+end
+
+-- Can the straight run between two points of continent c's map be walked:
+-- no wall, no zone line of localZone, no ledge climbed, and the terrain
+-- allows each step? The same test a short path uses to go straight. Only
+-- with the continent's graph already read; false until then.
+function ns.StraightWalkable(c, ax, ay, bx, by, localZone)
+    local g, ov = graphs[c], overlays[c]
+    if not (g and ov) then return false end
+    local ach = localZone and localZone.ach
+    local si, sj = GridUnits(g.cont, ax, ay)
+    local ti, tj = GridUnits(g.cont, bx, by)
+    return not Hits(ov.walls, si, sj, ti, tj) and not (ach and Hits(ov.zonelines, si, sj, ti, tj, ach))
+        and not Climbs(ov.ledges, si, sj, ti, tj) and StraightOK(c, si, sj, ti, tj)
+end
+
+-- The furthest bend ahead that can be walked to straight from the player:
+-- its index in the path, or nil. Nearest-point-on-the-path alone sent a
+-- player who had cut a corner back to the bend behind them; a bend within
+-- SHORTCUT yards, in the clear, is the way on instead. Never past a portal
+-- or boat (that bend is as far as it goes), nor while on one.
+local function Shortcut(c, cont, path, k, px, py, localZone)
+    if path[k].ride then return nil end
+    local near, along = {}, 0
+    local me = { x = px, y = py }
+    for i = k + 1, #path do
+        along = along + Seg(cont, path[i - 1], path[i])
+        if along > SHORTCUT_ALONG then break end
+        if Seg(cont, me, path[i]) <= SHORTCUT then near[#near + 1] = i end
+        if path[i].ride then break end
+    end
+    -- furthest first: the first one in the clear is the answer
+    for n = #near, 1, -1 do
+        local i = near[n]
+        if ns.StraightWalkable(c, px, py, path[i].x, path[i].y, localZone) then return i end
+    end
+    return nil
+end
+
+-- Where to aim along `path` from the player: aim point, yards left, and the
+-- segment and point the player counts as on (the drawn line runs from the
+-- player to that point, then on from path[k + 1]). With a shortcut the
+-- player is on the way to that bend: the point is the player's own spot.
+function ns.SteerAim(c, cont, path, px, py, localZone)
+    local k, cx, cy, off = Project(path, cont, px, py)
+    local cut = Shortcut(c, cont, path, k, px, py, localZone)
+    if cut then k, cx, cy, off = cut - 1, px, py, 0 end
+    -- From the projection, AHEAD yards along.
+    local left, aimX, aimY = AHEAD, path[#path].x, path[#path].y
+    local here = { x = cx, y = cy }
+    local remaining = off
+    local found = false
+    -- a portal or boat to take, here or a few steps on (on it, or at it)
+    local ride = not cut and path[k].ride or nil
+    for i = k + 1, #path do
+        local d = Seg(cont, here, path[i])
+        remaining = remaining + d
+        if path[i].ride and remaining <= RIDE_NEAR and not ride then ride = path[i].ride end
+        if not found then
+            if d >= left then
+                local t = left / d
+                aimX, aimY = here.x + (path[i].x - here.x) * t, here.y + (path[i].y - here.y) * t
+                found = true
+            else
+                left = left - d
+            end
+        end
+        here = path[i]
+    end
+    return aimX, aimY, remaining, k, cx, cy, off, ride
 end
 
 -- Where to aim, as fractions of the continent's map, and the yards left
@@ -1374,30 +1446,9 @@ function ns.Steer(c, stop, px, py, localZone)
     if not e.asked then Ask() end
     local path = e.path
     if not path or #path < 2 then return nil end
-    local k, cx, cy, off = Project(path, cont, px, py)
+    local aimX, aimY, remaining, k, cx, cy, off, ride = ns.SteerAim(c, cont, path, px, py, localZone)
     if off > OFF_PATH and now - e.asked > ASK_AGAIN then Ask() end
-    -- From the projection, AHEAD yards along.
-    local left, aimX, aimY = AHEAD, path[#path].x, path[#path].y
-    local here = { x = cx, y = cy }
-    local remaining = off
-    local found = false
-    -- a portal or boat to take, here or a few steps on (on it, or at it)
-    e.ride = path[k].ride
-    for i = k + 1, #path do
-        local d = Seg(cont, here, path[i])
-        remaining = remaining + d
-        if path[i].ride and remaining <= RIDE_NEAR and not e.ride then e.ride = path[i].ride end
-        if not found then
-            if d >= left then
-                local t = left / d
-                aimX, aimY = here.x + (path[i].x - here.x) * t, here.y + (path[i].y - here.y) * t
-                found = true
-            else
-                left = left - d
-            end
-        end
-        here = path[i]
-    end
+    e.ride = ride
     return aimX, aimY, remaining, path, k, cx, cy
 end
 

@@ -1549,6 +1549,43 @@ check("a ghost with no route gets no arrow or lines", "Your corpse" not in rt.ev
       and rt.eval("NS.RouteGeometry() == nil"))
 rt.execute("function UnitIsGhost() return false end FRAME(0.2)")
 
+print("steering cuts corners")
+# A U-shaped path (east 100 yards, south 50, back west 100) and a player in
+# the middle of the U, nearer its first leg. Aiming along the path from the
+# nearest point walked them east, away from the goal.
+rt.execute("""
+U_CONT = { w = 1000, h = 1000 }
+U_PATH = { { x = 0, y = 0 }, { x = 0.1, y = 0 }, { x = 0.1, y = 0.05 }, { x = 0, y = 0.05 } }
+REAL_WALKABLE = NS.StraightWalkable
+function U_AIM(walkable, path)
+    NS.StraightWalkable = walkable
+    local ax, ay, left, k, cx, cy = NS.SteerAim(0, U_CONT, path or U_PATH, 0.05, 0.02)
+    NS.StraightWalkable = REAL_WALKABLE
+    return string.format("%.3f,%.3f,%.0f,%d", ax, ay, left, k)
+end
+""")
+aim = rt.eval("U_AIM(function() return true end)")
+# 58 yards straight to the goal; the aim is 40 yards along that line
+check(f"in the clear, it heads straight for the goal ({aim})", aim == "0.016,0.041,58,3", aim)
+aim = rt.eval("U_AIM(function(c, ax, ay, bx, by) return by < 0.03 end)")
+check(f"a wall across the U: straight for the first bend instead ({aim})",
+      aim.startswith("0.087,0.005") and aim.endswith(",1"), aim)
+aim = rt.eval("U_AIM(function() return false end)")
+check(f"nothing walkable straight: along the path as before ({aim})", aim.startswith("0.090,0.000"), aim)
+aim = rt.eval("""(function()
+    local p = { { x = 0, y = 0 }, { x = 0.1, y = 0 }, { x = 0.1, y = 0.05, ride = { kind = "Boat", to = "X" } }, { x = 0, y = 0.05 } }
+    return U_AIM(function() return true end, p)
+end)()""")
+check(f"never cut past a boat or portal ({aim})", aim.endswith(",2"), aim)
+aim = rt.eval("""(function()
+    local far = { { x = 0, y = 0 }, { x = 0.4, y = 0 }, { x = 0.4, y = 0.3 } }
+    NS.StraightWalkable = function() return true end
+    local ax, ay, left, k = NS.SteerAim(0, U_CONT, far, 0.1, 0.01)
+    NS.StraightWalkable = REAL_WALKABLE
+    return string.format("%.3f,%.3f,%d", ax, ay, k)
+end)()""")
+check(f"bends further than 120 yards are left to the path ({aim})", aim == "0.140,0.000,1", aim)
+
 print("lua escapes")
 # A path written through a shell heredoc once lost its backslashes; every
 # texture path must read Interface\... in the source.

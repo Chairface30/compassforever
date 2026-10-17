@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- **The arrow lets you cut corners.** When you're near the path, the arrow
+  and the drawn line head straight for the furthest bend ahead (up to 120
+  yards away) that you can walk to directly, with no wall, ledge or terrain
+  in the way. They no longer send you back to the nearest point on the line
+  first. Untested in game.
+
 ## Compass Forever v1.8 (2026-10-15)
 
 - **A road through a wall is a way through.** Where a road is drawn across a
