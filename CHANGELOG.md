@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## Compass Forever v1.9 (2026-10-20)
 
 - **Silithus can be finished.** Cenarion Hold was looking for an old piece
   of the zone map that the redrawn map doesn't have, so it never showed as
