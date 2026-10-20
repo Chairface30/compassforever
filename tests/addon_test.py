@@ -286,7 +286,7 @@ print("data")
 zones = rt.eval("#NS.ZONES")
 nodes = rt.eval("(function() local n = 0 for _, z in ipairs(NS.ZONES) do n = n + #z.nodes end return n end)()")
 check("43 zones", zones == 43, zones)
-check("556 map areas: 549 the achievements name, 7 only the map has", nodes == 556, nodes)
+check("555 map areas: 549 the achievements name, 6 only the map has", nodes == 555, nodes)
 check("every point on its zone's map", rt.eval('''(function()
     for _, z in ipairs(NS.ZONES) do for _, n in ipairs(z.nodes) do
         if #n.points < 2 or #n.points % 2 ~= 0 then return false end
@@ -1385,12 +1385,12 @@ print("area outlines (Mulgore)")
 rt.execute("MULGORE = NS.ZoneByMap(1412)")
 check("every Mulgore area has an outline", rt.eval("""(function()
     for _, n in ipairs(MULGORE.nodes) do if not NS.AreaOf(n) then return n.name end end return true end)()""") is True)
-check("555 areas have outlines; Undercity, with no ground, keeps its spot", rt.eval("""(function()
+check("554 areas have outlines; Undercity, with no ground, keeps its spot", rt.eval("""(function()
     local n, without = 0, {}
     for _, z in ipairs(NS.ZONES) do for _, node in ipairs(z.nodes) do
         if NS.AreaOf(node) then n = n + 1 else without[#without + 1] = node.name end
     end end
-    return n .. ":" .. table.concat(without, ",") end)()""") == "555:Undercity")
+    return n .. ":" .. table.concat(without, ",") end)()""") == "554:Undercity")
 # Shen'dralas's middle is on its map but in no criterion: an area of its
 # own, read off the map, and the zone isn't done until it's uncovered.
 rt.execute("""SHEN = NS.ZoneByMap(2652)
@@ -1406,6 +1406,17 @@ check("every criterion's piece uncovered still leaves the middle",
 rt.execute("table.insert(EXPLORED[2652], { MIDDLE.ox, MIDDLE.oy }) NS.InvalidateProgress()")
 check("uncovered on the map, the zone is done", rt.eval("#NS.ZoneRemaining(SHEN) == 0"))
 rt.execute("EXPLORED[2652] = nil for _, n in ipairs(SHEN.nodes) do if n.criteria then DONE[n.criteria] = nil end end NS.InvalidateProgress()")
+# Silithus's redrawn map has no Cenarion Hold piece: the one at its spot, a
+# pixel off, is named Twilight Base Camp. Every piece the client's map has
+# uncovered (the offsets the client hands back, not the nodes'), with every
+# criterion done, is the whole zone (it sat at 7 / 8).
+rt.execute("""SIL = NS.ZoneByMap(1451) ALT_ONLY = true
+    EXPLORED[1451] = { {264, 11}, {244, 284}, {96, 143}, {499, 64}, {103, 23}, {115, 412}, {343, 196} }
+    for _, n in ipairs(SIL.nodes) do if n.criteria then DONE[n.criteria] = true end end
+    NS.InvalidateProgress()""")
+check("Silithus: 7 areas, Cenarion Hold on the redrawn map's piece", rt.eval("#SIL.nodes") == 7)
+check("Silithus: every piece of its map uncovered, the zone is done", rt.eval("#NS.ZoneRemaining(SIL) == 0"))
+rt.execute("ALT_ONLY = false EXPLORED[1451] = nil for _, n in ipairs(SIL.nodes) do if n.criteria then DONE[n.criteria] = nil end end NS.InvalidateProgress()")
 check("world map markers are off by default", rt2.eval("NS.db.mapPins == false"))
 def area_lines():
     return rt.eval("""(function() local n = 0 for _, l in ipairs(LINES) do

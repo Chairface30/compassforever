@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **Silithus can be finished.** Cenarion Hold was looking for an old piece
+  of the zone map that the redrawn map doesn't have, so it never showed as
+  uncovered and Silithus stuck at 7 / 8. It now uses the redrawn map's
+  piece in the same spot (the one named Twilight Base Camp), and the extra
+  Twilight Base Camp area is gone: Silithus has 7 areas. Its outline is the
+  ground that uncovers the piece, not the whole of the old Cenarion Hold.
+  Untested in game.
 - **The arrow lets you cut corners.** When you're near the path, the arrow
   and the drawn line head straight for the furthest bend ahead (up to 120
   yards away) that you can walk to directly, with no wall, ledge or terrain

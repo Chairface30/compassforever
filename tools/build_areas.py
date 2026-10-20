@@ -18,7 +18,7 @@ import os
 import sys
 
 from build_data import (CHUNK, CLIFF, EXPLORE_CATS, TILE, criteria_children, depth_map,
-                        leaf_criteria, load, load_terrain, map_only_overlays)
+                        leaf_criteria, live_overlay, load, load_terrain, map_only_overlays)
 
 EDGE_GAP = 3          # chunks (~100 yards) at least between edge points
 EDGE_MAX = 20         # edge points per area at most
@@ -155,12 +155,7 @@ def main():
         used_live = set()
         for t, c in leaves:
             o = overlays[c["Asset"]]
-            live = new_by_area.get((current.get(ui), o["AreaID_0"]), o)
-            used_live.add(live["ID"])
-            for n in overlays.values():
-                if (n["UiMapArtID"] == current.get(ui) and n["OffsetX"] == o["OffsetX"]
-                        and n["OffsetY"] == o["OffsetY"]):
-                    used_live.add(n["ID"])
+            live = live_overlay(o, overlays, current.get(ui), new_by_area, art, used_live)
             # the same areas build_data.py takes the spots from
             old_ids = [o[f"AreaID_{i}"] for i in range(4) if o[f"AreaID_{i}"] != "0"]
             live_ids = {live[f"AreaID_{i}"] for i in range(4) if live[f"AreaID_{i}"] != "0"}

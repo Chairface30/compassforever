@@ -191,6 +191,29 @@ def map_only_overlays(overlays, art_id, used_live, art):
     return sorted(out, key=lambda o: int(o["ID"]))
 
 
+def live_overlay(o, overlays, art_id, new_by_area, art, used_live):
+    """The redrawn map's piece for the achievement's old overlay o (o itself
+    when there is none), adding every new piece it accounts for to used_live."""
+    live = new_by_area.get((art_id, o["AreaID_0"]))
+    # a piece the redrawn map renamed (Gates of Ironforge is its Ironforge)
+    # sits where the old one did: the same piece, not new. Redrawn pieces can
+    # sit a pixel off (Silithus's are all one up and left), and one named for
+    # another of the old piece's areas (Cenarion Hold's is now Twilight Base
+    # Camp) is only found this way.
+    for n in overlays.values():
+        if (n["UiMapArtID"] == art_id
+                and abs(int(n["OffsetX"]) - int(o["OffsetX"])) <= 2
+                and abs(int(n["OffsetY"]) - int(o["OffsetY"])) <= 2):
+            used_live.add(n["ID"])
+            if (live is None and art.get(n["ID"])
+                    and abs(int(n["TextureWidth"]) - int(o["TextureWidth"])) <= 2
+                    and abs(int(n["TextureHeight"]) - int(o["TextureHeight"])) <= 2):
+                live = n
+    live = live or o
+    used_live.add(live["ID"])
+    return live
+
+
 def main():
     cache, addon = sys.argv[1], sys.argv[2]
     ach = {a["ID"]: a for a in load(cache, "Achievement")}
@@ -254,14 +277,7 @@ def main():
         used_live = set()
         for t, c in leaves:
             o = overlays[c["Asset"]]
-            live = new_by_area.get((current.get(ui), o["AreaID_0"]), o)
-            used_live.add(live["ID"])
-            # a piece the redrawn map renamed (Gates of Ironforge is its
-            # Ironforge) sits where the old one did: the same piece, not new
-            for n in overlays.values():
-                if (n["UiMapArtID"] == current.get(ui) and n["OffsetX"] == o["OffsetX"]
-                        and n["OffsetY"] == o["OffsetY"]):
-                    used_live.add(n["ID"])
+            live = live_overlay(o, overlays, current.get(ui), new_by_area, art, used_live)
             # The spots come from the areas both overlays name: the one the
             # achievement checks and the one the map shows now. They can differ
             # (the achievement's Drygulch Ravine also takes Razorwind Canyon, the

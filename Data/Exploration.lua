@@ -537,14 +537,13 @@ ns.ZONES = {
         { overlay = 5030, mapOnly = true, ox = 339, oy = 180, tw = 327, th = 488, files = { 7970620, 7970621, 7970622, 7970623 }, name = "Shen'dralas", points = { 4593, 5732, 7358, 8902, 7358, 5000, 2967, 8659, 5244, 8659 } },
     } },
     { ach = 856, map = 1451, name = "Silithus", continent = 1, w = 3483.3, h = 2322.9, nodes = {
-        { criteria = 1463, overlay = 1024, ox = 344, oy = 197, tw = 320, th = 256, files = { 272573, 272545 }, name = "Cenarion Hold", points = { 5132, 3839, 3792, 4413 } },
+        { criteria = 1463, overlay = 1024, ox = 343, oy = 196, tw = 320, th = 256, files = { 8093966, 8093967 }, name = "Cenarion Hold", points = { 3888, 4556 } },
         { criteria = 1462, overlay = 1023, ox = 499, oy = 64, tw = 384, th = 384, files = { 8093956, 8093957, 8093958, 8093959 }, name = "Valor's Rest", points = { 6471, 4556, 5993, 5991, 5993, 5130, 6471, 5991, 6376, 5417 } },
         { criteria = 1460, overlay = 1021, ox = 103, oy = 23, tw = 320, th = 288, files = { 8093960, 8093961, 8093962, 8093963 }, name = "The Crystal Vale", points = { 2165, 1543, 2644, 1112 } },
         { criteria = 1470, overlay = 1027, ox = 115, oy = 412, tw = 288, th = 256, files = { 8093964, 8093965 }, name = "The Scarab Wall", points = { 3026, 9148 } },
         { criteria = 1468, overlay = 1025, ox = 96, oy = 143, tw = 384, th = 512, files = { 8093940, 8093941, 8093942, 8093943 }, name = "Hive'Zora", points = { 2356, 6135, 1974, 4556, 3122, 5274, 3026, 6709, 2644, 4556 } },
         { criteria = 1469, overlay = 1026, ox = 244, oy = 284, tw = 512, th = 384, files = { 8093679, 8093771, 8093873, 8093939 }, name = "Hive'Regal", points = { 5132, 7857, 6471, 6709, 6280, 9004, 5993, 7713, 5036, 9004 } },
         { overlay = 5414, mapOnly = true, ox = 264, oy = 11, tw = 512, th = 320, files = { 8093548, 8093549, 8093550, 8093586 }, name = "Hive'Ashi", points = { 3600, 2404, 5036, 2404, 4270, 3408, 4270, 1399, 3409, 1256 } },
-        { overlay = 5420, mapOnly = true, ox = 343, oy = 196, tw = 320, th = 256, files = { 8093966, 8093967 }, name = "Twilight Base Camp", points = { 3888, 4556 } },
     } },
     { ach = 847, map = 1442, name = "Stonetalon Mountains", continent = 1, w = 4883.3, h = 3256.2, nodes = {
         { criteria = 1351, overlay = 930, ox = 668, oy = 515, tw = 256, th = 128, files = { 8094125 }, name = "Grimtotem Post", points = { 7363, 8599, 7841, 8496 } },
