@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## Compass Forever v1.10 (2026-11-11)
 
 - **The Plaguelands towers aren't flight points.** Plaguewood, Northpass,
   Eastwall and Crown Guard Tower are in the game's flight table (their
