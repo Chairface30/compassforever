@@ -416,6 +416,11 @@ def write_flights(cache, addon, bounds):
         side = int(n["Flags"]) & 3
         if c not in ("0", "1") or side == 0 or n["Name_lang"].startswith("zz"):
             continue
+        # No character bit: a point no one learns. The Eastern Plaguelands
+        # PvP towers (their flights are the capture reward) and the druids'
+        # Nighthaven; neither is a flight master on the way anywhere.
+        if int(n["CharacterBitNumber"] or 0) == 0:
+            continue
         minX, minY, maxX, maxY = bounds(CONTINENT_MAP[int(c)])
         x, y = float(n["Pos_0"]), float(n["Pos_1"])
         fx, fy = (maxY - y) / (maxY - minY), (maxX - x) / (maxX - minX)

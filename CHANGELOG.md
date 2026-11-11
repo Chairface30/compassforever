@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- **The Plaguelands towers aren't flight points.** Plaguewood, Northpass,
+  Eastwall and Crown Guard Tower are in the game's flight table (their
+  flights are the reward for capturing them), so they were listed as
+  flight masters to discover. Points no character ever learns are now left
+  out, which also drops the druid-only Nighthaven in Moonglade.
+
 ## Compass Forever v1.9 (2026-10-20)
 
 - **Silithus can be finished.** Cenarion Hold was looking for an old piece
