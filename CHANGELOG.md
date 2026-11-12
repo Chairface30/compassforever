@@ -1,5 +1,16 @@
 # Changelog
 
+## Compass Forever v1.11 (2026-11-12)
+
+- **Area borders on the world map and the minimap.** Each area's outline,
+  as the window's map draws it, now shows on the game's world map too
+  (under its markers and pins, one width as you zoom) and on the minimap
+  around you (at its zoom, turning with it). Same colours: still covered in
+  gold, the next stop in green, uncovered ones faint, and *Uncovered area
+  borders* hides those everywhere. Each has its own option, *Area borders
+  on the world map* and *Area borders on the minimap*, both on. Untested in
+  game.
+
 ## Compass Forever v1.10 (2026-11-11)
 
 - **The Plaguelands towers aren't flight points.** Plaguewood, Northpass,
