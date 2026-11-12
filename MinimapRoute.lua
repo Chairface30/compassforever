@@ -70,6 +70,9 @@ local function Clip(ax, ay, bx, by, r, square)
     return ax + dx * t0, ay + dy * t0, ax + dx * t1, ay + dy * t1
 end
 
+ns.MinimapViewRadius = ViewRadius
+ns.MinimapClip = Clip
+
 local function Hide(from)
     for i = from, #lines do lines[i]:Hide() end
 end

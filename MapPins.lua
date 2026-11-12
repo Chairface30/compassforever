@@ -5,6 +5,8 @@
 --     Compass Forever window;
 --   - the areas still covered drawn in gray, so the whole zone shows (its
 --     own option, worldMapGray, apart from the markers);
+--   - each area's outline, as in the window (worldMapBorders), on the gray
+--     art's frame, under every pin;
 --   - while a route runs, on whatever map is open (the route's zone, the
 --     zone next door, the continent): the route's lines and its numbered
 --     stops, carried across zone lines (RouteDraw.lua).
@@ -19,6 +21,8 @@ local _, ns = ...
 
 local overlay, barFrame, grayFrame, grayPool
 local lines = {}
+local borderLines, bordersUsed, bordersInv = {}, 0, 1
+local BORDER = 2           -- outline width on screen
 local DrawLines
 local pins, used = {}, 0
 local PIN = 16
@@ -119,6 +123,41 @@ DrawLines = function(mapID, inv)
     end, 3 * (inv or 1))
 end
 
+-- The areas' outlines on the shown zone's map (Areas.lua), kept one width on
+-- screen as the map zooms; nil zone hides them.
+local function DrawBorders(zone, inv)
+    local n = 0
+    if zone and ns.db and ns.db.worldMapBorders ~= false and type(grayFrame.CreateLine) == "function" then
+        local w, h = grayFrame:GetWidth() or 0, grayFrame:GetHeight() or 0
+        ns.EachOutline(zone, ns.db.doneAreaBorders ~= false, function(r, c)
+            local m = #r
+            for k = 1, m - 1, 2 do
+                local k2 = k + 2 <= m and k + 2 or 1
+                n = n + 1
+                local l = borderLines[n]
+                if not l then
+                    l = grayFrame:CreateLine(nil, "OVERLAY")
+                    borderLines[n] = l
+                end
+                l:SetThickness(BORDER * inv)
+                l:SetStartPoint("TOPLEFT", grayFrame, r[k] * w, -r[k + 1] * h)
+                l:SetEndPoint("TOPLEFT", grayFrame, r[k2] * w, -r[k2 + 1] * h)
+                l:SetColorTexture(c[1], c[2], c[3], c[4])
+                l:Show()
+            end
+        end)
+    end
+    for i = n + 1, #borderLines do borderLines[i]:Hide() end
+    bordersUsed, bordersInv = n, inv
+end
+
+-- How much smaller than the map's canvas a thing must be drawn to stay one
+-- size on screen.
+local function InvScale(frame)
+    local okS, scale = pcall(frame.GetEffectiveScale, frame)
+    return (okS and ns.Num(scale) and scale > 0) and (UIParent:GetEffectiveScale() / scale) or 1
+end
+
 -- The map's own pin frame levels: its uncovered-area art, and the highest
 -- level any of its pins use. Read only; fallbacks if the map has none.
 local function Levels(map, child)
@@ -157,6 +196,7 @@ local function Refresh()
         local lw = ns.ArtLayer(shown.map)
         ns.DrawCoveredGray(grayPool, shown, (child:GetWidth() or 0) / lw)
     end
+    DrawBorders(shown, InvScale(grayFrame))
     local on = ns.db and ns.db.mapPins
     local zone = on and shown or nil
     RefreshBar(zone)
@@ -248,6 +288,14 @@ local function Setup()
         if mapID ~= drawnFor then
             SafeRefresh()
             return
+        end
+        -- zoomed: the outlines kept one width
+        if bordersUsed > 0 then
+            local inv = InvScale(grayFrame)
+            if math.abs(inv - bordersInv) > 0.001 then
+                for i = 1, bordersUsed do borderLines[i]:SetThickness(BORDER * inv) end
+                bordersInv = inv
+            end
         end
         if not (ns.route and ns.db and ns.db.mapPins) then return end
         if not mapID then return end

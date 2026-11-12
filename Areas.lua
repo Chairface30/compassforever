@@ -66,6 +66,29 @@ function ns.InArea(node, x, y)
     return inside
 end
 
+-- The colours of the areas' outlines, wherever they are drawn (the window,
+-- the world map, the minimap): the next stop's bright green, the rest still
+-- covered in gold, uncovered ones faint.
+ns.AREA_COLOR = { 1, 0.82, 0.1, 0.45 }
+ns.NEXT_AREA_COLOR = { 0.3, 1, 0.35, 0.9 }
+ns.DONE_AREA_COLOR = { 0.85, 0.9, 1, 0.3 }
+
+-- Call fn(ring, color) for each outline of the zone's areas: a ring is a
+-- flat list x1, y1, x2, y2, ... of fractions of the zone's map, closed (the
+-- last point joins the first). Uncovered areas only with showDone.
+function ns.EachOutline(zone, showDone, fn)
+    local state = ns.ZoneState(zone).state
+    local stop = ns.route and ns.route.zone == zone and ns.CurrentStop()
+    for i, node in ipairs(zone.nodes) do
+        local area = ns.AreaOf(node)
+        if area and (showDone or state[i] ~= true) then
+            local c = (stop and stop.node == node) and ns.NEXT_AREA_COLOR
+                or state[i] == true and ns.DONE_AREA_COLOR or ns.AREA_COLOR
+            for _, r in ipairs(area.rings) do fn(r, c) end
+        end
+    end
+end
+
 -- Is the player standing inside the area? false without an outline, and for
 -- an area whose credit is given at one place only.
 function ns.PlayerInArea(zone, node)

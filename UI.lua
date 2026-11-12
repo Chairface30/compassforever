@@ -1174,41 +1174,28 @@ end
 -- heads for their edges. The areaBorders option hides them all, except
 -- while drawing walls or roads.
 local areaLines = {}
-local AREA_COLOR = { 1, 0.82, 0.1, 0.45 }
-local NEXT_AREA_COLOR = { 0.3, 1, 0.35, 0.9 }
-local DONE_AREA_COLOR = { 0.85, 0.9, 1, 0.3 }
 local function DrawAreas()
     for _, l in ipairs(areaLines) do l:Hide() end
     if not (hasLines and view.kind == "zone") then return end
     -- while drawing walls or roads every border shows, whatever the options
     if ns.db.areaBorders == false and not wallMode then return end
     local showDone = wallMode or ns.db.doneAreaBorders ~= false
-    local zone = view.zone
-    local state = ns.ZoneState(zone).state
-    local stop = ns.route and ns.route.zone == zone and ns.CurrentStop()
     local n = 0
-    for i, node in ipairs(zone.nodes) do
-        local area = ns.AreaOf(node)
-        if area and (showDone or state[i] ~= true) then
-            local c = (stop and stop.node == node) and NEXT_AREA_COLOR
-                or state[i] == true and DONE_AREA_COLOR or AREA_COLOR
-            for _, r in ipairs(area.rings) do
-                local m = #r
-                for k = 1, m - 1, 2 do
-                    local k2 = k + 2 <= m and k + 2 or 1
-                    n = n + 1
-                    local l = Pool(areaLines, n, function()
-                        local line = canvas:CreateLine(nil, "ARTWORK")
-                        line:SetThickness(1.5)
-                        return line
-                    end)
-                    l:SetStartPoint("TOPLEFT", canvas, r[k] * CW(), -r[k + 1] * CH())
-                    l:SetEndPoint("TOPLEFT", canvas, r[k2] * CW(), -r[k2 + 1] * CH())
-                    l:SetColorTexture(c[1], c[2], c[3], c[4])
-                end
-            end
+    ns.EachOutline(view.zone, showDone, function(r, c)
+        local m = #r
+        for k = 1, m - 1, 2 do
+            local k2 = k + 2 <= m and k + 2 or 1
+            n = n + 1
+            local l = Pool(areaLines, n, function()
+                local line = canvas:CreateLine(nil, "ARTWORK")
+                line:SetThickness(1.5)
+                return line
+            end)
+            l:SetStartPoint("TOPLEFT", canvas, r[k] * CW(), -r[k + 1] * CH())
+            l:SetEndPoint("TOPLEFT", canvas, r[k2] * CW(), -r[k2 + 1] * CH())
+            l:SetColorTexture(c[1], c[2], c[3], c[4])
         end
-    end
+    end)
 end
 
 -- The shown zone's areas. Returns how many pins it used.
@@ -1440,13 +1427,19 @@ local OPTIONS = {
           .. "so the whole zone shows and what's left stands out.",
       get = function() return ns.db.worldMapGray ~= false end,
       set = function(on) ns.db.worldMapGray = on ns.Fire("settings") end },
-    { label = "Area borders on the map", desc = "Each area's outline, from the terrain.",
+    { label = "Area borders on the world map", desc = "Each area's outline on the game's world map.",
+      tip = "The same outlines as this window's map, drawn on the world map's zone maps, "
+          .. "under its markers and pins.",
+      get = function() return ns.db.worldMapBorders ~= false end,
+      set = function(on) ns.db.worldMapBorders = on ns.Fire("settings") end },
+    { label = "Area borders on this map", desc = "Each area's outline, from the terrain.",
       tip = "Areas still covered in gold, the next stop's in green, uncovered ones faintly. "
           .. "Hovering over an area shows its name either way.",
       get = function() return ns.db.areaBorders ~= false end,
       set = function(on) ns.db.areaBorders = on ns.Fire("settings") end },
     { label = "Uncovered area borders", desc = "Outlines of areas already uncovered.",
-      tip = "Off, only the areas still to uncover keep their outlines.",
+      tip = "Off, only the areas still to uncover keep their outlines, "
+          .. "here, on the world map and on the minimap.",
       get = function() return ns.db.doneAreaBorders ~= false end,
       set = function(on) ns.db.doneAreaBorders = on ns.Fire("settings") end },
     { label = "Open instead of the world map", desc = "The world map key opens this window.",
@@ -1458,6 +1451,11 @@ local OPTIONS = {
       tip = "The same lines as the world map, drawn on the minimap at its zoom, with a dot on each stop in reach.",
       get = function() return ns.db.minimapRoute ~= false end,
       set = function(on) ns.db.minimapRoute = on ns.Fire("settings") end },
+    { label = "Area borders on the minimap", desc = "The outlines of the areas around you.",
+      tip = "The zone you're in: its areas' outlines on the minimap at its zoom, "
+          .. "in the same colours as the map.",
+      get = function() return ns.db.minimapBorders ~= false end,
+      set = function(on) ns.db.minimapBorders = on ns.Fire("settings") end },
     { label = "Fanfare", desc = "Music when a zone is fully explored.",
       tip = "While it plays, a Stop music button stops it.",
       get = function() return ns.db.fanfare ~= false end,

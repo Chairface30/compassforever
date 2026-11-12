@@ -34,6 +34,7 @@ Travel.lua
 Crossing.lua
 RouteDraw.lua
 MinimapRoute.lua
+MinimapAreas.lua
 Arrow.lua
 Banner.lua
 Auto.lua

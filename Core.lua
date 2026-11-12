@@ -18,6 +18,8 @@ local DEFAULTS = {
     areaBorders = true,    -- each area's outline drawn on the window's map
     doneAreaBorders = true, -- and the outlines of areas already uncovered
     minimapRoute = true,   -- the route drawn on the minimap too
+    worldMapBorders = true, -- the areas' outlines on the world map too
+    minimapBorders = true, -- and on the minimap
     replaceWorldMap = false, -- the world map key opens this window instead
     mapOnly = false,       -- the window shows its map and nothing else
     autoRoute = false,     -- start a zone's route on entering it
@@ -248,6 +250,7 @@ boot:SetScript("OnEvent", function(_, event, arg1)
         for _, name in ipairs(PROGRESS_EVENTS) do pcall(boot.RegisterEvent, boot, name) end
         if ns.SetupMinimap then pcall(ns.SetupMinimap) end
         if ns.SetupMinimapRoute then pcall(ns.SetupMinimapRoute) end
+        if ns.SetupMinimapAreas then pcall(ns.SetupMinimapAreas) end
         ns.Fire("login")
         ns.ProgressChanged()
         return

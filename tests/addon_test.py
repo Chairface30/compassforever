@@ -1437,6 +1437,28 @@ check(f"drawing walls or roads, every border shows, options or not ({drawing_wal
 rt.execute("NS.db.areaBorders, NS.db.doneAreaBorders = true, true DONE[MULGORE.nodes[1].criteria] = nil NS.InvalidateProgress() NS.ShowZone(ELWYNN)")
 check(f"borders: uncovered ones drawn, hidden by their option, all hidden by the other ({all_lines} > {covered_only} > {none})",
       all_lines > covered_only > none, (all_lines, covered_only, none))
+
+# The same outlines on the game's world map and on the minimap.
+segments = rt.eval("""(function() local n = 0 for _, node in ipairs(MULGORE.nodes) do
+    local a = NS.AreaOf(node) if a then for _, r in ipairs(a.rings) do n = n + #r / 2 end end end return n end)()""")
+rt.execute("NS.StopRoute() NS.db.mapPins = false HIDE_LINES() SHOWN_MAP = 1412 WorldMapFrame._scripts.OnShow()")
+wm_on = area_lines()
+rt.execute("NS.db.worldMapBorders = false HIDE_LINES() WorldMapFrame._scripts.OnShow()")
+wm_off = area_lines()
+rt.execute("NS.db.worldMapBorders = true HIDE_LINES() SHOWN_MAP = 1429 WorldMapFrame._scripts.OnShow()")
+check(f"world map: every area outline drawn on its zone, none with the option off ({wm_on} = {segments}, {wm_off})",
+      wm_on == segments and wm_off == 0, (wm_on, segments, wm_off))
+rt.execute("""Minimap = CreateFrame("Frame")
+    if not GetCVar then GetCVar = function() return "0" end end
+    NS.SetupMinimapAreas()
+    PLAYER.map, PLAYER.x, PLAYER.y = 1412, 0.46, 0.62
+    HIDE_LINES() FRAME(0.6)""")
+mm_on = area_lines()
+rt.execute("NS.db.minimapBorders = false HIDE_LINES() FRAME(0.6)")
+mm_off = area_lines()
+rt.execute("NS.db.minimapBorders = true PLAYER.map, PLAYER.x, PLAYER.y = 1429, 0.42, 0.65 HIDE_LINES() FRAME(0.6)")
+check(f"minimap: the outlines near you, cut at its edge, none with the option off ({mm_on - mm_off} of {segments})",
+      0 < mm_on - mm_off < segments, (mm_on, mm_off, segments))
 inside = rt.eval("""(function()
     local bad = {}
     for _, n in ipairs(MULGORE.nodes) do

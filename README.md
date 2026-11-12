@@ -9,13 +9,16 @@ Type `/cf` (or `/compassforever`), or click the map icon on the minimap.
 ## How it works
 
 - **Open the world map** on any zone. Areas you haven't uncovered yet are drawn
-  in gray, so you see the whole zone. With *World map markers* on (Options,
+  in gray, so you see the whole zone, with each area's outline. With
+  *World map markers* on (Options,
   off by default), a bar at the top says how many areas are left, with
   **Start route**, and each area still to find has a marker.
 - **Or let it run itself.** Tick *Route me automatically* under Options in the window.
   Every time you enter a zone with areas still covered, a route starts and a
   banner tells you where to run: "Duskwood: 7 areas to uncover. Head northwest
   to Raven Hill, 420 yd". Leaving the zone ends that route.
+- **The minimap** shows the outlines of the areas around you, and the route
+  while one runs.
 - **The arrow** points at the next stop with the distance. Right-click it to
   skip that stop: the route heads for another, and comes back to the skipped
   one when nothing else is left.
