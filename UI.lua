@@ -1471,7 +1471,7 @@ local OPTIONS = {
       tip = "Off, it is the size of other minimap buttons, which suits addons that gather "
           .. "them into a bar, where a bigger one covers its neighbour.",
       get = function() return ns.db.minimapLarge ~= false end,
-      set = function(on) ns.db.minimapLarge = on ns.ApplyMinimapSize() end },
+      set = function(on) ns.SetMinimapLarge(on) end },
 }
 
 local function BuildOptions()

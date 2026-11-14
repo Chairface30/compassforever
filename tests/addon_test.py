@@ -58,7 +58,10 @@ local function Widget(kind)
     return setmetatable(w, { __index = function(self, key)
         if key == "RegisterEvent" then return function(s, e) s._events[e] = true end
         elseif key == "SetScript" then return function(s, n, f) s._scripts[n] = f end
-        elseif key == "HookScript" then return function(s, n, f) s._scripts[n] = f end
+        elseif key == "HookScript" then return function(s, n, f)
+            s._scripts[n] = f
+            local hooks = rawget(s, "_hooks") or {} rawset(s, "_hooks", hooks)
+            hooks[n] = hooks[n] or {} table.insert(hooks[n], f) end
         elseif key == "CreateTexture" or key == "CreateFontString" then return function()
             local r = Widget("region") table.insert(FRAMES, r) return r end
         elseif key == "SetText" then return function(s, t) rawset(s, "_text", t) end
@@ -70,7 +73,13 @@ local function Widget(kind)
         elseif key == "IsShown" then return function(s) return rawget(s, "_shown") == true end
         elseif key == "GetWidth" then return function(s) return rawget(s, "_w") or 1000 end
         elseif key == "GetHeight" then return function(s) return rawget(s, "_h") or 1000 end
-        elseif key == "SetSize" then return function(s, w, h) rawset(s, "_w", w) rawset(s, "_h", h) end
+        elseif key == "SetSize" then return function(s, w, h)
+            local changed = rawget(s, "_w") ~= w or rawget(s, "_h") ~= h
+            rawset(s, "_w", w) rawset(s, "_h", h)
+            local hooks = rawget(s, "_hooks")
+            if changed and hooks and hooks.OnSizeChanged then
+                for _, f in ipairs(hooks.OnSizeChanged) do f(s, w, h) end
+            end end
         elseif key == "GetSize" then return function(s) return rawget(s, "_w") or 1000, rawget(s, "_h") or 1000 end
         elseif key == "GetLeft" then return function() return 0 end
         elseif key == "GetTop" then return function() return 400 end
@@ -316,9 +325,17 @@ check("/cf bigbutton: the usual size, icon back in its spot",
 rt.eval('SlashCmdList.COMPASSFOREVER("bigbutton")')
 check("/cf bigbutton again: large, not grown twice", rt.eval(SIZE) == "46.5 46.5 27 1.5", rt.eval(SIZE))
 rt.execute("""local b = DBICON:GetMinimapButton("CompassForever")
-    b:SetSize(31, 31)                  -- as MinimapButtonBag does to every button
-    b._scripts.OnSizeChanged(b, 31, 31)""")
+    b:SetSize(31, 31)                  -- as MinimapButtonBag does to every button""")
 check("made smaller by a button bag: ring and arrow shrink with it", rt.eval(SIZE) == "31 31 18 1", rt.eval(SIZE))
+check("hooked on OnSizeChanged once",
+      rt.eval('#DBICON:GetMinimapButton("CompassForever")._hooks.OnSizeChanged') == 1)
+rt.execute("""SETTINGS_FIRED = 0 NS.On("settings", function() SETTINGS_FIRED = SETTINGS_FIRED + 1 end)
+    PRINTED = {}""")
+rt.eval('SlashCmdList.COMPASSFOREVER("bigbutton")')
+check("/cf bigbutton tells the options panel and says what it did",
+      rt.eval("SETTINGS_FIRED") == 1 and rt.eval("PRINTED[#PRINTED]").endswith("large minimap button off."),
+      (rt.eval("SETTINGS_FIRED"), rt.eval("PRINTED[#PRINTED]")))
+rt.eval('SlashCmdList.COMPASSFOREVER("bigbutton")')
 
 print("data")
 zones = rt.eval("#NS.ZONES")

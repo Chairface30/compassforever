@@ -230,9 +230,9 @@ SlashCmdList.COMPASSFOREVER = function(msg)
         ns.SetMinimapShown(ns.db.minimap.hide and true or false)
         ns.Print("minimap button " .. (ns.db.minimap.hide and "hidden" or "shown") .. ".")
     elseif cmd == "bigbutton" then
-        ns.db.minimapLarge = ns.db.minimapLarge == false
-        ns.ApplyMinimapSize()
-        ns.Print("minimap button " .. (ns.db.minimapLarge and "large" or "the usual size") .. ".")
+        local applied = ns.SetMinimapLarge(ns.db.minimapLarge == false)
+        ns.Print("large minimap button " .. (ns.db.minimapLarge and "on" or "off")
+            .. (applied and "." or ", for when the button is made (there is none yet)."))
     elseif cmd == "banner" then
         ns.db.banner = not ns.db.banner
         ns.Print("on-screen messages " .. (ns.db.banner and "on" or "off") .. ".")
