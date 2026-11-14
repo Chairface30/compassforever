@@ -28,6 +28,7 @@ local DEFAULTS = {
     autoFly = false,       -- take the planned flight as soon as the flight map opens
     editing = false,       -- the window's tools for walls, roads and zone lines
     minimap = {},          -- LibDBIcon's own settings
+    minimapLarge = true,   -- the minimap button at one and a half times the usual size
 }
 
 function ns.Print(...)

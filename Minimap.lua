@@ -55,28 +55,58 @@ function ns.SetupMinimap()
         OnTooltipShow = Tooltip,
     })
     icon:Register(NAME, ns.launcher, ns.db.minimap)
-    -- One and a half times the usual size: the button, its ring, background and arrow, each
-    -- from the size and spot LibDBIcon gave it, so they still line up. (A
-    -- scaled button would sit farther out, off the minimap's edge.)
-    local GROW = 1.5
-    local button = icon:GetMinimapButton(NAME)
-    if button and not button.enlarged then
-        button.enlarged = true
-        local w, h = button:GetSize()
-        button:SetSize(w * GROW, h * GROW)
-        for _, region in ipairs({ button.border, button.background, button.icon }) do
-            if region then
-                local rw, rh = region:GetSize()
-                region:SetSize(rw * GROW, rh * GROW)
-                local point, rel, relPoint, x, y = region:GetPoint(1)
-                if point then
-                    region:ClearAllPoints()
-                    region:SetPoint(point, rel, relPoint, (x or 0) * GROW, (y or 0) * GROW)
-                end
+    ns.ApplyMinimapSize()
+    ns.TurnMinimapArrow()
+end
+
+-- One and a half times the usual size, unless "Large minimap button" is off.
+-- (A scaled button would sit farther out, off the minimap's edge.) The usual
+-- size is for addons that gather minimap buttons into a bar, where a bigger
+-- one covers its neighbour. Such addons may also set the button's size
+-- themselves (MinimapButtonBag makes every button 31 across), so the ring,
+-- background and arrow follow whatever size the button has, from the size
+-- and spot LibDBIcon gave each, and always line up.
+local GROW = 1.5
+local PARTS = { "border", "background", "icon" }
+local base                               -- what LibDBIcon gave it, kept once
+
+local function FitParts(button)
+    if not base then return end
+    local w, h = button:GetSize()
+    local gx, gy = (w or base.w) / base.w, (h or base.h) / base.h
+    for _, key in ipairs(PARTS) do
+        local region, was = button[key], base.parts[key]
+        if region and was then
+            region:SetSize(was[1] * gx, was[2] * gy)
+            local point, rel, relPoint, x, y = was[3], was[4], was[5], was[6], was[7]
+            if point then
+                region:ClearAllPoints()
+                region:SetPoint(point, rel, relPoint, (x or 0) * gx, (y or 0) * gy)
             end
         end
     end
-    ns.TurnMinimapArrow()
+end
+
+function ns.ApplyMinimapSize()
+    local stub = _G.LibStub
+    local icon = stub and stub("LibDBIcon-1.0", true)
+    local button = icon and icon.GetMinimapButton and icon:GetMinimapButton(NAME)
+    if not button then return end
+    if not base then
+        local w, h = button:GetSize()
+        base = { w = w, h = h, parts = {} }
+        for _, key in ipairs(PARTS) do
+            local region = button[key]
+            if region then
+                local rw, rh = region:GetSize()
+                base.parts[key] = { rw, rh, region:GetPoint(1) }
+            end
+        end
+        button:HookScript("OnSizeChanged", FitParts)
+    end
+    local grow = ns.db.minimapLarge ~= false and GROW or 1
+    button:SetSize(base.w * grow, base.h * grow)
+    FitParts(button)
 end
 
 -- Where the arrow points, as a bearing (radians counter-clockwise from

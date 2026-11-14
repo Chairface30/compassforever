@@ -71,6 +71,7 @@ local function Widget(kind)
         elseif key == "GetWidth" then return function(s) return rawget(s, "_w") or 1000 end
         elseif key == "GetHeight" then return function(s) return rawget(s, "_h") or 1000 end
         elseif key == "SetSize" then return function(s, w, h) rawset(s, "_w", w) rawset(s, "_h", h) end
+        elseif key == "GetSize" then return function(s) return rawget(s, "_w") or 1000, rawget(s, "_h") or 1000 end
         elseif key == "GetLeft" then return function() return 0 end
         elseif key == "GetTop" then return function() return 400 end
         elseif key == "IsMouseOver" then return function() return true end
@@ -172,7 +173,26 @@ end }
 DBICON = { registered = {} }
 local LDB = {}
 function LDB:NewDataObject(name, obj) return obj end
-function DBICON:Register(name, obj, db) self.registered[name] = obj end
+function DBICON:Register(name, obj, db)
+    self.registered[name] = obj
+    -- A button as LibDBIcon makes one: 31 across, its ring at the top left
+    -- corner, background and icon centred, each remembering its anchor.
+    local button = CreateFrame("Button")
+    button:SetSize(31, 31)
+    local function Part(w, h, point, x, y)
+        local r = button:CreateTexture()
+        r:SetSize(w, h)
+        r:SetPoint(point, button, point, x, y)
+        rawset(r, "GetPoint", function(s) return unpack(rawget(s, "_point")) end)
+        return r
+    end
+    button.border = Part(50, 50, "TOPLEFT", 0, 0)
+    button.background = Part(24, 24, "CENTER", 0, 0)
+    button.icon = Part(18, 18, "CENTER", 0, 1)
+    self.buttons = self.buttons or {}
+    self.buttons[name] = button
+end
+function DBICON:GetMinimapButton(name) return self.buttons and self.buttons[name] end
 function LibStub(name) return name == "LibDataBroker-1.1" and LDB or name == "LibDBIcon-1.0" and DBICON or nil end
 WorldMapFrame = CreateFrame("Frame")
 WorldMapFrame.ScrollContainer = CreateFrame("Frame")
@@ -281,6 +301,24 @@ NS = rt.globals().NS
 check("loads and logs in without an error", not any("|cffff5555" in p for p in printed(rt)), printed(rt))
 check("slash command registered", rt.eval("SlashCmdList.COMPASSFOREVER ~= nil"))
 check("minimap button registered", rt.eval("DBICON.registered.CompassForever ~= nil"))
+SIZE = """(function()
+    local b = DBICON:GetMinimapButton("CompassForever")
+    local w, h = b:GetSize()
+    local iw = b.icon:GetSize()
+    local p = b.icon:GetPoint(1) and { b.icon:GetPoint(1) }
+    return string.format("%g %g %g %g", w, h, iw, p[5])
+end)()"""
+check("minimap button one and a half times the usual size by default",
+      rt.eval(SIZE) == "46.5 46.5 27 1.5", rt.eval(SIZE))
+rt.eval('SlashCmdList.COMPASSFOREVER("bigbutton")')
+check("/cf bigbutton: the usual size, icon back in its spot",
+      rt.eval(SIZE) == "31 31 18 1" and rt.eval("NS.db.minimapLarge") is False, rt.eval(SIZE))
+rt.eval('SlashCmdList.COMPASSFOREVER("bigbutton")')
+check("/cf bigbutton again: large, not grown twice", rt.eval(SIZE) == "46.5 46.5 27 1.5", rt.eval(SIZE))
+rt.execute("""local b = DBICON:GetMinimapButton("CompassForever")
+    b:SetSize(31, 31)                  -- as MinimapButtonBag does to every button
+    b._scripts.OnSizeChanged(b, 31, 31)""")
+check("made smaller by a button bag: ring and arrow shrink with it", rt.eval(SIZE) == "31 31 18 1", rt.eval(SIZE))
 
 print("data")
 zones = rt.eval("#NS.ZONES")

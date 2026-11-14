@@ -176,6 +176,7 @@ local function Help()
     print("  /cf autofly - take the planned flight as soon as the flight map opens, on or off")
     print("  /cf banner - the big on-screen messages, on or off")
     print("  /cf minimap - the minimap button, shown or hidden")
+    print("  /cf bigbutton - the minimap button, large or the usual size")
     print("  /cf arrow <0.5-2> - size of the arrow")
     if ns.CanEdit() then
         print("  /cf edit - the tools for walls, roads, zone lines and ledges, shown or hidden")
@@ -228,6 +229,10 @@ SlashCmdList.COMPASSFOREVER = function(msg)
     elseif cmd == "minimap" then
         ns.SetMinimapShown(ns.db.minimap.hide and true or false)
         ns.Print("minimap button " .. (ns.db.minimap.hide and "hidden" or "shown") .. ".")
+    elseif cmd == "bigbutton" then
+        ns.db.minimapLarge = ns.db.minimapLarge == false
+        ns.ApplyMinimapSize()
+        ns.Print("minimap button " .. (ns.db.minimapLarge and "large" or "the usual size") .. ".")
     elseif cmd == "banner" then
         ns.db.banner = not ns.db.banner
         ns.Print("on-screen messages " .. (ns.db.banner and "on" or "off") .. ".")

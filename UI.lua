@@ -1467,6 +1467,11 @@ local OPTIONS = {
       tip = "Right-click it to start or stop the route through the zone you're in.",
       get = function() return not ns.db.minimap.hide end,
       set = function(on) ns.SetMinimapShown(on) end },
+    { label = "Large minimap button", desc = "One and a half times the usual size.",
+      tip = "Off, it is the size of other minimap buttons, which suits addons that gather "
+          .. "them into a bar, where a bigger one covers its neighbour.",
+      get = function() return ns.db.minimapLarge ~= false end,
+      set = function(on) ns.db.minimapLarge = on ns.ApplyMinimapSize() end },
 }
 
 local function BuildOptions()
