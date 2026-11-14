@@ -55,28 +55,81 @@ function ns.SetupMinimap()
         OnTooltipShow = Tooltip,
     })
     icon:Register(NAME, ns.launcher, ns.db.minimap)
-    -- One and a half times the usual size: the button, its ring, background and arrow, each
-    -- from the size and spot LibDBIcon gave it, so they still line up. (A
-    -- scaled button would sit farther out, off the minimap's edge.)
-    local GROW = 1.5
-    local button = icon:GetMinimapButton(NAME)
-    if button and not button.enlarged then
-        button.enlarged = true
-        local w, h = button:GetSize()
-        button:SetSize(w * GROW, h * GROW)
-        for _, region in ipairs({ button.border, button.background, button.icon }) do
-            if region then
-                local rw, rh = region:GetSize()
-                region:SetSize(rw * GROW, rh * GROW)
-                local point, rel, relPoint, x, y = region:GetPoint(1)
-                if point then
-                    region:ClearAllPoints()
-                    region:SetPoint(point, rel, relPoint, (x or 0) * GROW, (y or 0) * GROW)
-                end
+    ns.ApplyMinimapSize()
+    ns.TurnMinimapArrow()
+end
+
+-- One and a half times the usual size, unless "Large minimap button" is off.
+-- (A scaled button would sit farther out, off the minimap's edge.) The usual
+-- size is for addons that gather minimap buttons into a bar, where a bigger
+-- one covers its neighbour. Such addons may also set the button's size
+-- themselves (MinimapButtonBag makes every button 31 across), so the ring,
+-- background and arrow follow whatever size the button has, from the size
+-- and spot LibDBIcon gave each, and always line up.
+local GROW = 1.5
+local PARTS = { "border", "background", "icon" }
+local base                               -- what LibDBIcon gave it, kept once
+
+-- A frame's size, or nothing when the client won't say (or says nothing usable).
+local function Size(frame)
+    local ok, w, h = ns.Ask(frame.GetSize, frame)
+    w, h = ns.Num(w), ns.Num(h)
+    if ok and w and h and w > 0 and h > 0 then return w, h end
+end
+
+local function FitParts(button)
+    if not base then return end
+    local w, h = Size(button)
+    if not w then return end
+    local gx, gy = w / base.w, h / base.h
+    for _, key in ipairs(PARTS) do
+        local region, was = button[key], base.parts[key]
+        if region and was then
+            region:SetSize(was.w * gx, was.h * gy)
+            if was.point then
+                region:ClearAllPoints()
+                region:SetPoint(was.point, was.rel, was.relPoint, was.x * gx, was.y * gy)
             end
         end
     end
-    ns.TurnMinimapArrow()
+end
+
+-- True once the button has its size.
+function ns.ApplyMinimapSize()
+    local stub = _G.LibStub
+    local icon = stub and stub("LibDBIcon-1.0", true)
+    local button = icon and icon.GetMinimapButton and icon:GetMinimapButton(NAME)
+    if not button then return false end
+    if not base then
+        local w, h = Size(button)
+        if not w then return false end
+        base = { w = w, h = h, parts = {} }
+        for _, key in ipairs(PARTS) do
+            local region, rw, rh = button[key], nil, nil
+            if region then rw, rh = Size(region) end
+            if rw then
+                local was = { w = rw, h = rh }
+                local ok, point, rel, relPoint, x, y = ns.Ask(region.GetPoint, region, 1)
+                if ok and ns.Text(point) then
+                    was.point, was.rel, was.relPoint = point, rel, relPoint
+                    was.x, was.y = ns.Num(x) or 0, ns.Num(y) or 0
+                end
+                base.parts[key] = was
+            end
+        end
+        button:HookScript("OnSizeChanged", FitParts)
+    end
+    local grow = ns.db.minimapLarge ~= false and GROW or 1
+    button:SetSize(base.w * grow, base.h * grow)
+    FitParts(button)                     -- also when the size didn't change
+    return true
+end
+
+function ns.SetMinimapLarge(on)
+    ns.db.minimapLarge = on and true or false
+    local applied = ns.ApplyMinimapSize()
+    ns.Fire("settings")
+    return applied
 end
 
 -- Where the arrow points, as a bearing (radians counter-clockwise from

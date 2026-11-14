@@ -106,6 +106,7 @@ middle of its map art, marked "approximate".
 | `/cf stop` | stop the route |
 | `/cf banner` | the big on-screen messages, on or off |
 | `/cf arrow 1.5` | arrow size, 0.5 to 2 |
+| `/cf bigbutton` | minimap button large or the usual size |
 | `/cf probe` | what the client says, for bug reports |
 
 ## Rebuilding the data
