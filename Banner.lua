@@ -136,6 +136,8 @@ function ns.Fanfare()
     pcall(PlaySound, 888)
 end
 
+local announced   -- the zone the banner just called fully explored
+
 ns.On("uncovered", function(zone, found)
     local names, learned = {}, {}
     for _, node in ipairs(found) do
@@ -154,11 +156,71 @@ ns.On("uncovered", function(zone, found)
             ns.Banner(head, string.format("%d left in %s.", t - d, zone.name))
             return
         end
+        -- the message and the music come from the watcher below
         ns.Banner(head, "|cff55dd55" .. zone.name .. " is fully explored!|r")
-        ns.Print("|cff55dd55" .. zone.name .. " is fully explored.|r")
-        ns.Fanfare()
+        announced = zone
         return
     end
     local left = #ns.ZoneRemaining(ns.route.zone)
     ns.Banner(head, string.format("%d left. %s", left, ns.NextStopText() or ""))
+end)
+
+-- A zone going from not done to done, however it happened: on a route or
+-- not, on foot or on a flight. Each zone looked at (where you are, where
+-- the route is) is remembered as done or not; the first look only records,
+-- so a zone finished long ago never plays it.
+local wasDone = {}
+
+local function Look(zone)
+    if not zone then return false end
+    local d, t, unknown = ns.ZoneCounts(zone)
+    local done = t > 0 and d == t
+    local before = wasDone[zone]
+    -- not read yet (just logged in): not recorded, or a zone done long
+    -- ago would look newly finished once it is
+    if before == nil and (unknown or 0) > 0 then return false end
+    wasDone[zone] = done
+    return done and before == false
+end
+
+-- Only a zone not yet seen is recorded here; going from not done to done
+-- is for the progress watcher to catch.
+local function Seed(zone)
+    if zone and wasDone[zone] == nil then Look(zone) end
+end
+
+local function Watch()
+    Seed(ns.CurrentZone())
+    if ns.route then Seed(ns.route.zone) end
+end
+
+ns.On("route", function() pcall(Watch) end)
+ns.On("login", function() pcall(Watch) end)
+
+local zoneWatch = CreateFrame("Frame")
+for _, event in ipairs({ "ZONE_CHANGED_NEW_AREA", "ZONE_CHANGED", "PLAYER_ENTERING_WORLD" }) do
+    pcall(zoneWatch.RegisterEvent, zoneWatch, event)
+end
+zoneWatch:SetScript("OnEvent", function() pcall(Watch) end)
+
+ns.On("progress", function()
+    local zones = {}
+    local current = ns.CurrentZone()
+    if current then zones[current] = true end
+    if ns.route then zones[ns.route.zone] = true end
+    -- the route that just ended took its zone with it: every zone seen not
+    -- done is looked at again
+    for zone, done in pairs(wasDone) do
+        if not done then zones[zone] = true end
+    end
+    for zone in pairs(zones) do
+        if Look(zone) then
+            if announced ~= zone then
+                ns.Banner("|cff55dd55" .. zone.name .. " is fully explored!|r", "")
+            end
+            ns.Print("|cff55dd55" .. zone.name .. " is fully explored.|r")
+            ns.Fanfare()
+        end
+    end
+    announced = nil
 end)

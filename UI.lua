@@ -1428,8 +1428,8 @@ local OPTIONS = {
       get = function() return ns.db.worldMapGray ~= false end,
       set = function(on) ns.db.worldMapGray = on ns.Fire("settings") end },
     { label = "Area borders on the world map", desc = "Each area's outline on the game's world map.",
-      tip = "The same outlines as this window's map, drawn on the world map's zone maps, "
-          .. "under its markers and pins.",
+      tip = "The outlines of the areas still to uncover, drawn on the world map's zone maps "
+          .. "under its markers and pins. An area's outline goes once it's uncovered.",
       get = function() return ns.db.worldMapBorders ~= false end,
       set = function(on) ns.db.worldMapBorders = on ns.Fire("settings") end },
     { label = "Area borders on this map", desc = "Each area's outline, from the terrain.",
@@ -1438,8 +1438,8 @@ local OPTIONS = {
       get = function() return ns.db.areaBorders ~= false end,
       set = function(on) ns.db.areaBorders = on ns.Fire("settings") end },
     { label = "Uncovered area borders", desc = "Outlines of areas already uncovered.",
-      tip = "Off, only the areas still to uncover keep their outlines, "
-          .. "here, on the world map and on the minimap.",
+      tip = "Off, only the areas still to uncover keep their outlines on this map. "
+          .. "The world map and the minimap only ever show those.",
       get = function() return ns.db.doneAreaBorders ~= false end,
       set = function(on) ns.db.doneAreaBorders = on ns.Fire("settings") end },
     { label = "Open instead of the world map", desc = "The world map key opens this window.",
@@ -1451,9 +1451,9 @@ local OPTIONS = {
       tip = "The same lines as the world map, drawn on the minimap at its zoom, with a dot on each stop in reach.",
       get = function() return ns.db.minimapRoute ~= false end,
       set = function(on) ns.db.minimapRoute = on ns.Fire("settings") end },
-    { label = "Area borders on the minimap", desc = "The outlines of the areas around you.",
-      tip = "The zone you're in: its areas' outlines on the minimap at its zoom, "
-          .. "in the same colours as the map.",
+    { label = "Area borders on the minimap", desc = "The outlines of the areas left around you.",
+      tip = "The zone you're in: the outlines of its areas still to uncover on the minimap "
+          .. "at its zoom, in the same colours as the map.",
       get = function() return ns.db.minimapBorders ~= false end,
       set = function(on) ns.db.minimapBorders = on ns.Fire("settings") end },
     { label = "Fanfare", desc = "Music when a zone is fully explored.",

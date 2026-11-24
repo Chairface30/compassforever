@@ -80,7 +80,8 @@ local function Draw()
     local reachX, reachY = radius * 1.5 / cont.w, radius * 1.5 / cont.h
 
     local n = 0
-    ns.EachOutline(zone, ns.db.doneAreaBorders ~= false, function(r, c)
+    -- areas still to uncover only: the window's map keeps the others
+    ns.EachOutline(zone, false, function(r, c)
         local cr = Converted(zone, r, cont.map)
         if not cr or cr.maxX < px - reachX or cr.minX > px + reachX
             or cr.maxY < py - reachY or cr.minY > py + reachY then

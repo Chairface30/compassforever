@@ -96,13 +96,21 @@ local function RefreshBar(zone)
     -- any directions in this zone (its route, or one area picked) can be stopped
     local routed = ns.route and ns.route.zone == zone
     if d == t then
+        -- nothing left to plan; keep the bar only while directions here can still be stopped
+        if not routed then bar:Hide() return end
         bar.text:SetText("|cff55dd55" .. zone.name .. " is fully explored.|r")
         bar.route:SetText("Stop route")
-        bar.route:SetShown(routed and true or false)
+        bar.route:Show()
+        bar.open:Hide()
+        bar.route:ClearAllPoints()
+        bar.route:SetPoint("RIGHT", -6, 0)
     else
         bar.text:SetText(string.format("%s: |cffffd100%d area%s to uncover|r", zone.name, t - d, t - d == 1 and "" or "s"))
         bar.route:SetText(routed and "Stop route" or "Start route")
         bar.route:Show()
+        bar.open:Show()
+        bar.route:ClearAllPoints()
+        bar.route:SetPoint("RIGHT", bar.open, "LEFT", -4, 0)
     end
     bar.zone = zone
     bar:Show()
@@ -123,13 +131,15 @@ DrawLines = function(mapID, inv)
     end, 3 * (inv or 1))
 end
 
--- The areas' outlines on the shown zone's map (Areas.lua), kept one width on
--- screen as the map zooms; nil zone hides them.
+-- The outlines of the areas still to uncover on the shown zone's map
+-- (Areas.lua), kept one width on screen as the map zooms; nil zone hides
+-- them. An uncovered area is already in colour there, so its outline goes:
+-- only the window's map keeps it.
 local function DrawBorders(zone, inv)
     local n = 0
     if zone and ns.db and ns.db.worldMapBorders ~= false and type(grayFrame.CreateLine) == "function" then
         local w, h = grayFrame:GetWidth() or 0, grayFrame:GetHeight() or 0
-        ns.EachOutline(zone, ns.db.doneAreaBorders ~= false, function(r, c)
+        ns.EachOutline(zone, false, function(r, c)
             local m = #r
             for k = 1, m - 1, 2 do
                 local k2 = k + 2 <= m and k + 2 or 1

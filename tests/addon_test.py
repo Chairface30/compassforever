@@ -693,7 +693,8 @@ known = rt.eval("(function() local t = {} for id in pairs(NS.KnownFlights()) do 
 check(f"the flight map's points are known ({known})", known == "10,11", known)
 check("and the list counts as read", rt.eval("NS.flightsRead") is True)
 check("what the flight map said is kept to be read later", "map: Undercity, Tirisfal type=CURRENT" in rt.eval("NS.db.taxiSaid[1]"))
-check("and how many are known is said at the flight map", any("knows 2 flight points here" in l for l in printed(rt)))
+check("how many are known is kept for debugging", "knows 2 flight points here" in rt.eval("NS.db.travelSaid"))
+check("but not said in chat when the map was read", not any("knows 2 flight points here" in l for l in printed(rt)))
 # Forever's flight map lists the faction's every point: a distant one is
 # not learned yet, and can't be flown to.
 rt.execute("""TAXI = { { "Undercity, Tirisfal", "CURRENT" }, { "The Sepulcher, Silverpine Forest", "DISTANT" },

@@ -615,7 +615,8 @@ taxi:SetScript("OnEvent", function(_, event)
         Reconsider(true)
         ns.ProgressChanged()
     end
-    -- what the flight map told, and what the route makes of it, every time
+    -- what the flight map told, and what the route makes of it: kept for
+    -- debugging, said in chat only when the map couldn't be read
     local count = 0
     for _ in pairs(Known()) do count = count + 1 end
     local text = seen > 0 and string.format("knows %d flight point%s here", count, count == 1 and "" or "s")
@@ -626,7 +627,7 @@ taxi:SetScript("OnEvent", function(_, event)
         text = text .. "; no flight for the route: " .. tostring(ns.travelWhy or "not asked")
     end
     ns.db.travelSaid = text
-    ns.Print(text .. ".")
+    if seen == 0 then ns.Print(text .. ".") end
     if not ns.travel then return end
     if ns.db.autoFly and ns.TakePlannedFlight() then return end
     ShowFlyButton()
