@@ -238,9 +238,11 @@ TOC = [l.strip() for l in io.open("CompassForever.toc", encoding="utf-8")
        if l.strip() and not l.startswith("#") and not l.startswith("Libs")]
 
 
-def boot():
+def boot(before=None):
     rt = lua51.LuaRuntime(unpack_returned_tuples=True)
     rt.execute(HARNESS)
+    if before:
+        rt.execute(before)
     rt.execute("NS = {}")
     for path in TOC:
         src = io.open(path, encoding="utf-8").read()
@@ -1619,6 +1621,90 @@ aim = rt.eval("""(function()
     return string.format("%.3f,%.3f,%d", ax, ay, k)
 end)()""")
 check(f"bends further than 120 yards are left to the path ({aim})", aim == "0.140,0.000,1", aim)
+
+print("another addon's /cf")
+rt3 = boot('SLASH_COZYFIRE1 = "/cf" SlashCmdList.COZYFIRE = function() end')
+said = [l for l in printed(rt3) if "also uses" in l]
+check("CozyFire taking /cf too is said at login", len(said) == 1 and "CozyFire" in said[0]
+      and "/compassforever" in said[0] and "minimap icon" in said[0], said)
+check("and the commands are shown as /compassforever", rt3.eval("NS.SlashWord()") == "/compassforever")
+rt3.execute("PRINTED = {} SlashCmdList.COMPASSFOREVER('help')")
+check("help lists /compassforever route, and says why",
+      any("/compassforever route" in l for l in printed(rt3)) and not any(l.startswith("  /cf ") for l in printed(rt3))
+      and any("CozyFire also uses /cf" in l for l in printed(rt3)), printed(rt3)[:4])
+rt3.execute("PRINTED = {} NS.Fire('login')")
+check("said once, not at every login", not any("also uses" in l for l in printed(rt3)), printed(rt3))
+check("without it, nothing said and /cf shown", rt.eval("NS.SlashWord()") == "/cf"
+      and not any("also uses" in l for l in printed(rt)))
+
+print("OpenMap")
+OPENMAP = """
+OM = { toggles = {}, callbacks = {}, stitched = true, view = { 0.45, 0.75, 8 }, at = 1429 }
+OpenMapAPI = {
+    IsStitched = function() return OM.stitched end,
+    GetView = function() return OM.view[1], OM.view[2], OM.view[3] end,
+    MapAt = function() return OM.at end,
+    ArtTopLevel = function() return 2300 end,
+    RegisterCallback = function(owner, event, fn) OM.callbacks[event] = fn end,
+    RegisterMenuToggle = function(owner, spec) OM.toggles[spec.id] = spec end,
+}
+-- the stitched world is Eastern Kingdoms' map, each zone where its rect says
+local function Rect(map)
+    if map == 1415 then return 0, 1, 0, 1 end
+    local r = RECTS[map .. ":1415"]
+    if r then return r[1], r[2], r[3], r[4] end
+end
+OpenMapAPI.WorldFromMap = function(map, x, y)
+    local l, r, t, b = Rect(map)
+    if l then return l + x * (r - l), t + y * (b - t) end
+end
+OpenMapAPI.MapFromWorld = function(map, u, v)
+    local l, r, t, b = Rect(map)
+    if l then return (u - l) / (r - l), (v - t) / (b - t) end
+end
+"""
+rt4 = boot(OPENMAP)
+rt4.execute("ELWYNN = NS.ZoneByMap(1429) DONE[ELWYNN.nodes[1].criteria] = true NS.InvalidateProgress()")
+def lines4():
+    return rt4.eval("""(function() local n = 0 for _, l in ipairs(LINES) do
+        if rawget(l, "_shown") then n = n + 1 end end return n end)()""")
+def gray4():
+    return rt4.eval("""(function() local n = 0 for _, f in ipairs(FRAMES) do
+        if rawget(f, "_gray") and rawget(f, "_shown") then n = n + 1 end end return n end)()""")
+rt4.execute("OM.stitched = false HIDE_LINES() SHOWN_MAP = 1429 WorldMapFrame._scripts.OnShow()")
+plain_lines, plain_gray = lines4(), gray4()
+rt4.execute("OM.stitched = true HIDE_LINES() OM.callbacks.OpenMap_StitchedChanged(true)")
+om_lines, om_gray = lines4(), gray4()
+levels = rt4.eval("""(function() local out = {}
+    for _, f in ipairs(FRAMES) do local l = rawget(f, "_level") if l then out[l] = true end end
+    return out end)()""")
+check("its stitched map coming or going redraws ours", rt4.eval("type(OM.callbacks.OpenMap_StitchedChanged)") == "function")
+check(f"no gray of ours on its map, which shades unexplored land itself ({plain_gray} -> {om_gray})",
+      plain_gray > 0 and om_gray == 0, (plain_gray, om_gray))
+check("the borders go above its art", levels[2301] is True, list(levels.keys()))
+check("and the markers and route above that", levels[2303] is True, list(levels.keys()))
+check(f"the zones next door get their outlines too ({plain_lines} -> {om_lines})", om_lines > plain_lines > 0,
+      (plain_lines, om_lines))
+rt4.execute("OM.stitched = false HIDE_LINES() OM.callbacks.OpenMap_StitchedChanged(false)")
+check("Blizzard's map again: our gray back, the zone's own outlines only",
+      gray4() == plain_gray and lines4() == plain_lines, (gray4(), lines4()))
+# Zoomed out, OpenMap puts the continent underneath; zoomed back in part way
+# it is still the continent (it only goes back to the zone once that nearly
+# fills the view): the zone is the one in the middle of the view.
+rt4.execute("OM.stitched = true HIDE_LINES() SHOWN_MAP = 1429 OM.view = { 0.45, 0.75, 8 } OM.callbacks.OpenMap_StitchedChanged(true)")
+on_zone = lines4()
+rt4.execute("HIDE_LINES() SHOWN_MAP = 1415 OM.view = { 0.45, 0.75, 1.5 } FRAME(0.3)")
+zoomed_out = lines4()
+rt4.execute("HIDE_LINES() OM.view = { 0.45, 0.75, 4 } FRAME(0.3)")
+back_in = lines4()
+check(f"zoomed out, the outlines go ({on_zone} -> {zoomed_out})", on_zone > 0 and zoomed_out == 0, (on_zone, zoomed_out))
+check(f"zoomed back in with the continent still underneath, they come back ({back_in})", back_in > 0, back_in)
+rt4.execute("SHOWN_MAP = 1429 OM.view = { 0.45, 0.75, 8 }")
+check("our switches are in its menu", rt4.eval("OM.toggles.markers ~= nil and OM.toggles.borders ~= nil"))
+rt4.execute("OM.toggles.markers.set(true)")
+check("and turn our options on and off", rt4.eval("NS.db.mapPins") is True and rt4.eval("OM.toggles.markers.get()") is True)
+rt4.execute("OM.toggles.borders.set(false)")
+check("borders too", rt4.eval("NS.db.worldMapBorders") is False and rt4.eval("OM.toggles.borders.get()") is False)
 
 print("lua escapes")
 # A path written through a shell heredoc once lost its backslashes; every

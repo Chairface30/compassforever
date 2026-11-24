@@ -202,10 +202,12 @@ ns.ROUTE_COLORS = COLORS
 
 -- Draw the route on `canvas` (width x height of its own units), showing map
 -- `mapID`. lineFor(i) hands out the i-th line. Returns how many were used.
-function ns.DrawRouteOn(canvas, mapID, width, height, lineFor, thickness)
+-- convFor(cont, mapID), optional: the caller's own way from the continent to
+-- the map (OpenMap's stitched map, MapPins.lua), or nil for the usual one.
+function ns.DrawRouteOn(canvas, mapID, width, height, lineFor, thickness, convFor)
     local geo = ns.RouteGeometry()
     if not geo then return 0 end
-    local conv = ns.ContinentToMap(geo.cont, mapID)
+    local conv = (convFor and convFor(geo.cont, mapID)) or ns.ContinentToMap(geo.cont, mapID)
     if not conv then return 0 end
     local n = 0
     for _, part in ipairs(geo.parts) do
@@ -227,11 +229,12 @@ function ns.DrawRouteOn(canvas, mapID, width, height, lineFor, thickness)
 end
 
 -- The route's stops on `mapID`: each one's number, node and fractions.
-function ns.RouteStopsOn(mapID)
+-- convFor as DrawRouteOn's.
+function ns.RouteStopsOn(mapID, convFor)
     local route = ns.route
     if not route then return {} end
     local cont = ContinentMap(route.zone)
-    local conv = cont and ns.ContinentToMap(cont, mapID)
+    local conv = cont and ((convFor and convFor(cont, mapID)) or ns.ContinentToMap(cont, mapID))
     if not conv then return {} end
     local out = {}
     for i, s in ipairs(route.stops) do

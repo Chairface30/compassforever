@@ -165,24 +165,79 @@ local function Probe(text)
     if ns.travel then print("  travel: " .. (ns.TravelText() or "")) end
 end
 
-local function Help()
-    ns.Print("commands:")
-    print("  /cf - open or close the window")
-    print("  /cf route [zone] - be led to the zone's covered areas, nearest first (default: this zone)")
-    print("  /cf auto - route automatically on entering a zone, on or off")
-    print("  /cf next - say the next stop in chat")
-    print("  /cf skip - leave the current stop for the end of the route")
-    print("  /cf stop - stop the route")
-    print("  /cf autofly - take the planned flight as soon as the flight map opens, on or off")
-    print("  /cf banner - the big on-screen messages, on or off")
-    print("  /cf minimap - the minimap button, shown or hidden")
-    print("  /cf arrow <0.5-2> - size of the arrow")
-    if ns.CanEdit() then
-        print("  /cf edit - the tools for walls, roads, zone lines and ledges, shown or hidden")
-        print("  /cf data [zone] - everything the zone's map holds, in numbers")
+-- Another addon that also takes /cf (CozyFire does): which of the two gets it
+-- is down to the order the game reads them in, so /cf may open that one
+-- instead. Its name, or nil. Looked for once, at login, when every addon's
+-- slash commands are in; /compassforever and the minimap icon always work.
+local KNOWN_CLASH = { COZYFIRE = "CozyFire" }
+local clashName          -- false: looked, none
+function ns.SlashClash()
+    if clashName == nil then
+        local found = false
+        local isLoaded = (_G.C_AddOns and _G.C_AddOns.IsAddOnLoaded) or _G.IsAddOnLoaded
+        if type(isLoaded) == "function" then
+            for _, name in ipairs({ "CozyFire", "Cozyfire", "cozyfire" }) do
+                local ok, loaded = pcall(isLoaded, name)
+                if ok and loaded then found = "CozyFire" break end
+            end
+        end
+        if not found then
+            pcall(function()
+                for key, value in pairs(_G) do
+                    if type(key) == "string" and type(value) == "string" and key:sub(1, 6) == "SLASH_"
+                        and value:lower() == "/cf" and not key:find("^SLASH_COMPASSFOREVER%d") then
+                        local stem = key:match("^SLASH_(.-)%d*$") or key
+                        found = KNOWN_CLASH[stem:upper()] or stem
+                        return
+                    end
+                end
+            end)
+        end
+        clashName = found
     end
-    print("  /cf perf [seconds] - measure what the addon costs (default 10 seconds)")
-    print("  /cf probe [zone] - what the client says; send this when something looks wrong")
+    return clashName or nil
+end
+
+-- The command to show: /cf, or /compassforever when /cf is taken.
+function ns.SlashWord()
+    return ns.SlashClash() and "/compassforever" or "/cf"
+end
+
+ns.On("login", function()
+    local other = ns.SlashClash()
+    if not other then
+        if ns.db then ns.db.slashClashSaid = nil end
+        return
+    end
+    -- said once, and again only if it's another addon that takes it
+    if ns.db and ns.db.slashClashSaid == other then return end
+    if ns.db then ns.db.slashClashSaid = other end
+    ns.Print(other .. " also uses |cffffd100/cf|r, so /cf may open it instead. Open Compass Forever "
+        .. "with its minimap icon or |cffffd100/compassforever|r (/compassforever route, /compassforever stop ...).")
+end)
+
+local function Help()
+    local cf = ns.SlashWord()
+    ns.Print("commands:")
+    if ns.SlashClash() then
+        print("  |cffff9933" .. ns.SlashClash() .. " also uses /cf:|r type /compassforever, or click the minimap icon.")
+    end
+    print("  " .. cf .. " - open or close the window")
+    print("  " .. cf .. " route [zone] - be led to the zone's covered areas, nearest first (default: this zone)")
+    print("  " .. cf .. " auto - route automatically on entering a zone, on or off")
+    print("  " .. cf .. " next - say the next stop in chat")
+    print("  " .. cf .. " skip - leave the current stop for the end of the route")
+    print("  " .. cf .. " stop - stop the route")
+    print("  " .. cf .. " autofly - take the planned flight as soon as the flight map opens, on or off")
+    print("  " .. cf .. " banner - the big on-screen messages, on or off")
+    print("  " .. cf .. " minimap - the minimap button, shown or hidden")
+    print("  " .. cf .. " arrow <0.5-2> - size of the arrow")
+    if ns.CanEdit() then
+        print("  " .. cf .. " edit - the tools for walls, roads, zone lines and ledges, shown or hidden")
+        print("  " .. cf .. " data [zone] - everything the zone's map holds, in numbers")
+    end
+    print("  " .. cf .. " perf [seconds] - measure what the addon costs (default 10 seconds)")
+    print("  " .. cf .. " probe [zone] - what the client says; send this when something looks wrong")
 end
 
 SLASH_COMPASSFOREVER1 = "/cf"

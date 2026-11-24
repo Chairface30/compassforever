@@ -34,6 +34,10 @@ local function Tooltip(tip)
     tip:AddLine(" ")
     tip:AddLine("Click: open", 0.7, 0.7, 0.7)
     tip:AddLine("Right-click: " .. (stop and "stop the route" or "route through this zone"), 0.7, 0.7, 0.7)
+    local other = ns.SlashClash and ns.SlashClash()
+    if other then
+        tip:AddLine(other .. " also uses /cf: type /compassforever to reach Compass Forever.", 1, 0.6, 0.2, true)
+    end
 end
 
 function ns.SetupMinimap()

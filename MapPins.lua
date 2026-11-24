@@ -11,6 +11,16 @@
 --     zone next door, the continent): the route's lines and its numbered
 --     stops, carried across zone lines (RouteDraw.lua).
 --
+-- With OpenMap's stitched world map showing (every zone drawn as one), the
+-- canvas is still the map underneath, but OpenMap's art covers it and
+-- already shows unexplored land, darkened. So there: no gray; everything
+-- else lifted above OpenMap's art; places turned into the canvas's
+-- fractions with OpenMap's own sums, so they sit on its art. The zone is
+-- the one in the middle of OpenMap's view, not the map underneath: that
+-- only becomes the zone again once the zone nearly fills the view, so
+-- zoomed back in part way it was still the continent and nothing showed.
+-- The zones next door that are in view get their outlines too.
+--
 -- Everything sits on frames of our own laid over the map. The map is only
 -- read (which map it shows, how big its canvas is, the frame levels its own
 -- pins use), never driven. Our markers and bar go above the map's top-most
@@ -24,6 +34,7 @@ local lines = {}
 local borderLines, bordersUsed, bordersInv = {}, 0, 1
 local BORDER = 2           -- outline width on screen
 local DrawLines
+local HookOpenMap, SafeRefresh
 local pins, used = {}, 0
 local PIN = 16
 
@@ -43,6 +54,74 @@ end
 local function ShownZone()
     local mapID = ShownMap()
     return mapID and ns.ZoneByMap(mapID)
+end
+
+-- OpenMap's API while its stitched map is the one showing, else nil.
+local function OpenMap()
+    local api = _G.OpenMapAPI
+    if type(api) ~= "table" or type(api.IsStitched) ~= "function" then return nil end
+    local ok, on = pcall(api.IsStitched)
+    return (ok and on == true) and api or nil
+end
+
+-- From `fromMap`'s fractions to `toMap`'s, through OpenMap's stitched world;
+-- nil when either map isn't part of it.
+local function OpenMapConv(om, fromMap, toMap)
+    if fromMap == toMap then return function(x, y) return x, y end end
+    local okA, u = pcall(om.WorldFromMap, fromMap, 0, 0)
+    local okB, cx = pcall(om.MapFromWorld, toMap, 0.5, 0.5)
+    if not (okA and u and okB and cx) then return nil end
+    return function(x, y)
+        local ok1, wu, wv = pcall(om.WorldFromMap, fromMap, x, y)
+        if not (ok1 and wu) then return nil end
+        local ok2, mx, my = pcall(om.MapFromWorld, toMap, wu, wv)
+        if not (ok2 and mx) then return nil end
+        return mx, my
+    end
+end
+
+-- How far in OpenMap's view must be for a zone's outlines: OpenMap's own
+-- explore outlines show from zoom 3 (1: the whole world fits), so a little
+-- before that. Further out they go, as OpenMap's do.
+local OM_ZONE_ZOOM = 2.4
+
+-- The zone a map is, or a city map is in.
+local function ZoneOrParent(mapID)
+    for _ = 1, 4 do
+        if not mapID then return nil end
+        local zone = ns.ZoneByMap(mapID)
+        if zone then return zone end
+        local ok, info = ns.Ask(ns.API("C_Map", "GetMapInfo"), mapID)
+        mapID = ok and type(info) == "table" and ns.Num(info.parentMapID) or nil
+    end
+    return nil
+end
+
+-- The zone being looked at: the map's own, or on OpenMap's map (om) the one
+-- in the middle of its view, once zoomed in far enough.
+local function LookedAt(om)
+    if not (om and type(om.GetView) == "function" and type(om.MapAt) == "function") then
+        return ShownZone()
+    end
+    local ok, u, v, zoom = pcall(om.GetView)
+    if not (ok and ns.Num(u) and ns.Num(v)) then return ShownZone() end
+    if (ns.Num(zoom) or 0) < OM_ZONE_ZOOM then return nil end
+    local okM, id = pcall(om.MapAt, u, v)
+    return okM and ZoneOrParent(ns.Num(id)) or nil
+end
+
+-- What the drawing depends on: the map underneath and the zone looked at.
+local function DrawKey()
+    local om = OpenMap()
+    local zone = LookedAt(om)
+    return tostring(ShownMap()) .. ":" .. tostring(zone and zone.map), zone, om
+end
+
+-- On OpenMap's stitched map, the route goes from its continent onto the
+-- shown map with OpenMap's sums, so it lies on OpenMap's art.
+local function RouteConv(cont, mapID)
+    local om = OpenMap()
+    return om and OpenMapConv(om, cont, mapID) or nil
 end
 
 local function Pin()
@@ -128,34 +207,77 @@ DrawLines = function(mapID, inv)
         end
         l:Show()
         return l
-    end, 3 * (inv or 1))
+    end, 3 * (inv or 1), RouteConv)
+end
+
+-- The zones whose outlines go on the map: the zone looked at, and on
+-- OpenMap's stitched map the zones of its continent that reach into view
+-- around it too, each with its way onto the map underneath (host).
+local function BorderZones(zone, om, host)
+    if not om then return { { zone = zone } } end
+    local out = {}
+    local function Add(z)
+        if z.map == host then out[#out + 1] = { zone = z } return end
+        local conv = OpenMapConv(om, z.map, host)
+        if conv then out[#out + 1] = { zone = z, conv = conv } end
+    end
+    Add(zone)
+    for _, other in ipairs(ns.ZONES) do
+        if other ~= zone and other.continent == zone.continent and other.map then
+            local near = OpenMapConv(om, other.map, zone.map)
+            local ax, ay, bx, by
+            if near then
+                ax, ay = near(0, 0)
+                bx, by = near(1, 1)
+            end
+            -- the zone, and a quarter of it again around: what the view
+            -- shows of the next zones while this one fills it (more is
+            -- thousands of lines kept one width at every zoom)
+            if ax and bx and math.max(ax, bx) > -0.25 and math.min(ax, bx) < 1.25
+                and math.max(ay, by) > -0.25 and math.min(ay, by) < 1.25 then
+                Add(other)
+            end
+        end
+    end
+    return out
 end
 
 -- The outlines of the areas still to uncover on the shown zone's map
 -- (Areas.lua), kept one width on screen as the map zooms; nil zone hides
 -- them. An uncovered area is already in colour there, so its outline goes:
--- only the window's map keeps it.
-local function DrawBorders(zone, inv)
+-- only the window's map keeps it. On OpenMap's map (om), the neighbours'
+-- too.
+local function DrawBorders(zone, inv, om, host)
     local n = 0
     if zone and ns.db and ns.db.worldMapBorders ~= false and type(grayFrame.CreateLine) == "function" then
         local w, h = grayFrame:GetWidth() or 0, grayFrame:GetHeight() or 0
-        ns.EachOutline(zone, false, function(r, c)
-            local m = #r
-            for k = 1, m - 1, 2 do
-                local k2 = k + 2 <= m and k + 2 or 1
-                n = n + 1
-                local l = borderLines[n]
-                if not l then
-                    l = grayFrame:CreateLine(nil, "OVERLAY")
-                    borderLines[n] = l
+        for _, entry in ipairs(BorderZones(zone, om, host or zone.map)) do
+            local conv = entry.conv
+            ns.EachOutline(entry.zone, false, function(r, c)
+                local m = #r
+                for k = 1, m - 1, 2 do
+                    local k2 = k + 2 <= m and k + 2 or 1
+                    local ax, ay, bx, by = r[k], r[k + 1], r[k2], r[k2 + 1]
+                    if conv then
+                        ax, ay = conv(ax, ay)
+                        bx, by = conv(bx, by)
+                    end
+                    if ax and bx then
+                        n = n + 1
+                        local l = borderLines[n]
+                        if not l then
+                            l = grayFrame:CreateLine(nil, "OVERLAY")
+                            borderLines[n] = l
+                        end
+                        l:SetThickness(BORDER * inv)
+                        l:SetStartPoint("TOPLEFT", grayFrame, ax * w, -ay * h)
+                        l:SetEndPoint("TOPLEFT", grayFrame, bx * w, -by * h)
+                        l:SetColorTexture(c[1], c[2], c[3], c[4])
+                        l:Show()
+                    end
                 end
-                l:SetThickness(BORDER * inv)
-                l:SetStartPoint("TOPLEFT", grayFrame, r[k] * w, -r[k + 1] * h)
-                l:SetEndPoint("TOPLEFT", grayFrame, r[k2] * w, -r[k2 + 1] * h)
-                l:SetColorTexture(c[1], c[2], c[3], c[4])
-                l:Show()
-            end
-        end)
+            end)
+        end
     end
     for i = n + 1, #borderLines do borderLines[i]:Hide() end
     bordersUsed, bordersInv = n, inv
@@ -191,22 +313,36 @@ local function Refresh()
         drawnFor = nil
         return
     end
-    drawnFor = ShownMap()
+    local key, shown, om = DrawKey()
+    drawnFor = key
     for i = 1, used do pins[i]:Hide() end
     used = 0
     grayPool:Begin()
     local map, _, child = Canvas()
     local explore, top = Levels(map, child)
-    grayFrame:SetFrameLevel(explore)
-    overlay:SetFrameLevel(math.min(top + 100, 9000))
-    barFrame:SetFrameLevel(math.min(top + 200, 9100))
+    -- OpenMap's art sits over the map's own pin levels: ours go above it
+    local artTop
+    if om and type(om.ArtTopLevel) == "function" then
+        local okA, level = pcall(om.ArtTopLevel)
+        artTop = okA and ns.Num(level) or nil
+    end
+    local grayLevel, overLevel = explore, math.min(top + 100, 9000)
+    if artTop then
+        grayLevel = math.max(explore, artTop + 1)
+        overLevel = math.min(math.max(overLevel, artTop + 3), 9000)
+    end
+    local barLevel = math.min(math.max(top, artTop or 0) + 200, 9100)
+    -- (only when it changes: a frame level on the map can be refused in a fight)
+    if grayFrame:GetFrameLevel() ~= grayLevel then pcall(grayFrame.SetFrameLevel, grayFrame, grayLevel) end
+    if overlay:GetFrameLevel() ~= overLevel then pcall(overlay.SetFrameLevel, overlay, overLevel) end
+    if barFrame:GetFrameLevel() ~= barLevel then pcall(barFrame.SetFrameLevel, barFrame, barLevel) end
     for _, l in ipairs(lines) do l:Hide() end
-    local shown = ShownZone()
-    if shown and ns.db and ns.db.worldMapGray ~= false then
+    -- (OpenMap shows the whole map already, unexplored land darkened)
+    if shown and not om and ns.db and ns.db.worldMapGray ~= false then
         local lw = ns.ArtLayer(shown.map)
         ns.DrawCoveredGray(grayPool, shown, (child:GetWidth() or 0) / lw)
     end
-    DrawBorders(shown, InvScale(grayFrame))
+    DrawBorders(shown, InvScale(grayFrame), om, ShownMap())
     local on = ns.db and ns.db.mapPins
     local zone = on and shown or nil
     RefreshBar(zone)
@@ -218,7 +354,7 @@ local function Refresh()
     if ns.route then
         local mapID = ShownMap()
         if mapID then
-            for _, stop in ipairs(ns.RouteStopsOn(mapID)) do
+            for _, stop in ipairs(ns.RouteStopsOn(mapID, RouteConv)) do
                 local p = Pin()
                 p:SetScale(inv)
                 p.zone, p.node, p.first = ns.route.zone, stop.node, stop.i == 1
@@ -236,11 +372,36 @@ end
 -- From the map's own hooks: an error must never break the map, but the
 -- first one is said in chat so it gets reported.
 local reported = false
-local function SafeRefresh()
+SafeRefresh = function()
     local ok, err = pcall(Refresh)
     if not ok and not reported then
         reported = true
         ns.Print("|cffff5555world map:|r", err)
+    end
+end
+
+-- OpenMap: redrawn when its stitched map comes or goes, and our switches in
+-- its menu, under Compass Forever. Nothing without it.
+local omHooked = false
+HookOpenMap = function()
+    local api = _G.OpenMapAPI
+    if omHooked or type(api) ~= "table" then return end
+    omHooked = true
+    if type(api.RegisterCallback) == "function" then
+        pcall(api.RegisterCallback, ns, "OpenMap_StitchedChanged", function() SafeRefresh() end)
+    end
+    if type(api.RegisterMenuToggle) == "function" then
+        local icon = "Interface\\AddOns\\" .. ns.addonName .. "\\Textures\\arrow"
+        pcall(api.RegisterMenuToggle, "Compass Forever", {
+            id = "markers", label = "Route and markers", section = "Compass Forever", icon = icon,
+            get = function() return ns.db and ns.db.mapPins and true or false end,
+            set = function(on) if ns.db then ns.db.mapPins = on and true or false ns.Fire("settings") end end,
+        })
+        pcall(api.RegisterMenuToggle, "Compass Forever", {
+            id = "borders", label = "Area borders", section = "Compass Forever", icon = icon,
+            get = function() return ns.db and ns.db.worldMapBorders ~= false or false end,
+            set = function(on) if ns.db then ns.db.worldMapBorders = on and true or false ns.Fire("settings") end end,
+        })
     end
 end
 
@@ -294,8 +455,9 @@ local function Setup()
         local mapID = ShownMap()
         -- Not every way of changing the map tells its hooks (backing out of
         -- a city didn't), which left the last map's markers up: a changed
-        -- map is redrawn from here too.
-        if mapID ~= drawnFor then
+        -- map is redrawn from here too. So is another zone in the middle of
+        -- OpenMap's view, or zooming it in or out past a zone's outlines.
+        if DrawKey() ~= drawnFor then
             SafeRefresh()
             return
         end
@@ -315,6 +477,7 @@ local function Setup()
     end)
     ns.TimeUpdates(o, "world map")
     child:HookScript("OnSizeChanged", SafeRefresh)
+    pcall(HookOpenMap)
 end
 
 ns.On("login", Setup)
