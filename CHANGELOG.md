@@ -1,5 +1,24 @@
 # Changelog
 
+## Compass Forever v1.12 (2026-11-23)
+
+- **Uncovered areas leave the world map and the minimap.** Once an area is
+  uncovered it's already in colour on the world map, so its outline no
+  longer shows there or on the minimap: only the areas still to find keep
+  theirs. The window's map still draws them all (faintly for uncovered
+  ones), and *Uncovered area borders* now only applies to it. Untested in
+  game.
+- **No bar on the world map for a fully explored zone.** With nothing left
+  to plan, the bar at the top and its **Plan** button no longer show. If a
+  route is still running there, the bar stays with only **Stop route**.
+  Untested in game.
+- **The fanfare plays however a zone gets finished.** It used to need the
+  zone's route running; now the last area uncovered on foot, on a flight or
+  with no route at all says the zone is fully explored and plays the
+  music. A zone finished long ago never plays it. Untested in game.
+- **Quieter flight maps.** How many flight points the flight map knows is no
+  longer said in chat every time; only when the map couldn't be read.
+
 ## Compass Forever v1.11 (2026-11-12)
 
 - **Area borders on the world map and the minimap.** Each area's outline,
