@@ -1,8 +1,8 @@
 ## Interface: 16001
 ## Title: Compass Forever
-## Notes: Uncover every zone map for the Explorer Legacy challenge: a route through each zone, nearest area first, an arrow to every spot, and markers on the world map. Type /cf.
+## Notes: Uncover every zone map for the Explorer Legacy challenge: a route through each zone, nearest area first, an arrow to every spot, and markers on the world map. Type /cf (or /compassforever if another addon uses /cf), or click its minimap icon.
 ## Author: Chairface Chippendale
-## Version: 1.12
+## Version: 1.13
 ## SavedVariables: CompassForeverDB
 ## IconTexture: Interface\Icons\INV_Misc_Map_01
 

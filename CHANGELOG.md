@@ -1,5 +1,23 @@
 # Changelog
 
+## Compass Forever v1.13 (2026-11-23)
+
+- **Works with OpenMap.** On OpenMap's stitched world map the area
+  outlines, the route and its markers were drawn under OpenMap's art, so
+  they didn't show. They now go above it, placed on OpenMap's own map,
+  and the zones next door that are in view get their outlines too.
+  They follow the zone in the middle of OpenMap's view: they go as you
+  zoom out and come back as you zoom in, as OpenMap's own explore
+  outlines do.
+  Compass's gray for unexplored areas stays off there, as OpenMap
+  already darkens unexplored land. *Route and markers* and *Area
+  borders* also show in OpenMap's menu, under Compass Forever. Untested
+  in game.
+- **Another addon on /cf.** When CozyFire (or any other addon) also uses
+  /cf, so /cf may open that one instead, Compass Forever says so once in
+  chat and on its minimap icon's tooltip, and its command list shows
+  /compassforever. The minimap icon and /compassforever always work.
+
 ## Compass Forever v1.12 (2026-11-23)
 
 - **Uncovered areas leave the world map and the minimap.** Once an area is
